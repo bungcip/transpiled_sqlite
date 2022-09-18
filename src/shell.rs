@@ -723,7 +723,9 @@ impl ShellText {
     }
 
     pub fn new_with_capacity(size: usize) -> Self {
-        Self { inner: String::with_capacity(size) }
+        Self {
+            inner: String::with_capacity(size),
+        }
     }
 
     pub fn push(&mut self, text: &str) {
@@ -3351,12 +3353,7 @@ unsafe extern "C" fn apndWriteMark(mut paf: *mut ApndFile, mut pFile: *mut sqlit
         iPgOne >>= 8;
     }
     iWriteEnd += (*paf).iPgOne;
-    rc = ((*(*pFile).pMethods).xWrite).expect("non-null function pointer")(
-        pFile,
-        a.as_mut_ptr() as *const libc::c_void,
-        17 + 8,
-        iWriteEnd,
-    );
+    rc = ((*(*pFile).pMethods).xWrite).expect("non-null function pointer")(pFile, a.as_mut_ptr() as *const libc::c_void, 17 + 8, iWriteEnd);
     if 0 == rc {
         (*paf).iMark = iWriteEnd;
     }
@@ -4505,9 +4502,7 @@ unsafe extern "C" fn ieee754func(mut context: *mut sqlite3_context, mut argc: i3
         let mut isNeg: i32 = 0;
         let mut zResult: [i8; 100] = [0; 100];
         assert!(::std::mem::size_of::<i64>() as u64 == ::std::mem::size_of::<f64>() as u64);
-        if sqlite3_value_type(*argv.offset(0)) == 4
-            && sqlite3_value_bytes(*argv.offset(0)) as u64 == ::std::mem::size_of::<f64>() as u64
-        {
+        if sqlite3_value_type(*argv.offset(0)) == 4 && sqlite3_value_bytes(*argv.offset(0)) as u64 == ::std::mem::size_of::<f64>() as u64 {
             let mut x: *const u8 = sqlite3_value_blob(*argv.offset(0)) as *const u8;
             let mut v: u64 = 0;
             for i in 0..::std::mem::size_of::<f64>() {
@@ -4631,8 +4626,7 @@ unsafe extern "C" fn ieee754func(mut context: *mut sqlite3_context, mut argc: i3
     };
 }
 unsafe extern "C" fn ieee754func_from_blob(mut context: *mut sqlite3_context, mut argc: i32, mut argv: *mut *mut sqlite3_value) {
-    if sqlite3_value_type(*argv.offset(0)) == 4 && sqlite3_value_bytes(*argv.offset(0)) as u64 == ::std::mem::size_of::<f64>() as u64
-    {
+    if sqlite3_value_type(*argv.offset(0)) == 4 && sqlite3_value_bytes(*argv.offset(0)) as u64 == ::std::mem::size_of::<f64>() as u64 {
         let mut r: f64 = 0.;
         let mut x: *const u8 = sqlite3_value_blob(*argv.offset(0)) as *const u8;
         let mut v: u64 = 0;
@@ -4928,31 +4922,31 @@ unsafe extern "C" fn seriesBestIndex(mut pVTab: *mut sqlite3_vtab, mut pIdxInfo:
 }
 
 static mut seriesModule: sqlite3_module = unsafe {
-        sqlite3_module {
-            iVersion: 0,
-            xCreate: None,
-            xConnect: Some(seriesConnect),
-            xBestIndex: Some(seriesBestIndex),
-            xDisconnect: Some(seriesDisconnect),
-            xDestroy: None,
-            xOpen: Some(seriesOpen),
-            xClose: Some(seriesClose),
-            xFilter: Some(seriesFilter),
-            xNext: Some(seriesNext),
-            xEof: Some(seriesEof),
-            xColumn: Some(seriesColumn),
-            xRowid: Some(seriesRowid),
-            xUpdate: None,
-            xBegin: None,
-            xSync: None,
-            xCommit: None,
-            xRollback: None,
-            xFindFunction: None,
-            xRename: None,
-            xSavepoint: None,
-            xRelease: None,
-            xRollbackTo: None,
-            xShadowName: None,
+    sqlite3_module {
+        iVersion: 0,
+        xCreate: None,
+        xConnect: Some(seriesConnect),
+        xBestIndex: Some(seriesBestIndex),
+        xDisconnect: Some(seriesDisconnect),
+        xDestroy: None,
+        xOpen: Some(seriesOpen),
+        xClose: Some(seriesClose),
+        xFilter: Some(seriesFilter),
+        xNext: Some(seriesNext),
+        xEof: Some(seriesEof),
+        xColumn: Some(seriesColumn),
+        xRowid: Some(seriesRowid),
+        xUpdate: None,
+        xBegin: None,
+        xSync: None,
+        xCommit: None,
+        xRollback: None,
+        xFindFunction: None,
+        xRename: None,
+        xSavepoint: None,
+        xRelease: None,
+        xRollbackTo: None,
+        xShadowName: None,
     }
 };
 
@@ -5438,12 +5432,7 @@ unsafe extern "C" fn re_subcompile_string(mut p: *mut ReCompiled) -> *const i8 {
                 if iPrev < 0 {
                     return b"'*' without operand\0" as *const u8 as *const i8;
                 }
-                re_insert(
-                    p,
-                    iPrev,
-                    5,
-                    ((*p).nState).wrapping_sub(iPrev as u32).wrapping_add(1) as i32,
-                );
+                re_insert(p, iPrev, 5, ((*p).nState).wrapping_sub(iPrev as u32).wrapping_add(1) as i32);
                 re_append(p, 4, (iPrev as u32).wrapping_sub((*p).nState).wrapping_add(1) as i32);
             }
             43 => {
@@ -5456,12 +5445,7 @@ unsafe extern "C" fn re_subcompile_string(mut p: *mut ReCompiled) -> *const i8 {
                 if iPrev < 0 {
                     return b"'?' without operand\0" as *const u8 as *const i8;
                 }
-                re_insert(
-                    p,
-                    iPrev,
-                    4,
-                    ((*p).nState).wrapping_sub(iPrev as u32).wrapping_add(1) as i32,
-                );
+                re_insert(p, iPrev, 4, ((*p).nState).wrapping_sub(iPrev as u32).wrapping_add(1) as i32);
             }
             123 => {
                 let mut m: i32 = 0;
@@ -7995,28 +7979,28 @@ const needCsvQuote: [i8; 256] = [
 fn output_csv(nullValue: &str, colSeparator: &str, rz: Option<&str>, bSep: bool) {
     match rz {
         None => print!("{}", nullValue),
-        Some(rz) =>  {
-        let mut i = 0;
-        for ch in rz.as_bytes() {
-            if needCsvQuote[*ch as usize] != 0 {
-                i = 0;
-                break;
-            } else {
-                i += i;
+        Some(rz) => {
+            let mut i = 0;
+            for ch in rz.as_bytes() {
+                if needCsvQuote[*ch as usize] != 0 {
+                    i = 0;
+                    break;
+                } else {
+                    i += i;
+                }
             }
-        }
 
-        if i == 0 || rz.contains(colSeparator) {
-            unsafe {
-                let mut zQuoted: *mut i8 = sqlite3_mprintf(b"\"%w\"\0" as *const u8 as *const i8, to_cstring!(rz));
-                print!("{}", cstr_to_string!(zQuoted));
-                sqlite3_free(zQuoted as *mut libc::c_void);
+            if i == 0 || rz.contains(colSeparator) {
+                unsafe {
+                    let mut zQuoted: *mut i8 = sqlite3_mprintf(b"\"%w\"\0" as *const u8 as *const i8, to_cstring!(rz));
+                    print!("{}", cstr_to_string!(zQuoted));
+                    sqlite3_free(zQuoted as *mut libc::c_void);
+                }
+            } else {
+                print!("{}", rz);
             }
-        } else {
-            print!("{}", rz);
         }
     }
-}
     if bSep {
         print!("{}", colSeparator);
     }
@@ -8155,7 +8139,6 @@ fn printSchemaLine(z: &str, zTail: &str) {
         print!("{}{}", z, zTail);
     };
 }
-
 
 /// Return true if string z[] has nothing but whitespace and comments to the end of the first line.
 fn wsToEol(z: &[u8]) -> bool {
@@ -8300,7 +8283,7 @@ unsafe fn shell_callback(
     for ii in 0..nArg as isize {
         let value = if (*azArg.offset(ii)).is_null() {
             None
-        }else{
+        } else {
             Some(cstr_to_string!(*azArg.offset(ii)).to_string())
         };
         razArg.push(value);
@@ -8332,7 +8315,7 @@ unsafe fn shell_callback(
                         p = razCol[i],
                         pp = match &razArg[i] {
                             Some(x) => &x,
-                            None => (*p).nullValue.as_str()
+                            None => (*p).nullValue.as_str(),
                         },
                         ppp = &(*p).rowSeparator,
                     );
@@ -8386,7 +8369,7 @@ unsafe fn shell_callback(
 
                     let len = match &razArg[i] {
                         None => 0,
-                        Some(x) => x.chars().count()
+                        Some(x) => x.chars().count(),
                     };
 
                     if len > w_2 {
@@ -8397,7 +8380,7 @@ unsafe fn shell_callback(
                         w_2 as i32,
                         match &razArg[i] {
                             Some(x) => &x,
-                            None => (*p).nullValue.as_str()
+                            None => (*p).nullValue.as_str(),
                         },
                     );
 
@@ -8614,10 +8597,10 @@ unsafe fn shell_callback(
             (*p).cnt += 1;
 
             if nArg > 0 {
-                for i in 0..nArg as usize{
+                for i in 0..nArg as usize {
                     let z = match &razArg[i] {
                         Some(x) => Some(x.as_str()),
-                        None => None
+                        None => None,
                     };
                     output_csv(&(*p).nullValue, &(*p).colSeparator, z, i < nArg as usize - 1);
                 }
@@ -8784,7 +8767,7 @@ unsafe fn shell_callback(
             (*p).cnt += 1;
 
             if razArg.len() > 0 {
-                for i in 0..nArg as usize{
+                for i in 0..nArg as usize {
                     if i > 0 {
                         print!("{}", (*p).colSeparator);
                     }
@@ -8800,7 +8783,12 @@ unsafe fn shell_callback(
             }
         }
         12 => {
-            eqp_append(&mut *p, razArg[0].as_ref().unwrap().parse().unwrap(), razArg[1].as_ref().unwrap().parse().unwrap(), &razArg[3].as_ref().unwrap());
+            eqp_append(
+                &mut *p,
+                razArg[0].as_ref().unwrap().parse().unwrap(),
+                razArg[1].as_ref().unwrap().parse().unwrap(),
+                &razArg[3].as_ref().unwrap(),
+            );
         }
         17 | 18 | _ => {}
     }
@@ -10939,7 +10927,7 @@ unsafe extern "C" fn shellEscapeCrnl(mut context: *mut sqlite3_context, mut _arg
 
         if !zNL.is_empty() || !zCR.is_empty() {
             let nMax = (if nNL > nCR { nNL } else { nCR }) as usize;
-            let nAlloc = nMax * nText as usize + (nMax + 64 ) * 2;
+            let nAlloc = nMax * nText as usize + (nMax + 64) * 2;
             let mut zOut = ShellText::new_with_capacity(nAlloc as usize);
             let mut iOut = 0;
             if !zNL.is_empty() && !zCR.is_empty() {
@@ -11146,7 +11134,7 @@ unsafe fn open_db(p: *mut ShellState, openFlags: i32) {
             sqlite3_exec((*p).db, zSql, None, std::ptr::null_mut(), 0 as *mut *mut i8);
             sqlite3_free(zSql as *mut libc::c_void);
         } else if (*p).openMode == 5 || (*p).openMode == 6 {
-            let mut aData =  if (*p).openMode == 5 {
+            let mut aData = if (*p).openMode == 5 {
                 readFile(zDbFilename)
             } else {
                 let aData = readHexDb(p);
@@ -12017,12 +12005,7 @@ unsafe fn shell_dbinfo_command(p: *mut ShellState, nArg: i32, razArg: &Vec<Strin
     }
 
     sqlite3_free(zSchemaTab as *mut libc::c_void);
-    sqlite3_file_control(
-        (*p).db,
-        to_cstring!(zDb),
-        35,
-        &mut iDataVersion as *mut u32 as *mut libc::c_void,
-    );
+    sqlite3_file_control((*p).db, to_cstring!(zDb), 35, &mut iDataVersion as *mut u32 as *mut libc::c_void);
     println!("%{:>20} {}", "data version", iDataVersion,);
     return 0;
 }
@@ -13234,12 +13217,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                             36 => {
                                 if !(nArg != 2 && nArg != 3) {
                                     iRes = if nArg == 3 { integerValue(&razArg[2]) } else { -1 };
-                                    sqlite3_file_control(
-                                        (*p).db,
-                                        to_cstring!(zSchema_0),
-                                        36,
-                                        &mut iRes as *mut i64 as *mut libc::c_void,
-                                    );
+                                    sqlite3_file_control((*p).db, to_cstring!(zSchema_0), 36, &mut iRes as *mut i64 as *mut libc::c_void);
                                     isOk = 1;
                                 }
                             }
@@ -16182,14 +16160,14 @@ unsafe fn main_0() -> i32 {
 
     if strncmp(
         sqlite3_sourceid(),
-        b"2022-05-06 15:25:27 78d9c993d404cdfaa7fdd2973fa1052e3da9f66215cff9c5540ebe55c407d9fe\0" as *const u8 as *const i8,
+        b"2022-09-05 11:02:23 4635f4a69c8c2a8df242b384a992aea71224e39a2ccab42d8c0b0602f1e826e8\0" as *const u8 as *const i8,
         60,
     ) != 0
     {
         eprintln!(
             "SQLite header and source version mismatch\n{}\n{}",
             cstr_to_string!(sqlite3_sourceid()),
-            "2022-05-06 15:25:27 78d9c993d404cdfaa7fdd2973fa1052e3da9f66215cff9c5540ebe55c407d9fe"
+            "2022-09-05 11:02:23 4635f4a69c8c2a8df242b384a992aea71224e39a2ccab42d8c0b0602f1e826e8"
         );
         std::process::exit(1);
     }

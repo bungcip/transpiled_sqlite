@@ -1181,59 +1181,6 @@ pub union C2RustUnnamed_15 {
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct fsdir_cursor {
-    pub base: sqlite3_vtab_cursor,
-    pub nLvl: libc::c_int,
-    pub iLvl: libc::c_int,
-    pub aLvl: *mut FsdirLevel,
-    pub zBase: *const libc::c_char,
-    pub nBase: libc::c_int,
-    pub sStat: stat,
-    pub zPath: *mut libc::c_char,
-    pub iRowid: sqlite3_int64,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct FsdirLevel {
-    pub pDir: *mut DIR,
-    pub zDir: *mut libc::c_char,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct fsdir_tab {
-    pub base: sqlite3_vtab,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct completion_vtab {
-    pub base: sqlite3_vtab,
-    pub db: *mut sqlite3,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct completion_cursor {
-    pub base: sqlite3_vtab_cursor,
-    pub db: *mut sqlite3,
-    pub nPrefix: libc::c_int,
-    pub nLine: libc::c_int,
-    pub zPrefix: *mut libc::c_char,
-    pub zLine: *mut libc::c_char,
-    pub zCurrentRow: *const libc::c_char,
-    pub szRow: libc::c_int,
-    pub pStmt: *mut sqlite3_stmt,
-    pub iRowid: sqlite3_int64,
-    pub ePhase: libc::c_int,
-    pub j: libc::c_int,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct ApndFile {
-    pub base: sqlite3_file,
-    pub iPgOne: sqlite3_int64,
-    pub iMark: sqlite3_int64,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
 pub struct Decimal {
     pub sign: libc::c_char,
     pub oom: libc::c_char,
@@ -1307,6 +1254,59 @@ pub struct ReCompiled {
     pub nInit: libc::c_int,
     pub nState: libc::c_uint,
     pub nAlloc: libc::c_uint,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct fsdir_cursor {
+    pub base: sqlite3_vtab_cursor,
+    pub nLvl: libc::c_int,
+    pub iLvl: libc::c_int,
+    pub aLvl: *mut FsdirLevel,
+    pub zBase: *const libc::c_char,
+    pub nBase: libc::c_int,
+    pub sStat: stat,
+    pub zPath: *mut libc::c_char,
+    pub iRowid: sqlite3_int64,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct FsdirLevel {
+    pub pDir: *mut DIR,
+    pub zDir: *mut libc::c_char,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct fsdir_tab {
+    pub base: sqlite3_vtab,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct completion_vtab {
+    pub base: sqlite3_vtab,
+    pub db: *mut sqlite3,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct completion_cursor {
+    pub base: sqlite3_vtab_cursor,
+    pub db: *mut sqlite3,
+    pub nPrefix: libc::c_int,
+    pub nLine: libc::c_int,
+    pub zPrefix: *mut libc::c_char,
+    pub zLine: *mut libc::c_char,
+    pub zCurrentRow: *const libc::c_char,
+    pub szRow: libc::c_int,
+    pub pStmt: *mut sqlite3_stmt,
+    pub iRowid: sqlite3_int64,
+    pub ePhase: libc::c_int,
+    pub j: libc::c_int,
+}
+#[derive(Copy, Clone)]
+#[repr(C)]
+pub struct ApndFile {
+    pub base: sqlite3_file,
+    pub iPgOne: sqlite3_int64,
+    pub iMark: sqlite3_int64,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -1577,18 +1577,6 @@ pub struct C2RustUnnamed_21 {
     pub zCtrlName: *const libc::c_char,
     pub ctrlCode: libc::c_int,
     pub zUsage: *const libc::c_char,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct C2RustUnnamed_22 {
-    pub zName: *const libc::c_char,
-    pub zSql: *const libc::c_char,
-}
-#[derive(Copy, Clone)]
-#[repr(C)]
-pub struct C2RustUnnamed_23 {
-    pub zName: *const libc::c_char,
-    pub ofst: libc::c_int,
 }
 #[derive(Copy, Clone)]
 #[repr(C)]
@@ -2377,6 +2365,141 @@ unsafe extern "C" fn shellAddSchemaName(
         }
     }
     sqlite3_result_value(pCtx, *apVal.offset(0 as libc::c_int as isize));
+}
+static mut memtraceBase: sqlite3_mem_methods = sqlite3_mem_methods {
+    xMalloc: None,
+    xFree: None,
+    xRealloc: None,
+    xSize: None,
+    xRoundup: None,
+    xInit: None,
+    xShutdown: None,
+    pAppData: 0 as *const libc::c_void as *mut libc::c_void,
+};
+static mut memtraceOut: *mut FILE = 0 as *const FILE as *mut FILE;
+unsafe extern "C" fn memtraceMalloc(mut n: libc::c_int) -> *mut libc::c_void {
+    if !memtraceOut.is_null() {
+        fprintf(
+            memtraceOut,
+            b"MEMTRACE: allocate %d bytes\n\0" as *const u8 as *const libc::c_char,
+            (memtraceBase.xRoundup).expect("non-null function pointer")(n),
+        );
+    }
+    return (memtraceBase.xMalloc).expect("non-null function pointer")(n);
+}
+unsafe extern "C" fn memtraceFree(mut p: *mut libc::c_void) {
+    if p.is_null() {
+        return;
+    }
+    if !memtraceOut.is_null() {
+        fprintf(
+            memtraceOut,
+            b"MEMTRACE: free %d bytes\n\0" as *const u8 as *const libc::c_char,
+            (memtraceBase.xSize).expect("non-null function pointer")(p),
+        );
+    }
+    (memtraceBase.xFree).expect("non-null function pointer")(p);
+}
+unsafe extern "C" fn memtraceRealloc(
+    mut p: *mut libc::c_void,
+    mut n: libc::c_int,
+) -> *mut libc::c_void {
+    if p.is_null() {
+        return memtraceMalloc(n);
+    }
+    if n == 0 as libc::c_int {
+        memtraceFree(p);
+        return 0 as *mut libc::c_void;
+    }
+    if !memtraceOut.is_null() {
+        fprintf(
+            memtraceOut,
+            b"MEMTRACE: resize %d -> %d bytes\n\0" as *const u8 as *const libc::c_char,
+            (memtraceBase.xSize).expect("non-null function pointer")(p),
+            (memtraceBase.xRoundup).expect("non-null function pointer")(n),
+        );
+    }
+    return (memtraceBase.xRealloc).expect("non-null function pointer")(p, n);
+}
+unsafe extern "C" fn memtraceSize(mut p: *mut libc::c_void) -> libc::c_int {
+    return (memtraceBase.xSize).expect("non-null function pointer")(p);
+}
+unsafe extern "C" fn memtraceRoundup(mut n: libc::c_int) -> libc::c_int {
+    return (memtraceBase.xRoundup).expect("non-null function pointer")(n);
+}
+unsafe extern "C" fn memtraceInit(mut p: *mut libc::c_void) -> libc::c_int {
+    return (memtraceBase.xInit).expect("non-null function pointer")(p);
+}
+unsafe extern "C" fn memtraceShutdown(mut p: *mut libc::c_void) {
+    (memtraceBase.xShutdown).expect("non-null function pointer")(p);
+}
+static mut ersaztMethods: sqlite3_mem_methods = unsafe {
+    {
+        let mut init = sqlite3_mem_methods {
+            xMalloc: Some(
+                memtraceMalloc as unsafe extern "C" fn(libc::c_int) -> *mut libc::c_void,
+            ),
+            xFree: Some(memtraceFree as unsafe extern "C" fn(*mut libc::c_void) -> ()),
+            xRealloc: Some(
+                memtraceRealloc
+                    as unsafe extern "C" fn(
+                        *mut libc::c_void,
+                        libc::c_int,
+                    ) -> *mut libc::c_void,
+            ),
+            xSize: Some(
+                memtraceSize as unsafe extern "C" fn(*mut libc::c_void) -> libc::c_int,
+            ),
+            xRoundup: Some(
+                memtraceRoundup as unsafe extern "C" fn(libc::c_int) -> libc::c_int,
+            ),
+            xInit: Some(
+                memtraceInit as unsafe extern "C" fn(*mut libc::c_void) -> libc::c_int,
+            ),
+            xShutdown: Some(
+                memtraceShutdown as unsafe extern "C" fn(*mut libc::c_void) -> (),
+            ),
+            pAppData: 0 as *const libc::c_void as *mut libc::c_void,
+        };
+        init
+    }
+};
+#[no_mangle]
+pub unsafe extern "C" fn sqlite3MemTraceActivate(mut out: *mut FILE) -> libc::c_int {
+    let mut rc: libc::c_int = 0 as libc::c_int;
+    if (memtraceBase.xMalloc).is_none() {
+        rc = sqlite3_config(
+            5 as libc::c_int,
+            &mut memtraceBase as *mut sqlite3_mem_methods,
+        );
+        if rc == 0 as libc::c_int {
+            rc = sqlite3_config(
+                4 as libc::c_int,
+                &mut ersaztMethods as *mut sqlite3_mem_methods,
+            );
+        }
+    }
+    memtraceOut = out;
+    return rc;
+}
+#[no_mangle]
+pub unsafe extern "C" fn sqlite3MemTraceDeactivate() -> libc::c_int {
+    let mut rc: libc::c_int = 0 as libc::c_int;
+    if (memtraceBase.xMalloc).is_some() {
+        rc = sqlite3_config(
+            4 as libc::c_int,
+            &mut memtraceBase as *mut sqlite3_mem_methods,
+        );
+        if rc == 0 as libc::c_int {
+            memset(
+                &mut memtraceBase as *mut sqlite3_mem_methods as *mut libc::c_void,
+                0 as libc::c_int,
+                ::std::mem::size_of::<sqlite3_mem_methods>() as libc::c_ulong,
+            );
+        }
+    }
+    memtraceOut = 0 as *mut FILE;
+    return rc;
 }
 unsafe extern "C" fn KeccakF1600Step(mut p: *mut SHA3Context) {
     let mut i: libc::c_int = 0;
@@ -3335,6 +3458,2828 @@ pub unsafe extern "C" fn sqlite3_shathree_init(
     }
     return rc;
 }
+unsafe extern "C" fn uintCollFunc(
+    mut notUsed: *mut libc::c_void,
+    mut nKey1: libc::c_int,
+    mut pKey1: *const libc::c_void,
+    mut nKey2: libc::c_int,
+    mut pKey2: *const libc::c_void,
+) -> libc::c_int {
+    let mut zA: *const libc::c_uchar = pKey1 as *const libc::c_uchar;
+    let mut zB: *const libc::c_uchar = pKey2 as *const libc::c_uchar;
+    let mut i: libc::c_int = 0 as libc::c_int;
+    let mut j: libc::c_int = 0 as libc::c_int;
+    let mut x: libc::c_int = 0;
+    while i < nKey1 && j < nKey2 {
+        x = *zA.offset(i as isize) as libc::c_int
+            - *zB.offset(j as isize) as libc::c_int;
+        if *(*__ctype_b_loc()).offset(*zA.offset(i as isize) as libc::c_int as isize)
+            as libc::c_int & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int
+            != 0
+        {
+            let mut k: libc::c_int = 0;
+            if *(*__ctype_b_loc()).offset(*zB.offset(j as isize) as libc::c_int as isize)
+                as libc::c_int & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int
+                == 0
+            {
+                return x;
+            }
+            while i < nKey1 && *zA.offset(i as isize) as libc::c_int == '0' as i32 {
+                i += 1;
+            }
+            while j < nKey2 && *zB.offset(j as isize) as libc::c_int == '0' as i32 {
+                j += 1;
+            }
+            k = 0 as libc::c_int;
+            while i + k < nKey1
+                && *(*__ctype_b_loc())
+                    .offset(*zA.offset((i + k) as isize) as libc::c_int as isize)
+                    as libc::c_int
+                    & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
+                && j + k < nKey2
+                && *(*__ctype_b_loc())
+                    .offset(*zB.offset((j + k) as isize) as libc::c_int as isize)
+                    as libc::c_int
+                    & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
+            {
+                k += 1;
+            }
+            if i + k < nKey1
+                && *(*__ctype_b_loc())
+                    .offset(*zA.offset((i + k) as isize) as libc::c_int as isize)
+                    as libc::c_int
+                    & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
+            {
+                return 1 as libc::c_int
+            } else {
+                if j + k < nKey2
+                    && *(*__ctype_b_loc())
+                        .offset(*zB.offset((j + k) as isize) as libc::c_int as isize)
+                        as libc::c_int
+                        & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
+                {
+                    return -(1 as libc::c_int)
+                } else {
+                    x = memcmp(
+                        zA.offset(i as isize) as *const libc::c_void,
+                        zB.offset(j as isize) as *const libc::c_void,
+                        k as libc::c_ulong,
+                    );
+                    if x != 0 {
+                        return x;
+                    }
+                    i += k;
+                    j += k;
+                }
+            }
+        } else if x != 0 {
+            return x
+        } else {
+            i += 1;
+            j += 1;
+        }
+    }
+    return nKey1 - i - (nKey2 - j);
+}
+#[no_mangle]
+pub unsafe extern "C" fn sqlite3_uint_init(
+    mut db: *mut sqlite3,
+    mut pzErrMsg: *mut *mut libc::c_char,
+    mut pApi: *const sqlite3_api_routines,
+) -> libc::c_int {
+    return sqlite3_create_collation(
+        db,
+        b"uint\0" as *const u8 as *const libc::c_char,
+        1 as libc::c_int,
+        0 as *mut libc::c_void,
+        Some(
+            uintCollFunc
+                as unsafe extern "C" fn(
+                    *mut libc::c_void,
+                    libc::c_int,
+                    *const libc::c_void,
+                    libc::c_int,
+                    *const libc::c_void,
+                ) -> libc::c_int,
+        ),
+    );
+}
+unsafe extern "C" fn decimal_clear(mut p: *mut Decimal) {
+    sqlite3_free((*p).a as *mut libc::c_void);
+}
+unsafe extern "C" fn decimal_free(mut p: *mut Decimal) {
+    if !p.is_null() {
+        decimal_clear(p);
+        sqlite3_free(p as *mut libc::c_void);
+    }
+}
+unsafe extern "C" fn decimal_new(
+    mut pCtx: *mut sqlite3_context,
+    mut pIn: *mut sqlite3_value,
+    mut nAlt: libc::c_int,
+    mut zAlt: *const libc::c_uchar,
+) -> *mut Decimal {
+    let mut current_block: u64;
+    let mut p: *mut Decimal = 0 as *mut Decimal;
+    let mut n: libc::c_int = 0;
+    let mut i: libc::c_int = 0;
+    let mut zIn: *const libc::c_uchar = 0 as *const libc::c_uchar;
+    let mut iExp: libc::c_int = 0 as libc::c_int;
+    p = sqlite3_malloc(::std::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int)
+        as *mut Decimal;
+    if !p.is_null() {
+        (*p).sign = 0 as libc::c_int as libc::c_char;
+        (*p).oom = 0 as libc::c_int as libc::c_char;
+        (*p).isInit = 1 as libc::c_int as libc::c_char;
+        (*p).isNull = 0 as libc::c_int as libc::c_char;
+        (*p).nDigit = 0 as libc::c_int;
+        (*p).nFrac = 0 as libc::c_int;
+        if !zAlt.is_null() {
+            n = nAlt;
+            zIn = zAlt;
+        } else {
+            if sqlite3_value_type(pIn) == 5 as libc::c_int {
+                let ref mut fresh14 = (*p).a;
+                *fresh14 = 0 as *mut libc::c_schar;
+                (*p).isNull = 1 as libc::c_int as libc::c_char;
+                return p;
+            }
+            n = sqlite3_value_bytes(pIn);
+            zIn = sqlite3_value_text(pIn);
+        }
+        let ref mut fresh15 = (*p).a;
+        *fresh15 = sqlite3_malloc64((n + 1 as libc::c_int) as sqlite3_uint64)
+            as *mut libc::c_schar;
+        if !((*p).a).is_null() {
+            i = 0 as libc::c_int;
+            while *(*__ctype_b_loc())
+                .offset(*zIn.offset(i as isize) as libc::c_int as isize) as libc::c_int
+                & _ISspace as libc::c_int as libc::c_ushort as libc::c_int != 0
+            {
+                i += 1;
+            }
+            if *zIn.offset(i as isize) as libc::c_int == '-' as i32 {
+                (*p).sign = 1 as libc::c_int as libc::c_char;
+                i += 1;
+            } else if *zIn.offset(i as isize) as libc::c_int == '+' as i32 {
+                i += 1;
+            }
+            while i < n && *zIn.offset(i as isize) as libc::c_int == '0' as i32 {
+                i += 1;
+            }
+            while i < n {
+                let mut c: libc::c_char = *zIn.offset(i as isize) as libc::c_char;
+                if c as libc::c_int >= '0' as i32 && c as libc::c_int <= '9' as i32 {
+                    let ref mut fresh16 = (*p).nDigit;
+                    let fresh17 = *fresh16;
+                    *fresh16 = *fresh16 + 1;
+                    *((*p).a)
+                        .offset(
+                            fresh17 as isize,
+                        ) = (c as libc::c_int - '0' as i32) as libc::c_schar;
+                } else if c as libc::c_int == '.' as i32 {
+                    (*p).nFrac = (*p).nDigit + 1 as libc::c_int;
+                } else if c as libc::c_int == 'e' as i32
+                        || c as libc::c_int == 'E' as i32
+                    {
+                    let mut j: libc::c_int = i + 1 as libc::c_int;
+                    let mut neg: libc::c_int = 0 as libc::c_int;
+                    if j >= n {
+                        break;
+                    }
+                    if *zIn.offset(j as isize) as libc::c_int == '-' as i32 {
+                        neg = 1 as libc::c_int;
+                        j += 1;
+                    } else if *zIn.offset(j as isize) as libc::c_int == '+' as i32 {
+                        j += 1;
+                    }
+                    while j < n && iExp < 1000000 as libc::c_int {
+                        if *zIn.offset(j as isize) as libc::c_int >= '0' as i32
+                            && *zIn.offset(j as isize) as libc::c_int <= '9' as i32
+                        {
+                            iExp = iExp * 10 as libc::c_int
+                                + *zIn.offset(j as isize) as libc::c_int - '0' as i32;
+                        }
+                        j += 1;
+                    }
+                    if neg != 0 {
+                        iExp = -iExp;
+                    }
+                    break;
+                }
+                i += 1;
+            }
+            if (*p).nFrac != 0 {
+                (*p).nFrac = (*p).nDigit - ((*p).nFrac - 1 as libc::c_int);
+            }
+            if iExp > 0 as libc::c_int {
+                if (*p).nFrac > 0 as libc::c_int {
+                    if iExp <= (*p).nFrac {
+                        (*p).nFrac -= iExp;
+                        iExp = 0 as libc::c_int;
+                    } else {
+                        iExp -= (*p).nFrac;
+                        (*p).nFrac = 0 as libc::c_int;
+                    }
+                }
+                if iExp > 0 as libc::c_int {
+                    let ref mut fresh18 = (*p).a;
+                    *fresh18 = sqlite3_realloc64(
+                        (*p).a as *mut libc::c_void,
+                        ((*p).nDigit + iExp + 1 as libc::c_int) as sqlite3_uint64,
+                    ) as *mut libc::c_schar;
+                    if ((*p).a).is_null() {
+                        current_block = 10748642442239761528;
+                    } else {
+                        memset(
+                            ((*p).a).offset((*p).nDigit as isize) as *mut libc::c_void,
+                            0 as libc::c_int,
+                            iExp as libc::c_ulong,
+                        );
+                        (*p).nDigit += iExp;
+                        current_block = 17995254032144898061;
+                    }
+                } else {
+                    current_block = 17995254032144898061;
+                }
+            } else if iExp < 0 as libc::c_int {
+                let mut nExtra: libc::c_int = 0;
+                iExp = -iExp;
+                nExtra = (*p).nDigit - (*p).nFrac - 1 as libc::c_int;
+                if nExtra != 0 {
+                    if nExtra >= iExp {
+                        (*p).nFrac += iExp;
+                        iExp = 0 as libc::c_int;
+                    } else {
+                        iExp -= nExtra;
+                        (*p).nFrac = (*p).nDigit - 1 as libc::c_int;
+                    }
+                }
+                if iExp > 0 as libc::c_int {
+                    let ref mut fresh19 = (*p).a;
+                    *fresh19 = sqlite3_realloc64(
+                        (*p).a as *mut libc::c_void,
+                        ((*p).nDigit + iExp + 1 as libc::c_int) as sqlite3_uint64,
+                    ) as *mut libc::c_schar;
+                    if ((*p).a).is_null() {
+                        current_block = 10748642442239761528;
+                    } else {
+                        memmove(
+                            ((*p).a).offset(iExp as isize) as *mut libc::c_void,
+                            (*p).a as *const libc::c_void,
+                            (*p).nDigit as libc::c_ulong,
+                        );
+                        memset(
+                            (*p).a as *mut libc::c_void,
+                            0 as libc::c_int,
+                            iExp as libc::c_ulong,
+                        );
+                        (*p).nDigit += iExp;
+                        (*p).nFrac += iExp;
+                        current_block = 17995254032144898061;
+                    }
+                } else {
+                    current_block = 17995254032144898061;
+                }
+            } else {
+                current_block = 17995254032144898061;
+            }
+            match current_block {
+                10748642442239761528 => {}
+                _ => return p,
+            }
+        }
+    }
+    if !pCtx.is_null() {
+        sqlite3_result_error_nomem(pCtx);
+    }
+    sqlite3_free(p as *mut libc::c_void);
+    return 0 as *mut Decimal;
+}
+unsafe extern "C" fn decimal_result(
+    mut pCtx: *mut sqlite3_context,
+    mut p: *mut Decimal,
+) {
+    let mut z: *mut libc::c_char = 0 as *mut libc::c_char;
+    let mut i: libc::c_int = 0;
+    let mut j: libc::c_int = 0;
+    let mut n: libc::c_int = 0;
+    if p.is_null() || (*p).oom as libc::c_int != 0 {
+        sqlite3_result_error_nomem(pCtx);
+        return;
+    }
+    if (*p).isNull != 0 {
+        sqlite3_result_null(pCtx);
+        return;
+    }
+    z = sqlite3_malloc((*p).nDigit + 4 as libc::c_int) as *mut libc::c_char;
+    if z.is_null() {
+        sqlite3_result_error_nomem(pCtx);
+        return;
+    }
+    i = 0 as libc::c_int;
+    if (*p).nDigit == 0 as libc::c_int
+        || (*p).nDigit == 1 as libc::c_int
+            && *((*p).a).offset(0 as libc::c_int as isize) as libc::c_int
+                == 0 as libc::c_int
+    {
+        (*p).sign = 0 as libc::c_int as libc::c_char;
+    }
+    if (*p).sign != 0 {
+        *z.offset(0 as libc::c_int as isize) = '-' as i32 as libc::c_char;
+        i = 1 as libc::c_int;
+    }
+    n = (*p).nDigit - (*p).nFrac;
+    if n <= 0 as libc::c_int {
+        let fresh20 = i;
+        i = i + 1;
+        *z.offset(fresh20 as isize) = '0' as i32 as libc::c_char;
+    }
+    j = 0 as libc::c_int;
+    while n > 1 as libc::c_int
+        && *((*p).a).offset(j as isize) as libc::c_int == 0 as libc::c_int
+    {
+        j += 1;
+        n -= 1;
+    }
+    while n > 0 as libc::c_int {
+        let fresh21 = i;
+        i = i + 1;
+        *z
+            .offset(
+                fresh21 as isize,
+            ) = (*((*p).a).offset(j as isize) as libc::c_int + '0' as i32)
+            as libc::c_char;
+        j += 1;
+        n -= 1;
+    }
+    if (*p).nFrac != 0 {
+        let fresh22 = i;
+        i = i + 1;
+        *z.offset(fresh22 as isize) = '.' as i32 as libc::c_char;
+        loop {
+            let fresh23 = i;
+            i = i + 1;
+            *z
+                .offset(
+                    fresh23 as isize,
+                ) = (*((*p).a).offset(j as isize) as libc::c_int + '0' as i32)
+                as libc::c_char;
+            j += 1;
+            if !(j < (*p).nDigit) {
+                break;
+            }
+        }
+    }
+    *z.offset(i as isize) = 0 as libc::c_int as libc::c_char;
+    sqlite3_result_text(
+        pCtx,
+        z,
+        i,
+        Some(sqlite3_free as unsafe extern "C" fn(*mut libc::c_void) -> ()),
+    );
+}
+unsafe extern "C" fn decimalFunc(
+    mut context: *mut sqlite3_context,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) {
+    let mut p: *mut Decimal = decimal_new(
+        context,
+        *argv.offset(0 as libc::c_int as isize),
+        0 as libc::c_int,
+        0 as *const libc::c_uchar,
+    );
+    decimal_result(context, p);
+    decimal_free(p);
+}
+unsafe extern "C" fn decimal_cmp(
+    mut pA: *const Decimal,
+    mut pB: *const Decimal,
+) -> libc::c_int {
+    let mut nASig: libc::c_int = 0;
+    let mut nBSig: libc::c_int = 0;
+    let mut rc: libc::c_int = 0;
+    let mut n: libc::c_int = 0;
+    if (*pA).sign as libc::c_int != (*pB).sign as libc::c_int {
+        return if (*pA).sign as libc::c_int != 0 {
+            -(1 as libc::c_int)
+        } else {
+            1 as libc::c_int
+        };
+    }
+    if (*pA).sign != 0 {
+        let mut pTemp: *const Decimal = pA;
+        pA = pB;
+        pB = pTemp;
+    }
+    nASig = (*pA).nDigit - (*pA).nFrac;
+    nBSig = (*pB).nDigit - (*pB).nFrac;
+    if nASig != nBSig {
+        return nASig - nBSig;
+    }
+    n = (*pA).nDigit;
+    if n > (*pB).nDigit {
+        n = (*pB).nDigit;
+    }
+    rc = memcmp(
+        (*pA).a as *const libc::c_void,
+        (*pB).a as *const libc::c_void,
+        n as libc::c_ulong,
+    );
+    if rc == 0 as libc::c_int {
+        rc = (*pA).nDigit - (*pB).nDigit;
+    }
+    return rc;
+}
+unsafe extern "C" fn decimalCmpFunc(
+    mut context: *mut sqlite3_context,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) {
+    let mut pA: *mut Decimal = 0 as *mut Decimal;
+    let mut pB: *mut Decimal = 0 as *mut Decimal;
+    let mut rc: libc::c_int = 0;
+    pA = decimal_new(
+        context,
+        *argv.offset(0 as libc::c_int as isize),
+        0 as libc::c_int,
+        0 as *const libc::c_uchar,
+    );
+    if !(pA.is_null() || (*pA).isNull as libc::c_int != 0) {
+        pB = decimal_new(
+            context,
+            *argv.offset(1 as libc::c_int as isize),
+            0 as libc::c_int,
+            0 as *const libc::c_uchar,
+        );
+        if !(pB.is_null() || (*pB).isNull as libc::c_int != 0) {
+            rc = decimal_cmp(pA, pB);
+            if rc < 0 as libc::c_int {
+                rc = -(1 as libc::c_int);
+            } else if rc > 0 as libc::c_int {
+                rc = 1 as libc::c_int;
+            }
+            sqlite3_result_int(context, rc);
+        }
+    }
+    decimal_free(pA);
+    decimal_free(pB);
+}
+unsafe extern "C" fn decimal_expand(
+    mut p: *mut Decimal,
+    mut nDigit: libc::c_int,
+    mut nFrac: libc::c_int,
+) {
+    let mut nAddSig: libc::c_int = 0;
+    let mut nAddFrac: libc::c_int = 0;
+    if p.is_null() {
+        return;
+    }
+    nAddFrac = nFrac - (*p).nFrac;
+    nAddSig = nDigit - (*p).nDigit - nAddFrac;
+    if nAddFrac == 0 as libc::c_int && nAddSig == 0 as libc::c_int {
+        return;
+    }
+    let ref mut fresh24 = (*p).a;
+    *fresh24 = sqlite3_realloc64(
+        (*p).a as *mut libc::c_void,
+        (nDigit + 1 as libc::c_int) as sqlite3_uint64,
+    ) as *mut libc::c_schar;
+    if ((*p).a).is_null() {
+        (*p).oom = 1 as libc::c_int as libc::c_char;
+        return;
+    }
+    if nAddSig != 0 {
+        memmove(
+            ((*p).a).offset(nAddSig as isize) as *mut libc::c_void,
+            (*p).a as *const libc::c_void,
+            (*p).nDigit as libc::c_ulong,
+        );
+        memset((*p).a as *mut libc::c_void, 0 as libc::c_int, nAddSig as libc::c_ulong);
+        (*p).nDigit += nAddSig;
+    }
+    if nAddFrac != 0 {
+        memset(
+            ((*p).a).offset((*p).nDigit as isize) as *mut libc::c_void,
+            0 as libc::c_int,
+            nAddFrac as libc::c_ulong,
+        );
+        (*p).nDigit += nAddFrac;
+        (*p).nFrac += nAddFrac;
+    }
+}
+unsafe extern "C" fn decimal_add(mut pA: *mut Decimal, mut pB: *mut Decimal) {
+    let mut nSig: libc::c_int = 0;
+    let mut nFrac: libc::c_int = 0;
+    let mut nDigit: libc::c_int = 0;
+    let mut i: libc::c_int = 0;
+    let mut rc: libc::c_int = 0;
+    if pA.is_null() {
+        return;
+    }
+    if (*pA).oom as libc::c_int != 0 || pB.is_null() || (*pB).oom as libc::c_int != 0 {
+        (*pA).oom = 1 as libc::c_int as libc::c_char;
+        return;
+    }
+    if (*pA).isNull as libc::c_int != 0 || (*pB).isNull as libc::c_int != 0 {
+        (*pA).isNull = 1 as libc::c_int as libc::c_char;
+        return;
+    }
+    nSig = (*pA).nDigit - (*pA).nFrac;
+    if nSig != 0
+        && *((*pA).a).offset(0 as libc::c_int as isize) as libc::c_int
+            == 0 as libc::c_int
+    {
+        nSig -= 1;
+    }
+    if nSig < (*pB).nDigit - (*pB).nFrac {
+        nSig = (*pB).nDigit - (*pB).nFrac;
+    }
+    nFrac = (*pA).nFrac;
+    if nFrac < (*pB).nFrac {
+        nFrac = (*pB).nFrac;
+    }
+    nDigit = nSig + nFrac + 1 as libc::c_int;
+    decimal_expand(pA, nDigit, nFrac);
+    decimal_expand(pB, nDigit, nFrac);
+    if (*pA).oom as libc::c_int != 0 || (*pB).oom as libc::c_int != 0 {
+        (*pA).oom = 1 as libc::c_int as libc::c_char;
+    } else if (*pA).sign as libc::c_int == (*pB).sign as libc::c_int {
+        let mut carry: libc::c_int = 0 as libc::c_int;
+        i = nDigit - 1 as libc::c_int;
+        while i >= 0 as libc::c_int {
+            let mut x: libc::c_int = *((*pA).a).offset(i as isize) as libc::c_int
+                + *((*pB).a).offset(i as isize) as libc::c_int + carry;
+            if x >= 10 as libc::c_int {
+                carry = 1 as libc::c_int;
+                *((*pA).a).offset(i as isize) = (x - 10 as libc::c_int) as libc::c_schar;
+            } else {
+                carry = 0 as libc::c_int;
+                *((*pA).a).offset(i as isize) = x as libc::c_schar;
+            }
+            i -= 1;
+        }
+    } else {
+        let mut aA: *mut libc::c_schar = 0 as *mut libc::c_schar;
+        let mut aB: *mut libc::c_schar = 0 as *mut libc::c_schar;
+        let mut borrow: libc::c_int = 0 as libc::c_int;
+        rc = memcmp(
+            (*pA).a as *const libc::c_void,
+            (*pB).a as *const libc::c_void,
+            nDigit as libc::c_ulong,
+        );
+        if rc < 0 as libc::c_int {
+            aA = (*pB).a;
+            aB = (*pA).a;
+            (*pA).sign = ((*pA).sign == 0) as libc::c_int as libc::c_char;
+        } else {
+            aA = (*pA).a;
+            aB = (*pB).a;
+        }
+        i = nDigit - 1 as libc::c_int;
+        while i >= 0 as libc::c_int {
+            let mut x_0: libc::c_int = *aA.offset(i as isize) as libc::c_int
+                - *aB.offset(i as isize) as libc::c_int - borrow;
+            if x_0 < 0 as libc::c_int {
+                *((*pA).a)
+                    .offset(i as isize) = (x_0 + 10 as libc::c_int) as libc::c_schar;
+                borrow = 1 as libc::c_int;
+            } else {
+                *((*pA).a).offset(i as isize) = x_0 as libc::c_schar;
+                borrow = 0 as libc::c_int;
+            }
+            i -= 1;
+        }
+    };
+}
+unsafe extern "C" fn decimalCollFunc(
+    mut notUsed: *mut libc::c_void,
+    mut nKey1: libc::c_int,
+    mut pKey1: *const libc::c_void,
+    mut nKey2: libc::c_int,
+    mut pKey2: *const libc::c_void,
+) -> libc::c_int {
+    let mut zA: *const libc::c_uchar = pKey1 as *const libc::c_uchar;
+    let mut zB: *const libc::c_uchar = pKey2 as *const libc::c_uchar;
+    let mut pA: *mut Decimal = decimal_new(
+        0 as *mut sqlite3_context,
+        0 as *mut sqlite3_value,
+        nKey1,
+        zA,
+    );
+    let mut pB: *mut Decimal = decimal_new(
+        0 as *mut sqlite3_context,
+        0 as *mut sqlite3_value,
+        nKey2,
+        zB,
+    );
+    let mut rc: libc::c_int = 0;
+    if pA.is_null() || pB.is_null() {
+        rc = 0 as libc::c_int;
+    } else {
+        rc = decimal_cmp(pA, pB);
+    }
+    decimal_free(pA);
+    decimal_free(pB);
+    return rc;
+}
+unsafe extern "C" fn decimalAddFunc(
+    mut context: *mut sqlite3_context,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) {
+    let mut pA: *mut Decimal = decimal_new(
+        context,
+        *argv.offset(0 as libc::c_int as isize),
+        0 as libc::c_int,
+        0 as *const libc::c_uchar,
+    );
+    let mut pB: *mut Decimal = decimal_new(
+        context,
+        *argv.offset(1 as libc::c_int as isize),
+        0 as libc::c_int,
+        0 as *const libc::c_uchar,
+    );
+    decimal_add(pA, pB);
+    decimal_result(context, pA);
+    decimal_free(pA);
+    decimal_free(pB);
+}
+unsafe extern "C" fn decimalSubFunc(
+    mut context: *mut sqlite3_context,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) {
+    let mut pA: *mut Decimal = decimal_new(
+        context,
+        *argv.offset(0 as libc::c_int as isize),
+        0 as libc::c_int,
+        0 as *const libc::c_uchar,
+    );
+    let mut pB: *mut Decimal = decimal_new(
+        context,
+        *argv.offset(1 as libc::c_int as isize),
+        0 as libc::c_int,
+        0 as *const libc::c_uchar,
+    );
+    if !pB.is_null() {
+        (*pB).sign = ((*pB).sign == 0) as libc::c_int as libc::c_char;
+        decimal_add(pA, pB);
+        decimal_result(context, pA);
+    }
+    decimal_free(pA);
+    decimal_free(pB);
+}
+unsafe extern "C" fn decimalSumStep(
+    mut context: *mut sqlite3_context,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) {
+    let mut p: *mut Decimal = 0 as *mut Decimal;
+    let mut pArg: *mut Decimal = 0 as *mut Decimal;
+    p = sqlite3_aggregate_context(
+        context,
+        ::std::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int,
+    ) as *mut Decimal;
+    if p.is_null() {
+        return;
+    }
+    if (*p).isInit == 0 {
+        (*p).isInit = 1 as libc::c_int as libc::c_char;
+        let ref mut fresh25 = (*p).a;
+        *fresh25 = sqlite3_malloc(2 as libc::c_int) as *mut libc::c_schar;
+        if ((*p).a).is_null() {
+            (*p).oom = 1 as libc::c_int as libc::c_char;
+        } else {
+            *((*p).a)
+                .offset(0 as libc::c_int as isize) = 0 as libc::c_int as libc::c_schar;
+        }
+        (*p).nDigit = 1 as libc::c_int;
+        (*p).nFrac = 0 as libc::c_int;
+    }
+    if sqlite3_value_type(*argv.offset(0 as libc::c_int as isize)) == 5 as libc::c_int {
+        return;
+    }
+    pArg = decimal_new(
+        context,
+        *argv.offset(0 as libc::c_int as isize),
+        0 as libc::c_int,
+        0 as *const libc::c_uchar,
+    );
+    decimal_add(p, pArg);
+    decimal_free(pArg);
+}
+unsafe extern "C" fn decimalSumInverse(
+    mut context: *mut sqlite3_context,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) {
+    let mut p: *mut Decimal = 0 as *mut Decimal;
+    let mut pArg: *mut Decimal = 0 as *mut Decimal;
+    p = sqlite3_aggregate_context(
+        context,
+        ::std::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int,
+    ) as *mut Decimal;
+    if p.is_null() {
+        return;
+    }
+    if sqlite3_value_type(*argv.offset(0 as libc::c_int as isize)) == 5 as libc::c_int {
+        return;
+    }
+    pArg = decimal_new(
+        context,
+        *argv.offset(0 as libc::c_int as isize),
+        0 as libc::c_int,
+        0 as *const libc::c_uchar,
+    );
+    if !pArg.is_null() {
+        (*pArg).sign = ((*pArg).sign == 0) as libc::c_int as libc::c_char;
+    }
+    decimal_add(p, pArg);
+    decimal_free(pArg);
+}
+unsafe extern "C" fn decimalSumValue(mut context: *mut sqlite3_context) {
+    let mut p: *mut Decimal = sqlite3_aggregate_context(context, 0 as libc::c_int)
+        as *mut Decimal;
+    if p.is_null() {
+        return;
+    }
+    decimal_result(context, p);
+}
+unsafe extern "C" fn decimalSumFinalize(mut context: *mut sqlite3_context) {
+    let mut p: *mut Decimal = sqlite3_aggregate_context(context, 0 as libc::c_int)
+        as *mut Decimal;
+    if p.is_null() {
+        return;
+    }
+    decimal_result(context, p);
+    decimal_clear(p);
+}
+unsafe extern "C" fn decimalMulFunc(
+    mut context: *mut sqlite3_context,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) {
+    let mut pA: *mut Decimal = decimal_new(
+        context,
+        *argv.offset(0 as libc::c_int as isize),
+        0 as libc::c_int,
+        0 as *const libc::c_uchar,
+    );
+    let mut pB: *mut Decimal = decimal_new(
+        context,
+        *argv.offset(1 as libc::c_int as isize),
+        0 as libc::c_int,
+        0 as *const libc::c_uchar,
+    );
+    let mut acc: *mut libc::c_schar = 0 as *mut libc::c_schar;
+    let mut i: libc::c_int = 0;
+    let mut j: libc::c_int = 0;
+    let mut k: libc::c_int = 0;
+    let mut minFrac: libc::c_int = 0;
+    if !(pA.is_null() || (*pA).oom as libc::c_int != 0
+        || (*pA).isNull as libc::c_int != 0 || pB.is_null()
+        || (*pB).oom as libc::c_int != 0 || (*pB).isNull as libc::c_int != 0)
+    {
+        acc = sqlite3_malloc64(
+            ((*pA).nDigit + (*pB).nDigit + 2 as libc::c_int) as sqlite3_uint64,
+        ) as *mut libc::c_schar;
+        if acc.is_null() {
+            sqlite3_result_error_nomem(context);
+        } else {
+            memset(
+                acc as *mut libc::c_void,
+                0 as libc::c_int,
+                ((*pA).nDigit + (*pB).nDigit + 2 as libc::c_int) as libc::c_ulong,
+            );
+            minFrac = (*pA).nFrac;
+            if (*pB).nFrac < minFrac {
+                minFrac = (*pB).nFrac;
+            }
+            i = (*pA).nDigit - 1 as libc::c_int;
+            while i >= 0 as libc::c_int {
+                let mut f: libc::c_schar = *((*pA).a).offset(i as isize);
+                let mut carry: libc::c_int = 0 as libc::c_int;
+                let mut x: libc::c_int = 0;
+                j = (*pB).nDigit - 1 as libc::c_int;
+                k = i + j + 3 as libc::c_int;
+                while j >= 0 as libc::c_int {
+                    x = *acc.offset(k as isize) as libc::c_int
+                        + f as libc::c_int * *((*pB).a).offset(j as isize) as libc::c_int
+                        + carry;
+                    *acc.offset(k as isize) = (x % 10 as libc::c_int) as libc::c_schar;
+                    carry = x / 10 as libc::c_int;
+                    j -= 1;
+                    k -= 1;
+                }
+                x = *acc.offset(k as isize) as libc::c_int + carry;
+                *acc.offset(k as isize) = (x % 10 as libc::c_int) as libc::c_schar;
+                let ref mut fresh26 = *acc.offset((k - 1 as libc::c_int) as isize);
+                *fresh26 = (*fresh26 as libc::c_int + x / 10 as libc::c_int)
+                    as libc::c_schar;
+                i -= 1;
+            }
+            sqlite3_free((*pA).a as *mut libc::c_void);
+            let ref mut fresh27 = (*pA).a;
+            *fresh27 = acc;
+            acc = 0 as *mut libc::c_schar;
+            (*pA).nDigit += (*pB).nDigit + 2 as libc::c_int;
+            (*pA).nFrac += (*pB).nFrac;
+            let ref mut fresh28 = (*pA).sign;
+            *fresh28 = (*fresh28 as libc::c_int ^ (*pB).sign as libc::c_int)
+                as libc::c_char;
+            while (*pA).nFrac > minFrac
+                && *((*pA).a).offset(((*pA).nDigit - 1 as libc::c_int) as isize)
+                    as libc::c_int == 0 as libc::c_int
+            {
+                let ref mut fresh29 = (*pA).nFrac;
+                *fresh29 -= 1;
+                let ref mut fresh30 = (*pA).nDigit;
+                *fresh30 -= 1;
+            }
+            decimal_result(context, pA);
+        }
+    }
+    sqlite3_free(acc as *mut libc::c_void);
+    decimal_free(pA);
+    decimal_free(pB);
+}
+#[no_mangle]
+pub unsafe extern "C" fn sqlite3_decimal_init(
+    mut db: *mut sqlite3,
+    mut pzErrMsg: *mut *mut libc::c_char,
+    mut pApi: *const sqlite3_api_routines,
+) -> libc::c_int {
+    let mut rc: libc::c_int = 0 as libc::c_int;
+    static mut aFunc: [C2RustUnnamed_16; 5] = unsafe {
+        [
+            {
+                let mut init = C2RustUnnamed_16 {
+                    zFuncName: b"decimal\0" as *const u8 as *const libc::c_char,
+                    nArg: 1 as libc::c_int,
+                    xFunc: Some(
+                        decimalFunc
+                            as unsafe extern "C" fn(
+                                *mut sqlite3_context,
+                                libc::c_int,
+                                *mut *mut sqlite3_value,
+                            ) -> (),
+                    ),
+                };
+                init
+            },
+            {
+                let mut init = C2RustUnnamed_16 {
+                    zFuncName: b"decimal_cmp\0" as *const u8 as *const libc::c_char,
+                    nArg: 2 as libc::c_int,
+                    xFunc: Some(
+                        decimalCmpFunc
+                            as unsafe extern "C" fn(
+                                *mut sqlite3_context,
+                                libc::c_int,
+                                *mut *mut sqlite3_value,
+                            ) -> (),
+                    ),
+                };
+                init
+            },
+            {
+                let mut init = C2RustUnnamed_16 {
+                    zFuncName: b"decimal_add\0" as *const u8 as *const libc::c_char,
+                    nArg: 2 as libc::c_int,
+                    xFunc: Some(
+                        decimalAddFunc
+                            as unsafe extern "C" fn(
+                                *mut sqlite3_context,
+                                libc::c_int,
+                                *mut *mut sqlite3_value,
+                            ) -> (),
+                    ),
+                };
+                init
+            },
+            {
+                let mut init = C2RustUnnamed_16 {
+                    zFuncName: b"decimal_sub\0" as *const u8 as *const libc::c_char,
+                    nArg: 2 as libc::c_int,
+                    xFunc: Some(
+                        decimalSubFunc
+                            as unsafe extern "C" fn(
+                                *mut sqlite3_context,
+                                libc::c_int,
+                                *mut *mut sqlite3_value,
+                            ) -> (),
+                    ),
+                };
+                init
+            },
+            {
+                let mut init = C2RustUnnamed_16 {
+                    zFuncName: b"decimal_mul\0" as *const u8 as *const libc::c_char,
+                    nArg: 2 as libc::c_int,
+                    xFunc: Some(
+                        decimalMulFunc
+                            as unsafe extern "C" fn(
+                                *mut sqlite3_context,
+                                libc::c_int,
+                                *mut *mut sqlite3_value,
+                            ) -> (),
+                    ),
+                };
+                init
+            },
+        ]
+    };
+    let mut i: libc::c_uint = 0;
+    i = 0 as libc::c_int as libc::c_uint;
+    while (i as libc::c_ulong)
+        < (::std::mem::size_of::<[C2RustUnnamed_16; 5]>() as libc::c_ulong)
+            .wrapping_div(::std::mem::size_of::<C2RustUnnamed_16>() as libc::c_ulong)
+        && rc == 0 as libc::c_int
+    {
+        rc = sqlite3_create_function(
+            db,
+            aFunc[i as usize].zFuncName,
+            aFunc[i as usize].nArg,
+            1 as libc::c_int | 0x200000 as libc::c_int | 0x800 as libc::c_int,
+            0 as *mut libc::c_void,
+            aFunc[i as usize].xFunc,
+            None,
+            None,
+        );
+        i = i.wrapping_add(1);
+    }
+    if rc == 0 as libc::c_int {
+        rc = sqlite3_create_window_function(
+            db,
+            b"decimal_sum\0" as *const u8 as *const libc::c_char,
+            1 as libc::c_int,
+            1 as libc::c_int | 0x200000 as libc::c_int | 0x800 as libc::c_int,
+            0 as *mut libc::c_void,
+            Some(
+                decimalSumStep
+                    as unsafe extern "C" fn(
+                        *mut sqlite3_context,
+                        libc::c_int,
+                        *mut *mut sqlite3_value,
+                    ) -> (),
+            ),
+            Some(decimalSumFinalize as unsafe extern "C" fn(*mut sqlite3_context) -> ()),
+            Some(decimalSumValue as unsafe extern "C" fn(*mut sqlite3_context) -> ()),
+            Some(
+                decimalSumInverse
+                    as unsafe extern "C" fn(
+                        *mut sqlite3_context,
+                        libc::c_int,
+                        *mut *mut sqlite3_value,
+                    ) -> (),
+            ),
+            None,
+        );
+    }
+    if rc == 0 as libc::c_int {
+        rc = sqlite3_create_collation(
+            db,
+            b"decimal\0" as *const u8 as *const libc::c_char,
+            1 as libc::c_int,
+            0 as *mut libc::c_void,
+            Some(
+                decimalCollFunc
+                    as unsafe extern "C" fn(
+                        *mut libc::c_void,
+                        libc::c_int,
+                        *const libc::c_void,
+                        libc::c_int,
+                        *const libc::c_void,
+                    ) -> libc::c_int,
+            ),
+        );
+    }
+    return rc;
+}
+unsafe extern "C" fn ieee754func(
+    mut context: *mut sqlite3_context,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) {
+    if argc == 1 as libc::c_int {
+        let mut m: sqlite3_int64 = 0;
+        let mut a: sqlite3_int64 = 0;
+        let mut r: libc::c_double = 0.;
+        let mut e: libc::c_int = 0;
+        let mut isNeg: libc::c_int = 0;
+        let mut zResult: [libc::c_char; 100] = [0; 100];
+        if ::std::mem::size_of::<sqlite3_int64>() as libc::c_ulong
+            == ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+        {} else {
+            __assert_fail(
+                b"sizeof(m)==sizeof(r)\0" as *const u8 as *const libc::c_char,
+                b"shell.c\0" as *const u8 as *const libc::c_char,
+                3079 as libc::c_int as libc::c_uint,
+                (*::std::mem::transmute::<
+                    &[u8; 59],
+                    &[libc::c_char; 59],
+                >(b"void ieee754func(sqlite3_context *, int, sqlite3_value **)\0"))
+                    .as_ptr(),
+            );
+        }
+        if sqlite3_value_type(*argv.offset(0 as libc::c_int as isize))
+            == 4 as libc::c_int
+            && sqlite3_value_bytes(*argv.offset(0 as libc::c_int as isize))
+                as libc::c_ulong
+                == ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+        {
+            let mut x: *const libc::c_uchar = sqlite3_value_blob(
+                *argv.offset(0 as libc::c_int as isize),
+            ) as *const libc::c_uchar;
+            let mut i: libc::c_uint = 0;
+            let mut v: sqlite3_uint64 = 0 as libc::c_int as sqlite3_uint64;
+            i = 0 as libc::c_int as libc::c_uint;
+            while (i as libc::c_ulong)
+                < ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+            {
+                v = v << 8 as libc::c_int | *x.offset(i as isize) as libc::c_ulonglong;
+                i = i.wrapping_add(1);
+            }
+            memcpy(
+                &mut r as *mut libc::c_double as *mut libc::c_void,
+                &mut v as *mut sqlite3_uint64 as *const libc::c_void,
+                ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
+            );
+        } else {
+            r = sqlite3_value_double(*argv.offset(0 as libc::c_int as isize));
+        }
+        if r < 0.0f64 {
+            isNeg = 1 as libc::c_int;
+            r = -r;
+        } else {
+            isNeg = 0 as libc::c_int;
+        }
+        memcpy(
+            &mut a as *mut sqlite3_int64 as *mut libc::c_void,
+            &mut r as *mut libc::c_double as *const libc::c_void,
+            ::std::mem::size_of::<sqlite3_int64>() as libc::c_ulong,
+        );
+        if a == 0 as libc::c_int as libc::c_longlong {
+            e = 0 as libc::c_int;
+            m = 0 as libc::c_int as sqlite3_int64;
+        } else {
+            e = (a >> 52 as libc::c_int) as libc::c_int;
+            m = a
+                & ((1 as libc::c_int as sqlite3_int64) << 52 as libc::c_int)
+                    - 1 as libc::c_int as libc::c_longlong;
+            if e == 0 as libc::c_int {
+                m <<= 1 as libc::c_int;
+            } else {
+                m |= (1 as libc::c_int as sqlite3_int64) << 52 as libc::c_int;
+            }
+            while e < 1075 as libc::c_int && m > 0 as libc::c_int as libc::c_longlong
+                && m & 1 as libc::c_int as libc::c_longlong
+                    == 0 as libc::c_int as libc::c_longlong
+            {
+                m >>= 1 as libc::c_int;
+                e += 1;
+            }
+            if isNeg != 0 {
+                m = -m;
+            }
+        }
+        match *(sqlite3_user_data(context) as *mut libc::c_int) {
+            0 => {
+                sqlite3_snprintf(
+                    ::std::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
+                        as libc::c_int,
+                    zResult.as_mut_ptr(),
+                    b"ieee754(%lld,%d)\0" as *const u8 as *const libc::c_char,
+                    m,
+                    e - 1075 as libc::c_int,
+                );
+                sqlite3_result_text(
+                    context,
+                    zResult.as_mut_ptr(),
+                    -(1 as libc::c_int),
+                    ::std::mem::transmute::<
+                        libc::intptr_t,
+                        sqlite3_destructor_type,
+                    >(-(1 as libc::c_int) as libc::intptr_t),
+                );
+            }
+            1 => {
+                sqlite3_result_int64(context, m);
+            }
+            2 => {
+                sqlite3_result_int(context, e - 1075 as libc::c_int);
+            }
+            _ => {}
+        }
+    } else {
+        let mut m_0: sqlite3_int64 = 0;
+        let mut e_0: sqlite3_int64 = 0;
+        let mut a_0: sqlite3_int64 = 0;
+        let mut r_0: libc::c_double = 0.;
+        let mut isNeg_0: libc::c_int = 0 as libc::c_int;
+        m_0 = sqlite3_value_int64(*argv.offset(0 as libc::c_int as isize));
+        e_0 = sqlite3_value_int64(*argv.offset(1 as libc::c_int as isize));
+        if e_0 > 10000 as libc::c_int as libc::c_longlong {
+            e_0 = 10000 as libc::c_int as sqlite3_int64;
+        } else if e_0 < -(10000 as libc::c_int) as libc::c_longlong {
+            e_0 = -(10000 as libc::c_int) as sqlite3_int64;
+        }
+        if m_0 < 0 as libc::c_int as libc::c_longlong {
+            isNeg_0 = 1 as libc::c_int;
+            m_0 = -m_0;
+            if m_0 < 0 as libc::c_int as libc::c_longlong {
+                return;
+            }
+        } else if m_0 == 0 as libc::c_int as libc::c_longlong
+                && e_0 > -(1000 as libc::c_int) as libc::c_longlong
+                && e_0 < 1000 as libc::c_int as libc::c_longlong
+            {
+            sqlite3_result_double(context, 0.0f64);
+            return;
+        }
+        while m_0 >> 32 as libc::c_int & 0xffe00000 as libc::c_uint as libc::c_longlong
+            != 0
+        {
+            m_0 >>= 1 as libc::c_int;
+            e_0 += 1;
+        }
+        while m_0 != 0 as libc::c_int as libc::c_longlong
+            && m_0 >> 32 as libc::c_int & 0xfff00000 as libc::c_uint as libc::c_longlong
+                == 0 as libc::c_int as libc::c_longlong
+        {
+            m_0 <<= 1 as libc::c_int;
+            e_0 -= 1;
+        }
+        e_0 += 1075 as libc::c_int as libc::c_longlong;
+        if e_0 <= 0 as libc::c_int as libc::c_longlong {
+            if 1 as libc::c_int as libc::c_longlong - e_0
+                >= 64 as libc::c_int as libc::c_longlong
+            {
+                m_0 = 0 as libc::c_int as sqlite3_int64;
+            } else {
+                m_0 >>= 1 as libc::c_int as libc::c_longlong - e_0;
+            }
+            e_0 = 0 as libc::c_int as sqlite3_int64;
+        } else if e_0 > 0x7ff as libc::c_int as libc::c_longlong {
+            e_0 = 0x7ff as libc::c_int as sqlite3_int64;
+        }
+        a_0 = m_0
+            & ((1 as libc::c_int as sqlite3_int64) << 52 as libc::c_int)
+                - 1 as libc::c_int as libc::c_longlong;
+        a_0 |= e_0 << 52 as libc::c_int;
+        if isNeg_0 != 0 {
+            a_0 = (a_0 as libc::c_ulonglong
+                | (1 as libc::c_int as sqlite3_uint64) << 63 as libc::c_int)
+                as sqlite3_int64;
+        }
+        memcpy(
+            &mut r_0 as *mut libc::c_double as *mut libc::c_void,
+            &mut a_0 as *mut sqlite3_int64 as *const libc::c_void,
+            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
+        );
+        sqlite3_result_double(context, r_0);
+    };
+}
+unsafe extern "C" fn ieee754func_from_blob(
+    mut context: *mut sqlite3_context,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) {
+    if sqlite3_value_type(*argv.offset(0 as libc::c_int as isize)) == 4 as libc::c_int
+        && sqlite3_value_bytes(*argv.offset(0 as libc::c_int as isize)) as libc::c_ulong
+            == ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+    {
+        let mut r: libc::c_double = 0.;
+        let mut x: *const libc::c_uchar = sqlite3_value_blob(
+            *argv.offset(0 as libc::c_int as isize),
+        ) as *const libc::c_uchar;
+        let mut i: libc::c_uint = 0;
+        let mut v: sqlite3_uint64 = 0 as libc::c_int as sqlite3_uint64;
+        i = 0 as libc::c_int as libc::c_uint;
+        while (i as libc::c_ulong)
+            < ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+        {
+            v = v << 8 as libc::c_int | *x.offset(i as isize) as libc::c_ulonglong;
+            i = i.wrapping_add(1);
+        }
+        memcpy(
+            &mut r as *mut libc::c_double as *mut libc::c_void,
+            &mut v as *mut sqlite3_uint64 as *const libc::c_void,
+            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
+        );
+        sqlite3_result_double(context, r);
+    }
+}
+unsafe extern "C" fn ieee754func_to_blob(
+    mut context: *mut sqlite3_context,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) {
+    if sqlite3_value_type(*argv.offset(0 as libc::c_int as isize)) == 2 as libc::c_int
+        || sqlite3_value_type(*argv.offset(0 as libc::c_int as isize))
+            == 1 as libc::c_int
+    {
+        let mut r: libc::c_double = sqlite3_value_double(
+            *argv.offset(0 as libc::c_int as isize),
+        );
+        let mut v: sqlite3_uint64 = 0;
+        let mut a: [libc::c_uchar; 8] = [0; 8];
+        let mut i: libc::c_uint = 0;
+        memcpy(
+            &mut v as *mut sqlite3_uint64 as *mut libc::c_void,
+            &mut r as *mut libc::c_double as *const libc::c_void,
+            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
+        );
+        i = 1 as libc::c_int as libc::c_uint;
+        while i as libc::c_ulong
+            <= ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+        {
+            a[(::std::mem::size_of::<libc::c_double>() as libc::c_ulong)
+                .wrapping_sub(i as libc::c_ulong)
+                as usize] = (v & 0xff as libc::c_int as libc::c_ulonglong)
+                as libc::c_uchar;
+            v >>= 8 as libc::c_int;
+            i = i.wrapping_add(1);
+        }
+        sqlite3_result_blob(
+            context,
+            a.as_mut_ptr() as *const libc::c_void,
+            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong as libc::c_int,
+            ::std::mem::transmute::<
+                libc::intptr_t,
+                sqlite3_destructor_type,
+            >(-(1 as libc::c_int) as libc::intptr_t),
+        );
+    }
+}
+#[no_mangle]
+pub unsafe extern "C" fn sqlite3_ieee_init(
+    mut db: *mut sqlite3,
+    mut pzErrMsg: *mut *mut libc::c_char,
+    mut pApi: *const sqlite3_api_routines,
+) -> libc::c_int {
+    static mut aFunc: [C2RustUnnamed_17; 6] = unsafe {
+        [
+            {
+                let mut init = C2RustUnnamed_17 {
+                    zFName: b"ieee754\0" as *const u8 as *const libc::c_char
+                        as *mut libc::c_char,
+                    nArg: 1 as libc::c_int,
+                    iAux: 0 as libc::c_int,
+                    xFunc: Some(
+                        ieee754func
+                            as unsafe extern "C" fn(
+                                *mut sqlite3_context,
+                                libc::c_int,
+                                *mut *mut sqlite3_value,
+                            ) -> (),
+                    ),
+                };
+                init
+            },
+            {
+                let mut init = C2RustUnnamed_17 {
+                    zFName: b"ieee754\0" as *const u8 as *const libc::c_char
+                        as *mut libc::c_char,
+                    nArg: 2 as libc::c_int,
+                    iAux: 0 as libc::c_int,
+                    xFunc: Some(
+                        ieee754func
+                            as unsafe extern "C" fn(
+                                *mut sqlite3_context,
+                                libc::c_int,
+                                *mut *mut sqlite3_value,
+                            ) -> (),
+                    ),
+                };
+                init
+            },
+            {
+                let mut init = C2RustUnnamed_17 {
+                    zFName: b"ieee754_mantissa\0" as *const u8 as *const libc::c_char
+                        as *mut libc::c_char,
+                    nArg: 1 as libc::c_int,
+                    iAux: 1 as libc::c_int,
+                    xFunc: Some(
+                        ieee754func
+                            as unsafe extern "C" fn(
+                                *mut sqlite3_context,
+                                libc::c_int,
+                                *mut *mut sqlite3_value,
+                            ) -> (),
+                    ),
+                };
+                init
+            },
+            {
+                let mut init = C2RustUnnamed_17 {
+                    zFName: b"ieee754_exponent\0" as *const u8 as *const libc::c_char
+                        as *mut libc::c_char,
+                    nArg: 1 as libc::c_int,
+                    iAux: 2 as libc::c_int,
+                    xFunc: Some(
+                        ieee754func
+                            as unsafe extern "C" fn(
+                                *mut sqlite3_context,
+                                libc::c_int,
+                                *mut *mut sqlite3_value,
+                            ) -> (),
+                    ),
+                };
+                init
+            },
+            {
+                let mut init = C2RustUnnamed_17 {
+                    zFName: b"ieee754_to_blob\0" as *const u8 as *const libc::c_char
+                        as *mut libc::c_char,
+                    nArg: 1 as libc::c_int,
+                    iAux: 0 as libc::c_int,
+                    xFunc: Some(
+                        ieee754func_to_blob
+                            as unsafe extern "C" fn(
+                                *mut sqlite3_context,
+                                libc::c_int,
+                                *mut *mut sqlite3_value,
+                            ) -> (),
+                    ),
+                };
+                init
+            },
+            {
+                let mut init = C2RustUnnamed_17 {
+                    zFName: b"ieee754_from_blob\0" as *const u8 as *const libc::c_char
+                        as *mut libc::c_char,
+                    nArg: 1 as libc::c_int,
+                    iAux: 0 as libc::c_int,
+                    xFunc: Some(
+                        ieee754func_from_blob
+                            as unsafe extern "C" fn(
+                                *mut sqlite3_context,
+                                libc::c_int,
+                                *mut *mut sqlite3_value,
+                            ) -> (),
+                    ),
+                };
+                init
+            },
+        ]
+    };
+    let mut i: libc::c_uint = 0;
+    let mut rc: libc::c_int = 0 as libc::c_int;
+    i = 0 as libc::c_int as libc::c_uint;
+    while (i as libc::c_ulong)
+        < (::std::mem::size_of::<[C2RustUnnamed_17; 6]>() as libc::c_ulong)
+            .wrapping_div(::std::mem::size_of::<C2RustUnnamed_17>() as libc::c_ulong)
+        && rc == 0 as libc::c_int
+    {
+        rc = sqlite3_create_function(
+            db,
+            aFunc[i as usize].zFName,
+            aFunc[i as usize].nArg,
+            1 as libc::c_int | 0x200000 as libc::c_int,
+            &(*aFunc.as_ptr().offset(i as isize)).iAux as *const libc::c_int
+                as *mut libc::c_void,
+            aFunc[i as usize].xFunc,
+            None,
+            None,
+        );
+        i = i.wrapping_add(1);
+    }
+    return rc;
+}
+unsafe extern "C" fn seriesConnect(
+    mut db: *mut sqlite3,
+    mut pUnused: *mut libc::c_void,
+    mut argcUnused: libc::c_int,
+    mut argvUnused: *const *const libc::c_char,
+    mut ppVtab: *mut *mut sqlite3_vtab,
+    mut pzErrUnused: *mut *mut libc::c_char,
+) -> libc::c_int {
+    let mut pNew: *mut sqlite3_vtab = 0 as *mut sqlite3_vtab;
+    let mut rc: libc::c_int = 0;
+    rc = sqlite3_declare_vtab(
+        db,
+        b"CREATE TABLE x(value,start hidden,stop hidden,step hidden)\0" as *const u8
+            as *const libc::c_char,
+    );
+    if rc == 0 as libc::c_int {
+        *ppVtab = sqlite3_malloc(
+            ::std::mem::size_of::<sqlite3_vtab>() as libc::c_ulong as libc::c_int,
+        ) as *mut sqlite3_vtab;
+        pNew = *ppVtab;
+        if pNew.is_null() {
+            return 7 as libc::c_int;
+        }
+        memset(
+            pNew as *mut libc::c_void,
+            0 as libc::c_int,
+            ::std::mem::size_of::<sqlite3_vtab>() as libc::c_ulong,
+        );
+        sqlite3_vtab_config(db, 2 as libc::c_int);
+    }
+    return rc;
+}
+unsafe extern "C" fn seriesDisconnect(mut pVtab: *mut sqlite3_vtab) -> libc::c_int {
+    sqlite3_free(pVtab as *mut libc::c_void);
+    return 0 as libc::c_int;
+}
+unsafe extern "C" fn seriesOpen(
+    mut pUnused: *mut sqlite3_vtab,
+    mut ppCursor: *mut *mut sqlite3_vtab_cursor,
+) -> libc::c_int {
+    let mut pCur: *mut series_cursor = 0 as *mut series_cursor;
+    pCur = sqlite3_malloc(
+        ::std::mem::size_of::<series_cursor>() as libc::c_ulong as libc::c_int,
+    ) as *mut series_cursor;
+    if pCur.is_null() {
+        return 7 as libc::c_int;
+    }
+    memset(
+        pCur as *mut libc::c_void,
+        0 as libc::c_int,
+        ::std::mem::size_of::<series_cursor>() as libc::c_ulong,
+    );
+    *ppCursor = &mut (*pCur).base;
+    return 0 as libc::c_int;
+}
+unsafe extern "C" fn seriesClose(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int {
+    sqlite3_free(cur as *mut libc::c_void);
+    return 0 as libc::c_int;
+}
+unsafe extern "C" fn seriesNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int {
+    let mut pCur: *mut series_cursor = cur as *mut series_cursor;
+    if (*pCur).isDesc != 0 {
+        let ref mut fresh31 = (*pCur).iValue;
+        *fresh31 -= (*pCur).iStep;
+    } else {
+        let ref mut fresh32 = (*pCur).iValue;
+        *fresh32 += (*pCur).iStep;
+    }
+    let ref mut fresh33 = (*pCur).iRowid;
+    *fresh33 += 1;
+    return 0 as libc::c_int;
+}
+unsafe extern "C" fn seriesColumn(
+    mut cur: *mut sqlite3_vtab_cursor,
+    mut ctx: *mut sqlite3_context,
+    mut i: libc::c_int,
+) -> libc::c_int {
+    let mut pCur: *mut series_cursor = cur as *mut series_cursor;
+    let mut x: sqlite3_int64 = 0 as libc::c_int as sqlite3_int64;
+    match i {
+        1 => {
+            x = (*pCur).mnValue;
+        }
+        2 => {
+            x = (*pCur).mxValue;
+        }
+        3 => {
+            x = (*pCur).iStep;
+        }
+        _ => {
+            x = (*pCur).iValue;
+        }
+    }
+    sqlite3_result_int64(ctx, x);
+    return 0 as libc::c_int;
+}
+unsafe extern "C" fn seriesRowid(
+    mut cur: *mut sqlite3_vtab_cursor,
+    mut pRowid: *mut sqlite_int64,
+) -> libc::c_int {
+    let mut pCur: *mut series_cursor = cur as *mut series_cursor;
+    *pRowid = (*pCur).iRowid;
+    return 0 as libc::c_int;
+}
+unsafe extern "C" fn seriesEof(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int {
+    let mut pCur: *mut series_cursor = cur as *mut series_cursor;
+    if (*pCur).isDesc != 0 {
+        return ((*pCur).iValue < (*pCur).mnValue) as libc::c_int
+    } else {
+        return ((*pCur).iValue > (*pCur).mxValue) as libc::c_int
+    };
+}
+unsafe extern "C" fn seriesFilter(
+    mut pVtabCursor: *mut sqlite3_vtab_cursor,
+    mut idxNum: libc::c_int,
+    mut idxStrUnused: *const libc::c_char,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) -> libc::c_int {
+    let mut pCur: *mut series_cursor = pVtabCursor as *mut series_cursor;
+    let mut i: libc::c_int = 0 as libc::c_int;
+    if idxNum & 1 as libc::c_int != 0 {
+        let fresh34 = i;
+        i = i + 1;
+        (*pCur).mnValue = sqlite3_value_int64(*argv.offset(fresh34 as isize));
+    } else {
+        (*pCur).mnValue = 0 as libc::c_int as sqlite3_int64;
+    }
+    if idxNum & 2 as libc::c_int != 0 {
+        let fresh35 = i;
+        i = i + 1;
+        (*pCur).mxValue = sqlite3_value_int64(*argv.offset(fresh35 as isize));
+    } else {
+        (*pCur).mxValue = 0xffffffff as libc::c_uint as sqlite3_int64;
+    }
+    if idxNum & 4 as libc::c_int != 0 {
+        let fresh36 = i;
+        i = i + 1;
+        (*pCur).iStep = sqlite3_value_int64(*argv.offset(fresh36 as isize));
+        if (*pCur).iStep == 0 as libc::c_int as libc::c_longlong {
+            (*pCur).iStep = 1 as libc::c_int as sqlite3_int64;
+        } else if (*pCur).iStep < 0 as libc::c_int as libc::c_longlong {
+            (*pCur).iStep = -(*pCur).iStep;
+            if idxNum & 16 as libc::c_int == 0 as libc::c_int {
+                idxNum |= 8 as libc::c_int;
+            }
+        }
+    } else {
+        (*pCur).iStep = 1 as libc::c_int as sqlite3_int64;
+    }
+    i = 0 as libc::c_int;
+    while i < argc {
+        if sqlite3_value_type(*argv.offset(i as isize)) == 5 as libc::c_int {
+            (*pCur).mnValue = 1 as libc::c_int as sqlite3_int64;
+            (*pCur).mxValue = 0 as libc::c_int as sqlite3_int64;
+            break;
+        } else {
+            i += 1;
+        }
+    }
+    if idxNum & 8 as libc::c_int != 0 {
+        (*pCur).isDesc = 1 as libc::c_int;
+        (*pCur).iValue = (*pCur).mxValue;
+        if (*pCur).iStep > 0 as libc::c_int as libc::c_longlong {
+            let ref mut fresh37 = (*pCur).iValue;
+            *fresh37 -= ((*pCur).mxValue - (*pCur).mnValue) % (*pCur).iStep;
+        }
+    } else {
+        (*pCur).isDesc = 0 as libc::c_int;
+        (*pCur).iValue = (*pCur).mnValue;
+    }
+    (*pCur).iRowid = 1 as libc::c_int as sqlite3_int64;
+    return 0 as libc::c_int;
+}
+unsafe extern "C" fn seriesBestIndex(
+    mut pVTab: *mut sqlite3_vtab,
+    mut pIdxInfo: *mut sqlite3_index_info,
+) -> libc::c_int {
+    let mut i: libc::c_int = 0;
+    let mut j: libc::c_int = 0;
+    let mut idxNum: libc::c_int = 0 as libc::c_int;
+    let mut bStartSeen: libc::c_int = 0 as libc::c_int;
+    let mut unusableMask: libc::c_int = 0 as libc::c_int;
+    let mut nArg: libc::c_int = 0 as libc::c_int;
+    let mut aIdx: [libc::c_int; 3] = [0; 3];
+    let mut pConstraint: *const sqlite3_index_constraint = 0
+        as *const sqlite3_index_constraint;
+    if 2 as libc::c_int == 1 as libc::c_int + 1 as libc::c_int {} else {
+        __assert_fail(
+            b"SERIES_COLUMN_STOP == SERIES_COLUMN_START+1\0" as *const u8
+                as *const libc::c_char,
+            b"shell.c\0" as *const u8 as *const libc::c_char,
+            3601 as libc::c_int as libc::c_uint,
+            (*::std::mem::transmute::<
+                &[u8; 58],
+                &[libc::c_char; 58],
+            >(b"int seriesBestIndex(sqlite3_vtab *, sqlite3_index_info *)\0"))
+                .as_ptr(),
+        );
+    }
+    if 3 as libc::c_int == 1 as libc::c_int + 2 as libc::c_int {} else {
+        __assert_fail(
+            b"SERIES_COLUMN_STEP == SERIES_COLUMN_START+2\0" as *const u8
+                as *const libc::c_char,
+            b"shell.c\0" as *const u8 as *const libc::c_char,
+            3602 as libc::c_int as libc::c_uint,
+            (*::std::mem::transmute::<
+                &[u8; 58],
+                &[libc::c_char; 58],
+            >(b"int seriesBestIndex(sqlite3_vtab *, sqlite3_index_info *)\0"))
+                .as_ptr(),
+        );
+    }
+    aIdx[2 as libc::c_int as usize] = -(1 as libc::c_int);
+    aIdx[1 as libc::c_int as usize] = aIdx[2 as libc::c_int as usize];
+    aIdx[0 as libc::c_int as usize] = aIdx[1 as libc::c_int as usize];
+    pConstraint = (*pIdxInfo).aConstraint;
+    i = 0 as libc::c_int;
+    while i < (*pIdxInfo).nConstraint {
+        let mut iCol: libc::c_int = 0;
+        let mut iMask: libc::c_int = 0;
+        if !((*pConstraint).iColumn < 1 as libc::c_int) {
+            iCol = (*pConstraint).iColumn - 1 as libc::c_int;
+            if iCol >= 0 as libc::c_int && iCol <= 2 as libc::c_int {} else {
+                __assert_fail(
+                    b"iCol>=0 && iCol<=2\0" as *const u8 as *const libc::c_char,
+                    b"shell.c\0" as *const u8 as *const libc::c_char,
+                    3611 as libc::c_int as libc::c_uint,
+                    (*::std::mem::transmute::<
+                        &[u8; 58],
+                        &[libc::c_char; 58],
+                    >(b"int seriesBestIndex(sqlite3_vtab *, sqlite3_index_info *)\0"))
+                        .as_ptr(),
+                );
+            }
+            iMask = (1 as libc::c_int) << iCol;
+            if iCol == 0 as libc::c_int {
+                bStartSeen = 1 as libc::c_int;
+            }
+            if (*pConstraint).usable as libc::c_int == 0 as libc::c_int {
+                unusableMask |= iMask;
+            } else if (*pConstraint).op as libc::c_int == 2 as libc::c_int {
+                idxNum |= iMask;
+                aIdx[iCol as usize] = i;
+            }
+        }
+        i += 1;
+        pConstraint = pConstraint.offset(1);
+    }
+    i = 0 as libc::c_int;
+    while i < 3 as libc::c_int {
+        j = aIdx[i as usize];
+        if j >= 0 as libc::c_int {
+            nArg += 1;
+            (*((*pIdxInfo).aConstraintUsage).offset(j as isize)).argvIndex = nArg;
+            (*((*pIdxInfo).aConstraintUsage).offset(j as isize))
+                .omit = (0 as libc::c_int == 0) as libc::c_int as libc::c_uchar;
+        }
+        i += 1;
+    }
+    if bStartSeen == 0 {
+        sqlite3_free((*pVTab).zErrMsg as *mut libc::c_void);
+        let ref mut fresh38 = (*pVTab).zErrMsg;
+        *fresh38 = sqlite3_mprintf(
+            b"first argument to \"generate_series()\" missing or unusable\0" as *const u8
+                as *const libc::c_char,
+        );
+        return 1 as libc::c_int;
+    }
+    if unusableMask & !idxNum != 0 as libc::c_int {
+        return 19 as libc::c_int;
+    }
+    if idxNum & 3 as libc::c_int == 3 as libc::c_int {
+        (*pIdxInfo)
+            .estimatedCost = (2 as libc::c_int
+            - (idxNum & 4 as libc::c_int != 0 as libc::c_int) as libc::c_int)
+            as libc::c_double;
+        (*pIdxInfo).estimatedRows = 1000 as libc::c_int as sqlite3_int64;
+        if (*pIdxInfo).nOrderBy >= 1 as libc::c_int
+            && (*((*pIdxInfo).aOrderBy).offset(0 as libc::c_int as isize)).iColumn
+                == 0 as libc::c_int
+        {
+            if (*((*pIdxInfo).aOrderBy).offset(0 as libc::c_int as isize)).desc != 0 {
+                idxNum |= 8 as libc::c_int;
+            } else {
+                idxNum |= 16 as libc::c_int;
+            }
+            (*pIdxInfo).orderByConsumed = 1 as libc::c_int;
+        }
+    } else {
+        (*pIdxInfo).estimatedRows = 2147483647 as libc::c_int as sqlite3_int64;
+    }
+    (*pIdxInfo).idxNum = idxNum;
+    return 0 as libc::c_int;
+}
+static mut seriesModule: sqlite3_module = unsafe {
+    {
+        let mut init = sqlite3_module {
+            iVersion: 0 as libc::c_int,
+            xCreate: None,
+            xConnect: Some(
+                seriesConnect
+                    as unsafe extern "C" fn(
+                        *mut sqlite3,
+                        *mut libc::c_void,
+                        libc::c_int,
+                        *const *const libc::c_char,
+                        *mut *mut sqlite3_vtab,
+                        *mut *mut libc::c_char,
+                    ) -> libc::c_int,
+            ),
+            xBestIndex: Some(
+                seriesBestIndex
+                    as unsafe extern "C" fn(
+                        *mut sqlite3_vtab,
+                        *mut sqlite3_index_info,
+                    ) -> libc::c_int,
+            ),
+            xDisconnect: Some(
+                seriesDisconnect
+                    as unsafe extern "C" fn(*mut sqlite3_vtab) -> libc::c_int,
+            ),
+            xDestroy: None,
+            xOpen: Some(
+                seriesOpen
+                    as unsafe extern "C" fn(
+                        *mut sqlite3_vtab,
+                        *mut *mut sqlite3_vtab_cursor,
+                    ) -> libc::c_int,
+            ),
+            xClose: Some(
+                seriesClose
+                    as unsafe extern "C" fn(*mut sqlite3_vtab_cursor) -> libc::c_int,
+            ),
+            xFilter: Some(
+                seriesFilter
+                    as unsafe extern "C" fn(
+                        *mut sqlite3_vtab_cursor,
+                        libc::c_int,
+                        *const libc::c_char,
+                        libc::c_int,
+                        *mut *mut sqlite3_value,
+                    ) -> libc::c_int,
+            ),
+            xNext: Some(
+                seriesNext
+                    as unsafe extern "C" fn(*mut sqlite3_vtab_cursor) -> libc::c_int,
+            ),
+            xEof: Some(
+                seriesEof
+                    as unsafe extern "C" fn(*mut sqlite3_vtab_cursor) -> libc::c_int,
+            ),
+            xColumn: Some(
+                seriesColumn
+                    as unsafe extern "C" fn(
+                        *mut sqlite3_vtab_cursor,
+                        *mut sqlite3_context,
+                        libc::c_int,
+                    ) -> libc::c_int,
+            ),
+            xRowid: Some(
+                seriesRowid
+                    as unsafe extern "C" fn(
+                        *mut sqlite3_vtab_cursor,
+                        *mut sqlite_int64,
+                    ) -> libc::c_int,
+            ),
+            xUpdate: None,
+            xBegin: None,
+            xSync: None,
+            xCommit: None,
+            xRollback: None,
+            xFindFunction: None,
+            xRename: None,
+            xSavepoint: None,
+            xRelease: None,
+            xRollbackTo: None,
+            xShadowName: None,
+        };
+        init
+    }
+};
+#[no_mangle]
+pub unsafe extern "C" fn sqlite3_series_init(
+    mut db: *mut sqlite3,
+    mut pzErrMsg: *mut *mut libc::c_char,
+    mut pApi: *const sqlite3_api_routines,
+) -> libc::c_int {
+    let mut rc: libc::c_int = 0 as libc::c_int;
+    if sqlite3_libversion_number() < 3008012 as libc::c_int && !pzErrMsg.is_null() {
+        *pzErrMsg = sqlite3_mprintf(
+            b"generate_series() requires SQLite 3.8.12 or later\0" as *const u8
+                as *const libc::c_char,
+        );
+        return 1 as libc::c_int;
+    }
+    rc = sqlite3_create_module(
+        db,
+        b"generate_series\0" as *const u8 as *const libc::c_char,
+        &mut seriesModule,
+        0 as *mut libc::c_void,
+    );
+    return rc;
+}
+unsafe extern "C" fn re_add_state(mut pSet: *mut ReStateSet, mut newState: libc::c_int) {
+    let mut i: libc::c_uint = 0;
+    i = 0 as libc::c_int as libc::c_uint;
+    while i < (*pSet).nState {
+        if *((*pSet).aState).offset(i as isize) as libc::c_int == newState {
+            return;
+        }
+        i = i.wrapping_add(1);
+    }
+    let ref mut fresh39 = (*pSet).nState;
+    let fresh40 = *fresh39;
+    *fresh39 = (*fresh39).wrapping_add(1);
+    *((*pSet).aState).offset(fresh40 as isize) = newState as ReStateNumber;
+}
+unsafe extern "C" fn re_next_char(mut p: *mut ReInput) -> libc::c_uint {
+    let mut c: libc::c_uint = 0;
+    if (*p).i >= (*p).mx {
+        return 0 as libc::c_int as libc::c_uint;
+    }
+    let ref mut fresh41 = (*p).i;
+    let fresh42 = *fresh41;
+    *fresh41 = *fresh41 + 1;
+    c = *((*p).z).offset(fresh42 as isize) as libc::c_uint;
+    if c >= 0x80 as libc::c_int as libc::c_uint {
+        if c & 0xe0 as libc::c_int as libc::c_uint == 0xc0 as libc::c_int as libc::c_uint
+            && (*p).i < (*p).mx
+            && *((*p).z).offset((*p).i as isize) as libc::c_int & 0xc0 as libc::c_int
+                == 0x80 as libc::c_int
+        {
+            let ref mut fresh43 = (*p).i;
+            let fresh44 = *fresh43;
+            *fresh43 = *fresh43 + 1;
+            c = (c & 0x1f as libc::c_int as libc::c_uint) << 6 as libc::c_int
+                | (*((*p).z).offset(fresh44 as isize) as libc::c_int
+                    & 0x3f as libc::c_int) as libc::c_uint;
+            if c < 0x80 as libc::c_int as libc::c_uint {
+                c = 0xfffd as libc::c_int as libc::c_uint;
+            }
+        } else if c & 0xf0 as libc::c_int as libc::c_uint
+                == 0xe0 as libc::c_int as libc::c_uint
+                && ((*p).i + 1 as libc::c_int) < (*p).mx
+                && *((*p).z).offset((*p).i as isize) as libc::c_int & 0xc0 as libc::c_int
+                    == 0x80 as libc::c_int
+                && *((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
+                    & 0xc0 as libc::c_int == 0x80 as libc::c_int
+            {
+            c = (c & 0xf as libc::c_int as libc::c_uint) << 12 as libc::c_int
+                | ((*((*p).z).offset((*p).i as isize) as libc::c_int
+                    & 0x3f as libc::c_int) << 6 as libc::c_int) as libc::c_uint
+                | (*((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
+                    & 0x3f as libc::c_int) as libc::c_uint;
+            (*p).i += 2 as libc::c_int;
+            if c <= 0x7ff as libc::c_int as libc::c_uint
+                || c >= 0xd800 as libc::c_int as libc::c_uint
+                    && c <= 0xdfff as libc::c_int as libc::c_uint
+            {
+                c = 0xfffd as libc::c_int as libc::c_uint;
+            }
+        } else if c & 0xf8 as libc::c_int as libc::c_uint
+                == 0xf0 as libc::c_int as libc::c_uint
+                && ((*p).i + 3 as libc::c_int) < (*p).mx
+                && *((*p).z).offset((*p).i as isize) as libc::c_int & 0xc0 as libc::c_int
+                    == 0x80 as libc::c_int
+                && *((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
+                    & 0xc0 as libc::c_int == 0x80 as libc::c_int
+                && *((*p).z).offset(((*p).i + 2 as libc::c_int) as isize) as libc::c_int
+                    & 0xc0 as libc::c_int == 0x80 as libc::c_int
+            {
+            c = (c & 0x7 as libc::c_int as libc::c_uint) << 18 as libc::c_int
+                | ((*((*p).z).offset((*p).i as isize) as libc::c_int
+                    & 0x3f as libc::c_int) << 12 as libc::c_int) as libc::c_uint
+                | ((*((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
+                    & 0x3f as libc::c_int) << 6 as libc::c_int) as libc::c_uint
+                | (*((*p).z).offset(((*p).i + 2 as libc::c_int) as isize) as libc::c_int
+                    & 0x3f as libc::c_int) as libc::c_uint;
+            (*p).i += 3 as libc::c_int;
+            if c <= 0xffff as libc::c_int as libc::c_uint
+                || c > 0x10ffff as libc::c_int as libc::c_uint
+            {
+                c = 0xfffd as libc::c_int as libc::c_uint;
+            }
+        } else {
+            c = 0xfffd as libc::c_int as libc::c_uint;
+        }
+    }
+    return c;
+}
+unsafe extern "C" fn re_next_char_nocase(mut p: *mut ReInput) -> libc::c_uint {
+    let mut c: libc::c_uint = re_next_char(p);
+    if c >= 'A' as i32 as libc::c_uint && c <= 'Z' as i32 as libc::c_uint {
+        c = c.wrapping_add(('a' as i32 - 'A' as i32) as libc::c_uint);
+    }
+    return c;
+}
+unsafe extern "C" fn re_word_char(mut c: libc::c_int) -> libc::c_int {
+    return (c >= '0' as i32 && c <= '9' as i32 || c >= 'a' as i32 && c <= 'z' as i32
+        || c >= 'A' as i32 && c <= 'Z' as i32 || c == '_' as i32) as libc::c_int;
+}
+unsafe extern "C" fn re_digit_char(mut c: libc::c_int) -> libc::c_int {
+    return (c >= '0' as i32 && c <= '9' as i32) as libc::c_int;
+}
+unsafe extern "C" fn re_space_char(mut c: libc::c_int) -> libc::c_int {
+    return (c == ' ' as i32 || c == '\t' as i32 || c == '\n' as i32 || c == '\r' as i32
+        || c == '\u{b}' as i32 || c == '\u{c}' as i32) as libc::c_int;
+}
+unsafe extern "C" fn sqlite3re_match(
+    mut pRe: *mut ReCompiled,
+    mut zIn: *const libc::c_uchar,
+    mut nIn: libc::c_int,
+) -> libc::c_int {
+    let mut current_block: u64;
+    let mut aStateSet: [ReStateSet; 2] = [ReStateSet {
+        nState: 0,
+        aState: 0 as *mut ReStateNumber,
+    }; 2];
+    let mut pThis: *mut ReStateSet = 0 as *mut ReStateSet;
+    let mut pNext: *mut ReStateSet = 0 as *mut ReStateSet;
+    let mut aSpace: [ReStateNumber; 100] = [0; 100];
+    let mut pToFree: *mut ReStateNumber = 0 as *mut ReStateNumber;
+    let mut i: libc::c_uint = 0 as libc::c_int as libc::c_uint;
+    let mut iSwap: libc::c_uint = 0 as libc::c_int as libc::c_uint;
+    let mut c: libc::c_int = 0 as libc::c_int + 1 as libc::c_int;
+    let mut cPrev: libc::c_int = 0 as libc::c_int;
+    let mut rc: libc::c_int = 0 as libc::c_int;
+    let mut in_0: ReInput = ReInput {
+        z: 0 as *const libc::c_uchar,
+        i: 0,
+        mx: 0,
+    };
+    in_0.z = zIn;
+    in_0.i = 0 as libc::c_int;
+    in_0
+        .mx = if nIn >= 0 as libc::c_int {
+        nIn
+    } else {
+        strlen(zIn as *const libc::c_char) as libc::c_int
+    };
+    if (*pRe).nInit != 0 {
+        let mut x: libc::c_uchar = (*pRe).zInit[0 as libc::c_int as usize];
+        while in_0.i + (*pRe).nInit <= in_0.mx
+            && (*zIn.offset(in_0.i as isize) as libc::c_int != x as libc::c_int
+                || strncmp(
+                    (zIn as *const libc::c_char).offset(in_0.i as isize),
+                    ((*pRe).zInit).as_mut_ptr() as *const libc::c_char,
+                    (*pRe).nInit as libc::c_ulong,
+                ) != 0 as libc::c_int)
+        {
+            in_0.i += 1;
+        }
+        if in_0.i + (*pRe).nInit > in_0.mx {
+            return 0 as libc::c_int;
+        }
+    }
+    if (*pRe).nState as libc::c_ulong
+        <= (::std::mem::size_of::<[ReStateNumber; 100]>() as libc::c_ulong)
+            .wrapping_div(
+                (::std::mem::size_of::<ReStateNumber>() as libc::c_ulong)
+                    .wrapping_mul(2 as libc::c_int as libc::c_ulong),
+            )
+    {
+        pToFree = 0 as *mut ReStateNumber;
+        aStateSet[0 as libc::c_int as usize].aState = aSpace.as_mut_ptr();
+    } else {
+        pToFree = sqlite3_malloc64(
+            (::std::mem::size_of::<ReStateNumber>() as libc::c_ulong)
+                .wrapping_mul(2 as libc::c_int as libc::c_ulong)
+                .wrapping_mul((*pRe).nState as libc::c_ulong) as sqlite3_uint64,
+        ) as *mut ReStateNumber;
+        if pToFree.is_null() {
+            return -(1 as libc::c_int);
+        }
+        aStateSet[0 as libc::c_int as usize].aState = pToFree;
+    }
+    aStateSet[1 as libc::c_int as usize]
+        .aState = &mut *((*aStateSet.as_mut_ptr().offset(0 as libc::c_int as isize))
+        .aState)
+        .offset((*pRe).nState as isize) as *mut ReStateNumber;
+    pNext = &mut *aStateSet.as_mut_ptr().offset(1 as libc::c_int as isize)
+        as *mut ReStateSet;
+    (*pNext).nState = 0 as libc::c_int as libc::c_uint;
+    re_add_state(pNext, 0 as libc::c_int);
+    's_132: loop {
+        if !(c != 0 as libc::c_int && (*pNext).nState > 0 as libc::c_int as libc::c_uint)
+        {
+            current_block = 14865402277128115059;
+            break;
+        }
+        cPrev = c;
+        c = ((*pRe).xNextChar).expect("non-null function pointer")(&mut in_0)
+            as libc::c_int;
+        pThis = pNext;
+        pNext = &mut *aStateSet.as_mut_ptr().offset(iSwap as isize) as *mut ReStateSet;
+        iSwap = (1 as libc::c_int as libc::c_uint).wrapping_sub(iSwap);
+        (*pNext).nState = 0 as libc::c_int as libc::c_uint;
+        i = 0 as libc::c_int as libc::c_uint;
+        while i < (*pThis).nState {
+            let mut x_0: libc::c_int = *((*pThis).aState).offset(i as isize)
+                as libc::c_int;
+            match *((*pRe).aOp).offset(x_0 as isize) as libc::c_int {
+                1 => {
+                    if *((*pRe).aArg).offset(x_0 as isize) == c {
+                        re_add_state(pNext, x_0 + 1 as libc::c_int);
+                    }
+                    current_block = 18377268871191777778;
+                }
+                2 => {
+                    if c != 0 as libc::c_int {
+                        re_add_state(pNext, x_0 + 1 as libc::c_int);
+                    }
+                    current_block = 18377268871191777778;
+                }
+                11 => {
+                    if re_word_char(c) != 0 {
+                        re_add_state(pNext, x_0 + 1 as libc::c_int);
+                    }
+                    current_block = 18377268871191777778;
+                }
+                12 => {
+                    if re_word_char(c) == 0 && c != 0 as libc::c_int {
+                        re_add_state(pNext, x_0 + 1 as libc::c_int);
+                    }
+                    current_block = 18377268871191777778;
+                }
+                13 => {
+                    if re_digit_char(c) != 0 {
+                        re_add_state(pNext, x_0 + 1 as libc::c_int);
+                    }
+                    current_block = 18377268871191777778;
+                }
+                14 => {
+                    if re_digit_char(c) == 0 && c != 0 as libc::c_int {
+                        re_add_state(pNext, x_0 + 1 as libc::c_int);
+                    }
+                    current_block = 18377268871191777778;
+                }
+                15 => {
+                    if re_space_char(c) != 0 {
+                        re_add_state(pNext, x_0 + 1 as libc::c_int);
+                    }
+                    current_block = 18377268871191777778;
+                }
+                16 => {
+                    if re_space_char(c) == 0 && c != 0 as libc::c_int {
+                        re_add_state(pNext, x_0 + 1 as libc::c_int);
+                    }
+                    current_block = 18377268871191777778;
+                }
+                17 => {
+                    if re_word_char(c) != re_word_char(cPrev) {
+                        re_add_state(pThis, x_0 + 1 as libc::c_int);
+                    }
+                    current_block = 18377268871191777778;
+                }
+                3 => {
+                    re_add_state(pNext, x_0);
+                    re_add_state(pThis, x_0 + 1 as libc::c_int);
+                    current_block = 18377268871191777778;
+                }
+                4 => {
+                    re_add_state(pThis, x_0 + *((*pRe).aArg).offset(x_0 as isize));
+                    re_add_state(pThis, x_0 + 1 as libc::c_int);
+                    current_block = 18377268871191777778;
+                }
+                5 => {
+                    re_add_state(pThis, x_0 + *((*pRe).aArg).offset(x_0 as isize));
+                    current_block = 18377268871191777778;
+                }
+                6 => {
+                    rc = 1 as libc::c_int;
+                    current_block = 4308184267787558803;
+                    break 's_132;
+                }
+                8 => {
+                    if c == 0 as libc::c_int {
+                        current_block = 18377268871191777778;
+                    } else {
+                        current_block = 17239133558811367971;
+                    }
+                }
+                7 => {
+                    current_block = 17239133558811367971;
+                }
+                _ => {
+                    current_block = 18377268871191777778;
+                }
+            }
+            match current_block {
+                17239133558811367971 => {
+                    let mut j: libc::c_int = 1 as libc::c_int;
+                    let mut n: libc::c_int = *((*pRe).aArg).offset(x_0 as isize);
+                    let mut hit: libc::c_int = 0 as libc::c_int;
+                    j = 1 as libc::c_int;
+                    while j > 0 as libc::c_int && j < n {
+                        if *((*pRe).aOp).offset((x_0 + j) as isize) as libc::c_int
+                            == 9 as libc::c_int
+                        {
+                            if *((*pRe).aArg).offset((x_0 + j) as isize) == c {
+                                hit = 1 as libc::c_int;
+                                j = -(1 as libc::c_int);
+                            }
+                        } else if *((*pRe).aArg).offset((x_0 + j) as isize) <= c
+                                && *((*pRe).aArg)
+                                    .offset((x_0 + j + 1 as libc::c_int) as isize) >= c
+                            {
+                            hit = 1 as libc::c_int;
+                            j = -(1 as libc::c_int);
+                        } else {
+                            j += 1;
+                        }
+                        j += 1;
+                    }
+                    if *((*pRe).aOp).offset(x_0 as isize) as libc::c_int
+                        == 8 as libc::c_int
+                    {
+                        hit = (hit == 0) as libc::c_int;
+                    }
+                    if hit != 0 {
+                        re_add_state(pNext, x_0 + n);
+                    }
+                }
+                _ => {}
+            }
+            i = i.wrapping_add(1);
+        }
+    }
+    match current_block {
+        14865402277128115059 => {
+            i = 0 as libc::c_int as libc::c_uint;
+            while i < (*pNext).nState {
+                if *((*pRe).aOp).offset(*((*pNext).aState).offset(i as isize) as isize)
+                    as libc::c_int == 6 as libc::c_int
+                {
+                    rc = 1 as libc::c_int;
+                    break;
+                } else {
+                    i = i.wrapping_add(1);
+                }
+            }
+        }
+        _ => {}
+    }
+    sqlite3_free(pToFree as *mut libc::c_void);
+    return rc;
+}
+unsafe extern "C" fn re_resize(
+    mut p: *mut ReCompiled,
+    mut N: libc::c_int,
+) -> libc::c_int {
+    let mut aOp: *mut libc::c_char = 0 as *mut libc::c_char;
+    let mut aArg: *mut libc::c_int = 0 as *mut libc::c_int;
+    aOp = sqlite3_realloc64(
+        (*p).aOp as *mut libc::c_void,
+        (N as libc::c_ulong)
+            .wrapping_mul(::std::mem::size_of::<libc::c_char>() as libc::c_ulong)
+            as sqlite3_uint64,
+    ) as *mut libc::c_char;
+    if aOp.is_null() {
+        return 1 as libc::c_int;
+    }
+    let ref mut fresh45 = (*p).aOp;
+    *fresh45 = aOp;
+    aArg = sqlite3_realloc64(
+        (*p).aArg as *mut libc::c_void,
+        (N as libc::c_ulong)
+            .wrapping_mul(::std::mem::size_of::<libc::c_int>() as libc::c_ulong)
+            as sqlite3_uint64,
+    ) as *mut libc::c_int;
+    if aArg.is_null() {
+        return 1 as libc::c_int;
+    }
+    let ref mut fresh46 = (*p).aArg;
+    *fresh46 = aArg;
+    (*p).nAlloc = N as libc::c_uint;
+    return 0 as libc::c_int;
+}
+unsafe extern "C" fn re_insert(
+    mut p: *mut ReCompiled,
+    mut iBefore: libc::c_int,
+    mut op: libc::c_int,
+    mut arg: libc::c_int,
+) -> libc::c_int {
+    let mut i: libc::c_int = 0;
+    if (*p).nAlloc <= (*p).nState
+        && re_resize(
+            p,
+            ((*p).nAlloc).wrapping_mul(2 as libc::c_int as libc::c_uint) as libc::c_int,
+        ) != 0
+    {
+        return 0 as libc::c_int;
+    }
+    i = (*p).nState as libc::c_int;
+    while i > iBefore {
+        *((*p).aOp)
+            .offset(i as isize) = *((*p).aOp).offset((i - 1 as libc::c_int) as isize);
+        *((*p).aArg)
+            .offset(i as isize) = *((*p).aArg).offset((i - 1 as libc::c_int) as isize);
+        i -= 1;
+    }
+    let ref mut fresh47 = (*p).nState;
+    *fresh47 = (*fresh47).wrapping_add(1);
+    *((*p).aOp).offset(iBefore as isize) = op as libc::c_char;
+    *((*p).aArg).offset(iBefore as isize) = arg;
+    return iBefore;
+}
+unsafe extern "C" fn re_append(
+    mut p: *mut ReCompiled,
+    mut op: libc::c_int,
+    mut arg: libc::c_int,
+) -> libc::c_int {
+    return re_insert(p, (*p).nState as libc::c_int, op, arg);
+}
+unsafe extern "C" fn re_copy(
+    mut p: *mut ReCompiled,
+    mut iStart: libc::c_int,
+    mut N: libc::c_int,
+) {
+    if ((*p).nState).wrapping_add(N as libc::c_uint) >= (*p).nAlloc
+        && re_resize(
+            p,
+            ((*p).nAlloc)
+                .wrapping_mul(2 as libc::c_int as libc::c_uint)
+                .wrapping_add(N as libc::c_uint) as libc::c_int,
+        ) != 0
+    {
+        return;
+    }
+    memcpy(
+        &mut *((*p).aOp).offset((*p).nState as isize) as *mut libc::c_char
+            as *mut libc::c_void,
+        &mut *((*p).aOp).offset(iStart as isize) as *mut libc::c_char
+            as *const libc::c_void,
+        (N as libc::c_ulong)
+            .wrapping_mul(::std::mem::size_of::<libc::c_char>() as libc::c_ulong),
+    );
+    memcpy(
+        &mut *((*p).aArg).offset((*p).nState as isize) as *mut libc::c_int
+            as *mut libc::c_void,
+        &mut *((*p).aArg).offset(iStart as isize) as *mut libc::c_int
+            as *const libc::c_void,
+        (N as libc::c_ulong)
+            .wrapping_mul(::std::mem::size_of::<libc::c_int>() as libc::c_ulong),
+    );
+    let ref mut fresh48 = (*p).nState;
+    *fresh48 = (*fresh48).wrapping_add(N as libc::c_uint);
+}
+unsafe extern "C" fn re_hex(
+    mut c: libc::c_int,
+    mut pV: *mut libc::c_int,
+) -> libc::c_int {
+    if c >= '0' as i32 && c <= '9' as i32 {
+        c -= '0' as i32;
+    } else if c >= 'a' as i32 && c <= 'f' as i32 {
+        c -= 'a' as i32 - 10 as libc::c_int;
+    } else if c >= 'A' as i32 && c <= 'F' as i32 {
+        c -= 'A' as i32 - 10 as libc::c_int;
+    } else {
+        return 0 as libc::c_int
+    }
+    *pV = *pV * 16 as libc::c_int + (c & 0xff as libc::c_int);
+    return 1 as libc::c_int;
+}
+unsafe extern "C" fn re_esc_char(mut p: *mut ReCompiled) -> libc::c_uint {
+    static mut zEsc: [libc::c_char; 21] = unsafe {
+        *::std::mem::transmute::<
+            &[u8; 21],
+            &[libc::c_char; 21],
+        >(b"afnrtv\\()*.+?[$^{|}]\0")
+    };
+    static mut zTrans: [libc::c_char; 7] = unsafe {
+        *::std::mem::transmute::<&[u8; 7], &[libc::c_char; 7]>(b"\x07\x0C\n\r\t\x0B\0")
+    };
+    let mut i: libc::c_int = 0;
+    let mut v: libc::c_int = 0 as libc::c_int;
+    let mut c: libc::c_char = 0;
+    if (*p).sIn.i >= (*p).sIn.mx {
+        return 0 as libc::c_int as libc::c_uint;
+    }
+    c = *((*p).sIn.z).offset((*p).sIn.i as isize) as libc::c_char;
+    if c as libc::c_int == 'u' as i32 && ((*p).sIn.i + 4 as libc::c_int) < (*p).sIn.mx {
+        let mut zIn: *const libc::c_uchar = ((*p).sIn.z).offset((*p).sIn.i as isize);
+        if re_hex(*zIn.offset(1 as libc::c_int as isize) as libc::c_int, &mut v) != 0
+            && re_hex(*zIn.offset(2 as libc::c_int as isize) as libc::c_int, &mut v) != 0
+            && re_hex(*zIn.offset(3 as libc::c_int as isize) as libc::c_int, &mut v) != 0
+            && re_hex(*zIn.offset(4 as libc::c_int as isize) as libc::c_int, &mut v) != 0
+        {
+            (*p).sIn.i += 5 as libc::c_int;
+            return v as libc::c_uint;
+        }
+    }
+    if c as libc::c_int == 'x' as i32 && ((*p).sIn.i + 2 as libc::c_int) < (*p).sIn.mx {
+        let mut zIn_0: *const libc::c_uchar = ((*p).sIn.z).offset((*p).sIn.i as isize);
+        if re_hex(*zIn_0.offset(1 as libc::c_int as isize) as libc::c_int, &mut v) != 0
+            && re_hex(*zIn_0.offset(2 as libc::c_int as isize) as libc::c_int, &mut v)
+                != 0
+        {
+            (*p).sIn.i += 3 as libc::c_int;
+            return v as libc::c_uint;
+        }
+    }
+    i = 0 as libc::c_int;
+    while zEsc[i as usize] as libc::c_int != 0
+        && zEsc[i as usize] as libc::c_int != c as libc::c_int
+    {
+        i += 1;
+    }
+    if zEsc[i as usize] != 0 {
+        if i < 6 as libc::c_int {
+            c = zTrans[i as usize];
+        }
+        let ref mut fresh49 = (*p).sIn.i;
+        *fresh49 += 1;
+    } else {
+        let ref mut fresh50 = (*p).zErr;
+        *fresh50 = b"unknown \\ escape\0" as *const u8 as *const libc::c_char;
+    }
+    return c as libc::c_uint;
+}
+unsafe extern "C" fn rePeek(mut p: *mut ReCompiled) -> libc::c_uchar {
+    return (if (*p).sIn.i < (*p).sIn.mx {
+        *((*p).sIn.z).offset((*p).sIn.i as isize) as libc::c_int
+    } else {
+        0 as libc::c_int
+    }) as libc::c_uchar;
+}
+unsafe extern "C" fn re_subcompile_re(mut p: *mut ReCompiled) -> *const libc::c_char {
+    let mut zErr: *const libc::c_char = 0 as *const libc::c_char;
+    let mut iStart: libc::c_int = 0;
+    let mut iEnd: libc::c_int = 0;
+    let mut iGoto: libc::c_int = 0;
+    iStart = (*p).nState as libc::c_int;
+    zErr = re_subcompile_string(p);
+    if !zErr.is_null() {
+        return zErr;
+    }
+    while rePeek(p) as libc::c_int == '|' as i32 {
+        iEnd = (*p).nState as libc::c_int;
+        re_insert(p, iStart, 4 as libc::c_int, iEnd + 2 as libc::c_int - iStart);
+        iGoto = re_append(p, 5 as libc::c_int, 0 as libc::c_int);
+        let ref mut fresh51 = (*p).sIn.i;
+        *fresh51 += 1;
+        zErr = re_subcompile_string(p);
+        if !zErr.is_null() {
+            return zErr;
+        }
+        *((*p).aArg)
+            .offset(
+                iGoto as isize,
+            ) = ((*p).nState).wrapping_sub(iGoto as libc::c_uint) as libc::c_int;
+    }
+    return 0 as *const libc::c_char;
+}
+unsafe extern "C" fn re_subcompile_string(
+    mut p: *mut ReCompiled,
+) -> *const libc::c_char {
+    let mut iPrev: libc::c_int = -(1 as libc::c_int);
+    let mut iStart: libc::c_int = 0;
+    let mut c: libc::c_uint = 0;
+    let mut zErr: *const libc::c_char = 0 as *const libc::c_char;
+    loop {
+        c = ((*p).xNextChar).expect("non-null function pointer")(&mut (*p).sIn);
+        if !(c != 0 as libc::c_int as libc::c_uint) {
+            break;
+        }
+        iStart = (*p).nState as libc::c_int;
+        match c {
+            124 | 36 | 41 => {
+                let ref mut fresh52 = (*p).sIn.i;
+                *fresh52 -= 1;
+                return 0 as *const libc::c_char;
+            }
+            40 => {
+                zErr = re_subcompile_re(p);
+                if !zErr.is_null() {
+                    return zErr;
+                }
+                if rePeek(p) as libc::c_int != ')' as i32 {
+                    return b"unmatched '('\0" as *const u8 as *const libc::c_char;
+                }
+                let ref mut fresh53 = (*p).sIn.i;
+                *fresh53 += 1;
+            }
+            46 => {
+                if rePeek(p) as libc::c_int == '*' as i32 {
+                    re_append(p, 3 as libc::c_int, 0 as libc::c_int);
+                    let ref mut fresh54 = (*p).sIn.i;
+                    *fresh54 += 1;
+                } else {
+                    re_append(p, 2 as libc::c_int, 0 as libc::c_int);
+                }
+            }
+            42 => {
+                if iPrev < 0 as libc::c_int {
+                    return b"'*' without operand\0" as *const u8 as *const libc::c_char;
+                }
+                re_insert(
+                    p,
+                    iPrev,
+                    5 as libc::c_int,
+                    ((*p).nState)
+                        .wrapping_sub(iPrev as libc::c_uint)
+                        .wrapping_add(1 as libc::c_int as libc::c_uint) as libc::c_int,
+                );
+                re_append(
+                    p,
+                    4 as libc::c_int,
+                    (iPrev as libc::c_uint)
+                        .wrapping_sub((*p).nState)
+                        .wrapping_add(1 as libc::c_int as libc::c_uint) as libc::c_int,
+                );
+            }
+            43 => {
+                if iPrev < 0 as libc::c_int {
+                    return b"'+' without operand\0" as *const u8 as *const libc::c_char;
+                }
+                re_append(
+                    p,
+                    4 as libc::c_int,
+                    (iPrev as libc::c_uint).wrapping_sub((*p).nState) as libc::c_int,
+                );
+            }
+            63 => {
+                if iPrev < 0 as libc::c_int {
+                    return b"'?' without operand\0" as *const u8 as *const libc::c_char;
+                }
+                re_insert(
+                    p,
+                    iPrev,
+                    4 as libc::c_int,
+                    ((*p).nState)
+                        .wrapping_sub(iPrev as libc::c_uint)
+                        .wrapping_add(1 as libc::c_int as libc::c_uint) as libc::c_int,
+                );
+            }
+            123 => {
+                let mut m: libc::c_int = 0 as libc::c_int;
+                let mut n: libc::c_int = 0 as libc::c_int;
+                let mut sz: libc::c_int = 0;
+                let mut j: libc::c_int = 0;
+                if iPrev < 0 as libc::c_int {
+                    return b"'{m,n}' without operand\0" as *const u8
+                        as *const libc::c_char;
+                }
+                loop {
+                    c = rePeek(p) as libc::c_uint;
+                    if !(c >= '0' as i32 as libc::c_uint
+                        && c <= '9' as i32 as libc::c_uint)
+                    {
+                        break;
+                    }
+                    m = ((m * 10 as libc::c_int) as libc::c_uint)
+                        .wrapping_add(c)
+                        .wrapping_sub('0' as i32 as libc::c_uint) as libc::c_int;
+                    let ref mut fresh55 = (*p).sIn.i;
+                    *fresh55 += 1;
+                }
+                n = m;
+                if c == ',' as i32 as libc::c_uint {
+                    let ref mut fresh56 = (*p).sIn.i;
+                    *fresh56 += 1;
+                    n = 0 as libc::c_int;
+                    loop {
+                        c = rePeek(p) as libc::c_uint;
+                        if !(c >= '0' as i32 as libc::c_uint
+                            && c <= '9' as i32 as libc::c_uint)
+                        {
+                            break;
+                        }
+                        n = ((n * 10 as libc::c_int) as libc::c_uint)
+                            .wrapping_add(c)
+                            .wrapping_sub('0' as i32 as libc::c_uint) as libc::c_int;
+                        let ref mut fresh57 = (*p).sIn.i;
+                        *fresh57 += 1;
+                    }
+                }
+                if c != '}' as i32 as libc::c_uint {
+                    return b"unmatched '{'\0" as *const u8 as *const libc::c_char;
+                }
+                if n > 0 as libc::c_int && n < m {
+                    return b"n less than m in '{m,n}'\0" as *const u8
+                        as *const libc::c_char;
+                }
+                let ref mut fresh58 = (*p).sIn.i;
+                *fresh58 += 1;
+                sz = ((*p).nState).wrapping_sub(iPrev as libc::c_uint) as libc::c_int;
+                if m == 0 as libc::c_int {
+                    if n == 0 as libc::c_int {
+                        return b"both m and n are zero in '{m,n}'\0" as *const u8
+                            as *const libc::c_char;
+                    }
+                    re_insert(p, iPrev, 4 as libc::c_int, sz + 1 as libc::c_int);
+                    n -= 1;
+                } else {
+                    j = 1 as libc::c_int;
+                    while j < m {
+                        re_copy(p, iPrev, sz);
+                        j += 1;
+                    }
+                }
+                j = m;
+                while j < n {
+                    re_append(p, 4 as libc::c_int, sz + 1 as libc::c_int);
+                    re_copy(p, iPrev, sz);
+                    j += 1;
+                }
+                if n == 0 as libc::c_int && m > 0 as libc::c_int {
+                    re_append(p, 4 as libc::c_int, -sz);
+                }
+            }
+            91 => {
+                let mut iFirst: libc::c_int = (*p).nState as libc::c_int;
+                if rePeek(p) as libc::c_int == '^' as i32 {
+                    re_append(p, 8 as libc::c_int, 0 as libc::c_int);
+                    let ref mut fresh59 = (*p).sIn.i;
+                    *fresh59 += 1;
+                } else {
+                    re_append(p, 7 as libc::c_int, 0 as libc::c_int);
+                }
+                loop {
+                    c = ((*p).xNextChar)
+                        .expect("non-null function pointer")(&mut (*p).sIn);
+                    if !(c != 0 as libc::c_int as libc::c_uint) {
+                        break;
+                    }
+                    if c == '[' as i32 as libc::c_uint
+                        && rePeek(p) as libc::c_int == ':' as i32
+                    {
+                        return b"POSIX character classes not supported\0" as *const u8
+                            as *const libc::c_char;
+                    }
+                    if c == '\\' as i32 as libc::c_uint {
+                        c = re_esc_char(p);
+                    }
+                    if rePeek(p) as libc::c_int == '-' as i32 {
+                        re_append(p, 10 as libc::c_int, c as libc::c_int);
+                        let ref mut fresh60 = (*p).sIn.i;
+                        *fresh60 += 1;
+                        c = ((*p).xNextChar)
+                            .expect("non-null function pointer")(&mut (*p).sIn);
+                        if c == '\\' as i32 as libc::c_uint {
+                            c = re_esc_char(p);
+                        }
+                        re_append(p, 10 as libc::c_int, c as libc::c_int);
+                    } else {
+                        re_append(p, 9 as libc::c_int, c as libc::c_int);
+                    }
+                    if !(rePeek(p) as libc::c_int == ']' as i32) {
+                        continue;
+                    }
+                    let ref mut fresh61 = (*p).sIn.i;
+                    *fresh61 += 1;
+                    break;
+                }
+                if c == 0 as libc::c_int as libc::c_uint {
+                    return b"unclosed '['\0" as *const u8 as *const libc::c_char;
+                }
+                *((*p).aArg)
+                    .offset(
+                        iFirst as isize,
+                    ) = ((*p).nState).wrapping_sub(iFirst as libc::c_uint)
+                    as libc::c_int;
+            }
+            92 => {
+                let mut specialOp: libc::c_int = 0 as libc::c_int;
+                match rePeek(p) as libc::c_int {
+                    98 => {
+                        specialOp = 17 as libc::c_int;
+                    }
+                    100 => {
+                        specialOp = 13 as libc::c_int;
+                    }
+                    68 => {
+                        specialOp = 14 as libc::c_int;
+                    }
+                    115 => {
+                        specialOp = 15 as libc::c_int;
+                    }
+                    83 => {
+                        specialOp = 16 as libc::c_int;
+                    }
+                    119 => {
+                        specialOp = 11 as libc::c_int;
+                    }
+                    87 => {
+                        specialOp = 12 as libc::c_int;
+                    }
+                    _ => {}
+                }
+                if specialOp != 0 {
+                    let ref mut fresh62 = (*p).sIn.i;
+                    *fresh62 += 1;
+                    re_append(p, specialOp, 0 as libc::c_int);
+                } else {
+                    c = re_esc_char(p);
+                    re_append(p, 1 as libc::c_int, c as libc::c_int);
+                }
+            }
+            _ => {
+                re_append(p, 1 as libc::c_int, c as libc::c_int);
+            }
+        }
+        iPrev = iStart;
+    }
+    return 0 as *const libc::c_char;
+}
+unsafe extern "C" fn sqlite3re_free(mut pRe: *mut ReCompiled) {
+    if !pRe.is_null() {
+        sqlite3_free((*pRe).aOp as *mut libc::c_void);
+        sqlite3_free((*pRe).aArg as *mut libc::c_void);
+        sqlite3_free(pRe as *mut libc::c_void);
+    }
+}
+unsafe extern "C" fn sqlite3re_compile(
+    mut ppRe: *mut *mut ReCompiled,
+    mut zIn: *const libc::c_char,
+    mut noCase: libc::c_int,
+) -> *const libc::c_char {
+    let mut pRe: *mut ReCompiled = 0 as *mut ReCompiled;
+    let mut zErr: *const libc::c_char = 0 as *const libc::c_char;
+    let mut i: libc::c_int = 0;
+    let mut j: libc::c_int = 0;
+    *ppRe = 0 as *mut ReCompiled;
+    pRe = sqlite3_malloc(
+        ::std::mem::size_of::<ReCompiled>() as libc::c_ulong as libc::c_int,
+    ) as *mut ReCompiled;
+    if pRe.is_null() {
+        return b"out of memory\0" as *const u8 as *const libc::c_char;
+    }
+    memset(
+        pRe as *mut libc::c_void,
+        0 as libc::c_int,
+        ::std::mem::size_of::<ReCompiled>() as libc::c_ulong,
+    );
+    let ref mut fresh63 = (*pRe).xNextChar;
+    *fresh63 = if noCase != 0 {
+        Some(re_next_char_nocase as unsafe extern "C" fn(*mut ReInput) -> libc::c_uint)
+    } else {
+        Some(re_next_char as unsafe extern "C" fn(*mut ReInput) -> libc::c_uint)
+    };
+    if re_resize(pRe, 30 as libc::c_int) != 0 {
+        sqlite3re_free(pRe);
+        return b"out of memory\0" as *const u8 as *const libc::c_char;
+    }
+    if *zIn.offset(0 as libc::c_int as isize) as libc::c_int == '^' as i32 {
+        zIn = zIn.offset(1);
+    } else {
+        re_append(pRe, 3 as libc::c_int, 0 as libc::c_int);
+    }
+    let ref mut fresh64 = (*pRe).sIn.z;
+    *fresh64 = zIn as *mut libc::c_uchar;
+    (*pRe).sIn.i = 0 as libc::c_int;
+    (*pRe).sIn.mx = strlen(zIn) as libc::c_int;
+    zErr = re_subcompile_re(pRe);
+    if !zErr.is_null() {
+        sqlite3re_free(pRe);
+        return zErr;
+    }
+    if rePeek(pRe) as libc::c_int == '$' as i32
+        && (*pRe).sIn.i + 1 as libc::c_int >= (*pRe).sIn.mx
+    {
+        re_append(pRe, 1 as libc::c_int, 0 as libc::c_int);
+        re_append(pRe, 6 as libc::c_int, 0 as libc::c_int);
+        *ppRe = pRe;
+    } else if (*pRe).sIn.i >= (*pRe).sIn.mx {
+        re_append(pRe, 6 as libc::c_int, 0 as libc::c_int);
+        *ppRe = pRe;
+    } else {
+        sqlite3re_free(pRe);
+        return b"unrecognized character\0" as *const u8 as *const libc::c_char;
+    }
+    if *((*pRe).aOp).offset(0 as libc::c_int as isize) as libc::c_int == 3 as libc::c_int
+        && noCase == 0
+    {
+        j = 0 as libc::c_int;
+        i = 1 as libc::c_int;
+        while j
+            < ::std::mem::size_of::<[libc::c_uchar; 12]>() as libc::c_ulong
+                as libc::c_int - 2 as libc::c_int
+            && *((*pRe).aOp).offset(i as isize) as libc::c_int == 1 as libc::c_int
+        {
+            let mut x: libc::c_uint = *((*pRe).aArg).offset(i as isize) as libc::c_uint;
+            if x <= 127 as libc::c_int as libc::c_uint {
+                let fresh65 = j;
+                j = j + 1;
+                (*pRe).zInit[fresh65 as usize] = x as libc::c_uchar;
+            } else if x <= 0xfff as libc::c_int as libc::c_uint {
+                let fresh66 = j;
+                j = j + 1;
+                (*pRe)
+                    .zInit[fresh66
+                    as usize] = (0xc0 as libc::c_int as libc::c_uint
+                    | x >> 6 as libc::c_int) as libc::c_uchar;
+                let fresh67 = j;
+                j = j + 1;
+                (*pRe)
+                    .zInit[fresh67
+                    as usize] = (0x80 as libc::c_int as libc::c_uint
+                    | x & 0x3f as libc::c_int as libc::c_uint) as libc::c_uchar;
+            } else {
+                if !(x <= 0xffff as libc::c_int as libc::c_uint) {
+                    break;
+                }
+                let fresh68 = j;
+                j = j + 1;
+                (*pRe)
+                    .zInit[fresh68
+                    as usize] = (0xe0 as libc::c_int as libc::c_uint
+                    | x >> 12 as libc::c_int) as libc::c_uchar;
+                let fresh69 = j;
+                j = j + 1;
+                (*pRe)
+                    .zInit[fresh69
+                    as usize] = (0x80 as libc::c_int as libc::c_uint
+                    | x >> 6 as libc::c_int & 0x3f as libc::c_int as libc::c_uint)
+                    as libc::c_uchar;
+                let fresh70 = j;
+                j = j + 1;
+                (*pRe)
+                    .zInit[fresh70
+                    as usize] = (0x80 as libc::c_int as libc::c_uint
+                    | x & 0x3f as libc::c_int as libc::c_uint) as libc::c_uchar;
+            }
+            i += 1;
+        }
+        if j > 0 as libc::c_int
+            && (*pRe).zInit[(j - 1 as libc::c_int) as usize] as libc::c_int
+                == 0 as libc::c_int
+        {
+            j -= 1;
+        }
+        (*pRe).nInit = j;
+    }
+    return (*pRe).zErr;
+}
+unsafe extern "C" fn re_sql_func(
+    mut context: *mut sqlite3_context,
+    mut argc: libc::c_int,
+    mut argv: *mut *mut sqlite3_value,
+) {
+    let mut pRe: *mut ReCompiled = 0 as *mut ReCompiled;
+    let mut zPattern: *const libc::c_char = 0 as *const libc::c_char;
+    let mut zStr: *const libc::c_uchar = 0 as *const libc::c_uchar;
+    let mut zErr: *const libc::c_char = 0 as *const libc::c_char;
+    let mut setAux: libc::c_int = 0 as libc::c_int;
+    pRe = sqlite3_get_auxdata(context, 0 as libc::c_int) as *mut ReCompiled;
+    if pRe.is_null() {
+        zPattern = sqlite3_value_text(*argv.offset(0 as libc::c_int as isize))
+            as *const libc::c_char;
+        if zPattern.is_null() {
+            return;
+        }
+        zErr = sqlite3re_compile(
+            &mut pRe,
+            zPattern,
+            (sqlite3_user_data(context) != 0 as *mut libc::c_void) as libc::c_int,
+        );
+        if !zErr.is_null() {
+            sqlite3re_free(pRe);
+            sqlite3_result_error(context, zErr, -(1 as libc::c_int));
+            return;
+        }
+        if pRe.is_null() {
+            sqlite3_result_error_nomem(context);
+            return;
+        }
+        setAux = 1 as libc::c_int;
+    }
+    zStr = sqlite3_value_text(*argv.offset(1 as libc::c_int as isize));
+    if !zStr.is_null() {
+        sqlite3_result_int(context, sqlite3re_match(pRe, zStr, -(1 as libc::c_int)));
+    }
+    if setAux != 0 {
+        sqlite3_set_auxdata(
+            context,
+            0 as libc::c_int,
+            pRe as *mut libc::c_void,
+            ::std::mem::transmute::<
+                Option::<unsafe extern "C" fn(*mut ReCompiled) -> ()>,
+                Option::<unsafe extern "C" fn(*mut libc::c_void) -> ()>,
+            >(Some(sqlite3re_free as unsafe extern "C" fn(*mut ReCompiled) -> ())),
+        );
+    }
+}
+#[no_mangle]
+pub unsafe extern "C" fn sqlite3_regexp_init(
+    mut db: *mut sqlite3,
+    mut pzErrMsg: *mut *mut libc::c_char,
+    mut pApi: *const sqlite3_api_routines,
+) -> libc::c_int {
+    let mut rc: libc::c_int = 0 as libc::c_int;
+    rc = sqlite3_create_function(
+        db,
+        b"regexp\0" as *const u8 as *const libc::c_char,
+        2 as libc::c_int,
+        1 as libc::c_int | 0x200000 as libc::c_int | 0x800 as libc::c_int,
+        0 as *mut libc::c_void,
+        Some(
+            re_sql_func
+                as unsafe extern "C" fn(
+                    *mut sqlite3_context,
+                    libc::c_int,
+                    *mut *mut sqlite3_value,
+                ) -> (),
+        ),
+        None,
+        None,
+    );
+    if rc == 0 as libc::c_int {
+        rc = sqlite3_create_function(
+            db,
+            b"regexpi\0" as *const u8 as *const libc::c_char,
+            2 as libc::c_int,
+            1 as libc::c_int | 0x200000 as libc::c_int | 0x800 as libc::c_int,
+            db as *mut libc::c_void,
+            Some(
+                re_sql_func
+                    as unsafe extern "C" fn(
+                        *mut sqlite3_context,
+                        libc::c_int,
+                        *mut *mut sqlite3_value,
+                    ) -> (),
+            ),
+            None,
+            None,
+        );
+    }
+    return rc;
+}
 unsafe extern "C" fn readFileContents(
     mut ctx: *mut sqlite3_context,
     mut zName: *const libc::c_char,
@@ -3770,12 +6715,12 @@ unsafe extern "C" fn fsdirResetCursor(mut pCur: *mut fsdir_cursor) {
     }
     sqlite3_free((*pCur).zPath as *mut libc::c_void);
     sqlite3_free((*pCur).aLvl as *mut libc::c_void);
-    let ref mut fresh14 = (*pCur).aLvl;
-    *fresh14 = 0 as *mut FsdirLevel;
-    let ref mut fresh15 = (*pCur).zPath;
-    *fresh15 = 0 as *mut libc::c_char;
-    let ref mut fresh16 = (*pCur).zBase;
-    *fresh16 = 0 as *const libc::c_char;
+    let ref mut fresh71 = (*pCur).aLvl;
+    *fresh71 = 0 as *mut FsdirLevel;
+    let ref mut fresh72 = (*pCur).zPath;
+    *fresh72 = 0 as *mut libc::c_char;
+    let ref mut fresh73 = (*pCur).zBase;
+    *fresh73 = 0 as *const libc::c_char;
     (*pCur).nBase = 0 as libc::c_int;
     (*pCur).nLvl = 0 as libc::c_int;
     (*pCur).iLvl = -(1 as libc::c_int);
@@ -3794,14 +6739,14 @@ unsafe extern "C" fn fsdirSetErrmsg(
 ) {
     let mut ap: ::std::ffi::VaListImpl;
     ap = args.clone();
-    let ref mut fresh17 = (*(*pCur).base.pVtab).zErrMsg;
-    *fresh17 = sqlite3_vmprintf(zFmt, ap.as_va_list());
+    let ref mut fresh74 = (*(*pCur).base.pVtab).zErrMsg;
+    *fresh74 = sqlite3_vmprintf(zFmt, ap.as_va_list());
 }
 unsafe extern "C" fn fsdirNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int {
     let mut pCur: *mut fsdir_cursor = cur as *mut fsdir_cursor;
     let mut m: mode_t = (*pCur).sStat.st_mode;
-    let ref mut fresh18 = (*pCur).iRowid;
-    *fresh18 += 1;
+    let ref mut fresh75 = (*pCur).iRowid;
+    *fresh75 += 1;
     if m & 0o170000 as libc::c_int as libc::c_uint
         == 0o40000 as libc::c_int as libc::c_uint
     {
@@ -3826,18 +6771,18 @@ unsafe extern "C" fn fsdirNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int
                 (::std::mem::size_of::<FsdirLevel>() as libc::c_ulong)
                     .wrapping_mul((nNew - (*pCur).nLvl) as libc::c_ulong),
             );
-            let ref mut fresh19 = (*pCur).aLvl;
-            *fresh19 = aNew;
+            let ref mut fresh76 = (*pCur).aLvl;
+            *fresh76 = aNew;
             (*pCur).nLvl = nNew;
         }
         (*pCur).iLvl = iNew;
         pLvl = &mut *((*pCur).aLvl).offset(iNew as isize) as *mut FsdirLevel;
-        let ref mut fresh20 = (*pLvl).zDir;
-        *fresh20 = (*pCur).zPath;
-        let ref mut fresh21 = (*pCur).zPath;
-        *fresh21 = 0 as *mut libc::c_char;
-        let ref mut fresh22 = (*pLvl).pDir;
-        *fresh22 = opendir((*pLvl).zDir);
+        let ref mut fresh77 = (*pLvl).zDir;
+        *fresh77 = (*pCur).zPath;
+        let ref mut fresh78 = (*pCur).zPath;
+        *fresh78 = 0 as *mut libc::c_char;
+        let ref mut fresh79 = (*pLvl).pDir;
+        *fresh79 = opendir((*pLvl).zDir);
         if ((*pLvl).pDir).is_null() {
             fsdirSetErrmsg(
                 pCur,
@@ -3867,8 +6812,8 @@ unsafe extern "C" fn fsdirNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int
                 }
             }
             sqlite3_free((*pCur).zPath as *mut libc::c_void);
-            let ref mut fresh23 = (*pCur).zPath;
-            *fresh23 = sqlite3_mprintf(
+            let ref mut fresh80 = (*pCur).zPath;
+            *fresh80 = sqlite3_mprintf(
                 b"%s/%s\0" as *const u8 as *const libc::c_char,
                 (*pLvl_0).zDir,
                 ((*pEntry).d_name).as_mut_ptr(),
@@ -3888,17 +6833,17 @@ unsafe extern "C" fn fsdirNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int
         } else {
             closedir((*pLvl_0).pDir);
             sqlite3_free((*pLvl_0).zDir as *mut libc::c_void);
-            let ref mut fresh24 = (*pLvl_0).pDir;
-            *fresh24 = 0 as *mut DIR;
-            let ref mut fresh25 = (*pLvl_0).zDir;
-            *fresh25 = 0 as *mut libc::c_char;
-            let ref mut fresh26 = (*pCur).iLvl;
-            *fresh26 -= 1;
+            let ref mut fresh81 = (*pLvl_0).pDir;
+            *fresh81 = 0 as *mut DIR;
+            let ref mut fresh82 = (*pLvl_0).zDir;
+            *fresh82 = 0 as *mut libc::c_char;
+            let ref mut fresh83 = (*pCur).iLvl;
+            *fresh83 -= 1;
         }
     }
     sqlite3_free((*pCur).zPath as *mut libc::c_void);
-    let ref mut fresh27 = (*pCur).zPath;
-    *fresh27 = 0 as *mut libc::c_char;
+    let ref mut fresh84 = (*pCur).zPath;
+    *fresh84 = 0 as *mut libc::c_char;
     return 0 as libc::c_int;
 }
 unsafe extern "C" fn fsdirColumn(
@@ -4008,7 +6953,7 @@ unsafe extern "C" fn fsdirFilter(
             b"argc==idxNum && (argc==1 || argc==2)\0" as *const u8
                 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            2964 as libc::c_int as libc::c_uint,
+            5354 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 81],
                 &[libc::c_char; 81],
@@ -4029,21 +6974,21 @@ unsafe extern "C" fn fsdirFilter(
         return 1 as libc::c_int;
     }
     if argc == 2 as libc::c_int {
-        let ref mut fresh28 = (*pCur).zBase;
-        *fresh28 = sqlite3_value_text(*argv.offset(1 as libc::c_int as isize))
+        let ref mut fresh85 = (*pCur).zBase;
+        *fresh85 = sqlite3_value_text(*argv.offset(1 as libc::c_int as isize))
             as *const libc::c_char;
     }
     if !((*pCur).zBase).is_null() {
         (*pCur).nBase = strlen((*pCur).zBase) as libc::c_int + 1 as libc::c_int;
-        let ref mut fresh29 = (*pCur).zPath;
-        *fresh29 = sqlite3_mprintf(
+        let ref mut fresh86 = (*pCur).zPath;
+        *fresh86 = sqlite3_mprintf(
             b"%s/%s\0" as *const u8 as *const libc::c_char,
             (*pCur).zBase,
             zDir,
         );
     } else {
-        let ref mut fresh30 = (*pCur).zPath;
-        *fresh30 = sqlite3_mprintf(b"%s\0" as *const u8 as *const libc::c_char, zDir);
+        let ref mut fresh87 = (*pCur).zPath;
+        *fresh87 = sqlite3_mprintf(b"%s\0" as *const u8 as *const libc::c_char, zDir);
     }
     if ((*pCur).zPath).is_null() {
         return 7 as libc::c_int;
@@ -4313,8 +7258,8 @@ unsafe extern "C" fn completionConnect(
             0 as libc::c_int,
             ::std::mem::size_of::<completion_vtab>() as libc::c_ulong,
         );
-        let ref mut fresh31 = (*pNew).db;
-        *fresh31 = db;
+        let ref mut fresh88 = (*pNew).db;
+        *fresh88 = db;
     }
     return rc;
 }
@@ -4338,23 +7283,23 @@ unsafe extern "C" fn completionOpen(
         0 as libc::c_int,
         ::std::mem::size_of::<completion_cursor>() as libc::c_ulong,
     );
-    let ref mut fresh32 = (*pCur).db;
-    *fresh32 = (*(p as *mut completion_vtab)).db;
+    let ref mut fresh89 = (*pCur).db;
+    *fresh89 = (*(p as *mut completion_vtab)).db;
     *ppCursor = &mut (*pCur).base;
     return 0 as libc::c_int;
 }
 unsafe extern "C" fn completionCursorReset(mut pCur: *mut completion_cursor) {
     sqlite3_free((*pCur).zPrefix as *mut libc::c_void);
-    let ref mut fresh33 = (*pCur).zPrefix;
-    *fresh33 = 0 as *mut libc::c_char;
+    let ref mut fresh90 = (*pCur).zPrefix;
+    *fresh90 = 0 as *mut libc::c_char;
     (*pCur).nPrefix = 0 as libc::c_int;
     sqlite3_free((*pCur).zLine as *mut libc::c_void);
-    let ref mut fresh34 = (*pCur).zLine;
-    *fresh34 = 0 as *mut libc::c_char;
+    let ref mut fresh91 = (*pCur).zLine;
+    *fresh91 = 0 as *mut libc::c_char;
     (*pCur).nLine = 0 as libc::c_int;
     sqlite3_finalize((*pCur).pStmt);
-    let ref mut fresh35 = (*pCur).pStmt;
-    *fresh35 = 0 as *mut sqlite3_stmt;
+    let ref mut fresh92 = (*pCur).pStmt;
+    *fresh92 = 0 as *mut sqlite3_stmt;
     (*pCur).j = 0 as libc::c_int;
 }
 unsafe extern "C" fn completionClose(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int {
@@ -4366,21 +7311,21 @@ unsafe extern "C" fn completionNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::
     let mut pCur: *mut completion_cursor = cur as *mut completion_cursor;
     let mut eNextPhase: libc::c_int = 0 as libc::c_int;
     let mut iCol: libc::c_int = -(1 as libc::c_int);
-    let ref mut fresh36 = (*pCur).iRowid;
-    *fresh36 += 1;
+    let ref mut fresh93 = (*pCur).iRowid;
+    *fresh93 += 1;
     while (*pCur).ePhase != 11 as libc::c_int {
         match (*pCur).ePhase {
             1 => {
                 if (*pCur).j >= sqlite3_keyword_count() {
-                    let ref mut fresh37 = (*pCur).zCurrentRow;
-                    *fresh37 = 0 as *const libc::c_char;
+                    let ref mut fresh94 = (*pCur).zCurrentRow;
+                    *fresh94 = 0 as *const libc::c_char;
                     (*pCur).ePhase = 7 as libc::c_int;
                 } else {
-                    let ref mut fresh38 = (*pCur).j;
-                    let fresh39 = *fresh38;
-                    *fresh38 = *fresh38 + 1;
+                    let ref mut fresh95 = (*pCur).j;
+                    let fresh96 = *fresh95;
+                    *fresh95 = *fresh95 + 1;
                     sqlite3_keyword_name(
-                        fresh39,
+                        fresh96,
                         &mut (*pCur).zCurrentRow,
                         &mut (*pCur).szRow,
                     );
@@ -4494,13 +7439,13 @@ unsafe extern "C" fn completionNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::
                 continue;
             }
         } else if sqlite3_step((*pCur).pStmt) == 100 as libc::c_int {
-            let ref mut fresh40 = (*pCur).zCurrentRow;
-            *fresh40 = sqlite3_column_text((*pCur).pStmt, iCol) as *const libc::c_char;
+            let ref mut fresh97 = (*pCur).zCurrentRow;
+            *fresh97 = sqlite3_column_text((*pCur).pStmt, iCol) as *const libc::c_char;
             (*pCur).szRow = sqlite3_column_bytes((*pCur).pStmt, iCol);
         } else {
             sqlite3_finalize((*pCur).pStmt);
-            let ref mut fresh41 = (*pCur).pStmt;
-            *fresh41 = 0 as *mut sqlite3_stmt;
+            let ref mut fresh98 = (*pCur).pStmt;
+            *fresh98 = 0 as *mut sqlite3_stmt;
             (*pCur).ePhase = eNextPhase;
             continue;
         }
@@ -4588,8 +7533,8 @@ unsafe extern "C" fn completionFilter(
     if idxNum & 1 as libc::c_int != 0 {
         (*pCur).nPrefix = sqlite3_value_bytes(*argv.offset(iArg as isize));
         if (*pCur).nPrefix > 0 as libc::c_int {
-            let ref mut fresh42 = (*pCur).zPrefix;
-            *fresh42 = sqlite3_mprintf(
+            let ref mut fresh99 = (*pCur).zPrefix;
+            *fresh99 = sqlite3_mprintf(
                 b"%s\0" as *const u8 as *const libc::c_char,
                 sqlite3_value_text(*argv.offset(iArg as isize)),
             );
@@ -4602,8 +7547,8 @@ unsafe extern "C" fn completionFilter(
     if idxNum & 2 as libc::c_int != 0 {
         (*pCur).nLine = sqlite3_value_bytes(*argv.offset(iArg as isize));
         if (*pCur).nLine > 0 as libc::c_int {
-            let ref mut fresh43 = (*pCur).zLine;
-            *fresh43 = sqlite3_mprintf(
+            let ref mut fresh100 = (*pCur).zLine;
+            *fresh100 = sqlite3_mprintf(
                 b"%s\0" as *const u8 as *const libc::c_char,
                 sqlite3_value_text(*argv.offset(iArg as isize)),
             );
@@ -4628,8 +7573,8 @@ unsafe extern "C" fn completionFilter(
         }
         (*pCur).nPrefix = (*pCur).nLine - i;
         if (*pCur).nPrefix > 0 as libc::c_int {
-            let ref mut fresh44 = (*pCur).zPrefix;
-            *fresh44 = sqlite3_mprintf(
+            let ref mut fresh101 = (*pCur).zPrefix;
+            *fresh101 = sqlite3_mprintf(
                 b"%.*s\0" as *const u8 as *const libc::c_char,
                 (*pCur).nPrefix,
                 ((*pCur).zLine).offset(i as isize),
@@ -5098,7 +8043,7 @@ unsafe extern "C" fn apndWriteMark(
         __assert_fail(
             b"pFile == ORIGFILE(paf)\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            3908 as libc::c_int as libc::c_uint,
+            6298 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 60],
                 &[libc::c_char; 60],
@@ -5237,14 +8182,14 @@ unsafe extern "C" fn apndFileControl(
     pFile = (pFile as *mut ApndFile).offset(1 as libc::c_int as isize)
         as *mut sqlite3_file;
     if op == 5 as libc::c_int {
-        let ref mut fresh45 = *(pArg as *mut sqlite3_int64);
-        *fresh45 += (*paf).iPgOne;
+        let ref mut fresh102 = *(pArg as *mut sqlite3_int64);
+        *fresh102 += (*paf).iPgOne;
     }
     rc = ((*(*pFile).pMethods).xFileControl)
         .expect("non-null function pointer")(pFile, op, pArg);
     if rc == 0 as libc::c_int && op == 12 as libc::c_int {
-        let ref mut fresh46 = *(pArg as *mut *mut libc::c_char);
-        *fresh46 = sqlite3_mprintf(
+        let ref mut fresh103 = *(pArg as *mut *mut libc::c_char);
+        *fresh103 = sqlite3_mprintf(
             b"apnd(%lld)/%z\0" as *const u8 as *const libc::c_char,
             (*paf).iPgOne,
             *(pArg as *mut *mut libc::c_char),
@@ -5475,8 +8420,8 @@ unsafe extern "C" fn apndOpen(
         0 as libc::c_int,
         ::std::mem::size_of::<ApndFile>() as libc::c_ulong,
     );
-    let ref mut fresh47 = (*pFile).pMethods;
-    *fresh47 = &apnd_io_methods;
+    let ref mut fresh104 = (*pFile).pMethods;
+    *fresh104 = &apnd_io_methods;
     (*pApndFile).iMark = -(1 as libc::c_int) as sqlite3_int64;
     rc = ((*pBaseVfs).xOpen)
         .expect(
@@ -5491,8 +8436,8 @@ unsafe extern "C" fn apndOpen(
         }
     }
     if rc != 0 {
-        let ref mut fresh48 = (*pFile).pMethods;
-        *fresh48 = 0 as *const sqlite3_io_methods;
+        let ref mut fresh105 = (*pFile).pMethods;
+        *fresh105 = 0 as *const sqlite3_io_methods;
         return rc;
     }
     if apndIsOrdinaryDatabaseFile(sz, pBaseFile) != 0 {
@@ -5512,8 +8457,8 @@ unsafe extern "C" fn apndOpen(
     if flags & 0x4 as libc::c_int == 0 as libc::c_int {
         ((*(*pBaseFile).pMethods).xClose).expect("non-null function pointer")(pBaseFile);
         rc = 14 as libc::c_int;
-        let ref mut fresh49 = (*pFile).pMethods;
-        *fresh49 = 0 as *const sqlite3_io_methods;
+        let ref mut fresh106 = (*pFile).pMethods;
+        *fresh106 = 0 as *const sqlite3_io_methods;
     } else {
         (*pApndFile)
             .iPgOne = sz + (4096 as libc::c_int - 1 as libc::c_int) as sqlite3_int64
@@ -5685,2963 +8630,6 @@ pub unsafe extern "C" fn sqlite3_appendvfs_init(
     }
     return rc;
 }
-static mut memtraceBase: sqlite3_mem_methods = sqlite3_mem_methods {
-    xMalloc: None,
-    xFree: None,
-    xRealloc: None,
-    xSize: None,
-    xRoundup: None,
-    xInit: None,
-    xShutdown: None,
-    pAppData: 0 as *const libc::c_void as *mut libc::c_void,
-};
-static mut memtraceOut: *mut FILE = 0 as *const FILE as *mut FILE;
-unsafe extern "C" fn memtraceMalloc(mut n: libc::c_int) -> *mut libc::c_void {
-    if !memtraceOut.is_null() {
-        fprintf(
-            memtraceOut,
-            b"MEMTRACE: allocate %d bytes\n\0" as *const u8 as *const libc::c_char,
-            (memtraceBase.xRoundup).expect("non-null function pointer")(n),
-        );
-    }
-    return (memtraceBase.xMalloc).expect("non-null function pointer")(n);
-}
-unsafe extern "C" fn memtraceFree(mut p: *mut libc::c_void) {
-    if p.is_null() {
-        return;
-    }
-    if !memtraceOut.is_null() {
-        fprintf(
-            memtraceOut,
-            b"MEMTRACE: free %d bytes\n\0" as *const u8 as *const libc::c_char,
-            (memtraceBase.xSize).expect("non-null function pointer")(p),
-        );
-    }
-    (memtraceBase.xFree).expect("non-null function pointer")(p);
-}
-unsafe extern "C" fn memtraceRealloc(
-    mut p: *mut libc::c_void,
-    mut n: libc::c_int,
-) -> *mut libc::c_void {
-    if p.is_null() {
-        return memtraceMalloc(n);
-    }
-    if n == 0 as libc::c_int {
-        memtraceFree(p);
-        return 0 as *mut libc::c_void;
-    }
-    if !memtraceOut.is_null() {
-        fprintf(
-            memtraceOut,
-            b"MEMTRACE: resize %d -> %d bytes\n\0" as *const u8 as *const libc::c_char,
-            (memtraceBase.xSize).expect("non-null function pointer")(p),
-            (memtraceBase.xRoundup).expect("non-null function pointer")(n),
-        );
-    }
-    return (memtraceBase.xRealloc).expect("non-null function pointer")(p, n);
-}
-unsafe extern "C" fn memtraceSize(mut p: *mut libc::c_void) -> libc::c_int {
-    return (memtraceBase.xSize).expect("non-null function pointer")(p);
-}
-unsafe extern "C" fn memtraceRoundup(mut n: libc::c_int) -> libc::c_int {
-    return (memtraceBase.xRoundup).expect("non-null function pointer")(n);
-}
-unsafe extern "C" fn memtraceInit(mut p: *mut libc::c_void) -> libc::c_int {
-    return (memtraceBase.xInit).expect("non-null function pointer")(p);
-}
-unsafe extern "C" fn memtraceShutdown(mut p: *mut libc::c_void) {
-    (memtraceBase.xShutdown).expect("non-null function pointer")(p);
-}
-static mut ersaztMethods: sqlite3_mem_methods = unsafe {
-    {
-        let mut init = sqlite3_mem_methods {
-            xMalloc: Some(
-                memtraceMalloc as unsafe extern "C" fn(libc::c_int) -> *mut libc::c_void,
-            ),
-            xFree: Some(memtraceFree as unsafe extern "C" fn(*mut libc::c_void) -> ()),
-            xRealloc: Some(
-                memtraceRealloc
-                    as unsafe extern "C" fn(
-                        *mut libc::c_void,
-                        libc::c_int,
-                    ) -> *mut libc::c_void,
-            ),
-            xSize: Some(
-                memtraceSize as unsafe extern "C" fn(*mut libc::c_void) -> libc::c_int,
-            ),
-            xRoundup: Some(
-                memtraceRoundup as unsafe extern "C" fn(libc::c_int) -> libc::c_int,
-            ),
-            xInit: Some(
-                memtraceInit as unsafe extern "C" fn(*mut libc::c_void) -> libc::c_int,
-            ),
-            xShutdown: Some(
-                memtraceShutdown as unsafe extern "C" fn(*mut libc::c_void) -> (),
-            ),
-            pAppData: 0 as *const libc::c_void as *mut libc::c_void,
-        };
-        init
-    }
-};
-#[no_mangle]
-pub unsafe extern "C" fn sqlite3MemTraceActivate(mut out: *mut FILE) -> libc::c_int {
-    let mut rc: libc::c_int = 0 as libc::c_int;
-    if (memtraceBase.xMalloc).is_none() {
-        rc = sqlite3_config(
-            5 as libc::c_int,
-            &mut memtraceBase as *mut sqlite3_mem_methods,
-        );
-        if rc == 0 as libc::c_int {
-            rc = sqlite3_config(
-                4 as libc::c_int,
-                &mut ersaztMethods as *mut sqlite3_mem_methods,
-            );
-        }
-    }
-    memtraceOut = out;
-    return rc;
-}
-#[no_mangle]
-pub unsafe extern "C" fn sqlite3MemTraceDeactivate() -> libc::c_int {
-    let mut rc: libc::c_int = 0 as libc::c_int;
-    if (memtraceBase.xMalloc).is_some() {
-        rc = sqlite3_config(
-            4 as libc::c_int,
-            &mut memtraceBase as *mut sqlite3_mem_methods,
-        );
-        if rc == 0 as libc::c_int {
-            memset(
-                &mut memtraceBase as *mut sqlite3_mem_methods as *mut libc::c_void,
-                0 as libc::c_int,
-                ::std::mem::size_of::<sqlite3_mem_methods>() as libc::c_ulong,
-            );
-        }
-    }
-    memtraceOut = 0 as *mut FILE;
-    return rc;
-}
-unsafe extern "C" fn uintCollFunc(
-    mut notUsed: *mut libc::c_void,
-    mut nKey1: libc::c_int,
-    mut pKey1: *const libc::c_void,
-    mut nKey2: libc::c_int,
-    mut pKey2: *const libc::c_void,
-) -> libc::c_int {
-    let mut zA: *const libc::c_uchar = pKey1 as *const libc::c_uchar;
-    let mut zB: *const libc::c_uchar = pKey2 as *const libc::c_uchar;
-    let mut i: libc::c_int = 0 as libc::c_int;
-    let mut j: libc::c_int = 0 as libc::c_int;
-    let mut x: libc::c_int = 0;
-    while i < nKey1 && j < nKey2 {
-        x = *zA.offset(i as isize) as libc::c_int
-            - *zB.offset(j as isize) as libc::c_int;
-        if *(*__ctype_b_loc()).offset(*zA.offset(i as isize) as libc::c_int as isize)
-            as libc::c_int & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int
-            != 0
-        {
-            let mut k: libc::c_int = 0;
-            if *(*__ctype_b_loc()).offset(*zB.offset(j as isize) as libc::c_int as isize)
-                as libc::c_int & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int
-                == 0
-            {
-                return x;
-            }
-            while i < nKey1 && *zA.offset(i as isize) as libc::c_int == '0' as i32 {
-                i += 1;
-            }
-            while j < nKey2 && *zB.offset(j as isize) as libc::c_int == '0' as i32 {
-                j += 1;
-            }
-            k = 0 as libc::c_int;
-            while i + k < nKey1
-                && *(*__ctype_b_loc())
-                    .offset(*zA.offset((i + k) as isize) as libc::c_int as isize)
-                    as libc::c_int
-                    & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
-                && j + k < nKey2
-                && *(*__ctype_b_loc())
-                    .offset(*zB.offset((j + k) as isize) as libc::c_int as isize)
-                    as libc::c_int
-                    & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
-            {
-                k += 1;
-            }
-            if i + k < nKey1
-                && *(*__ctype_b_loc())
-                    .offset(*zA.offset((i + k) as isize) as libc::c_int as isize)
-                    as libc::c_int
-                    & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
-            {
-                return 1 as libc::c_int
-            } else {
-                if j + k < nKey2
-                    && *(*__ctype_b_loc())
-                        .offset(*zB.offset((j + k) as isize) as libc::c_int as isize)
-                        as libc::c_int
-                        & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
-                {
-                    return -(1 as libc::c_int)
-                } else {
-                    x = memcmp(
-                        zA.offset(i as isize) as *const libc::c_void,
-                        zB.offset(j as isize) as *const libc::c_void,
-                        k as libc::c_ulong,
-                    );
-                    if x != 0 {
-                        return x;
-                    }
-                    i += k;
-                    j += k;
-                }
-            }
-        } else if x != 0 {
-            return x
-        } else {
-            i += 1;
-            j += 1;
-        }
-    }
-    return nKey1 - i - (nKey2 - j);
-}
-#[no_mangle]
-pub unsafe extern "C" fn sqlite3_uint_init(
-    mut db: *mut sqlite3,
-    mut pzErrMsg: *mut *mut libc::c_char,
-    mut pApi: *const sqlite3_api_routines,
-) -> libc::c_int {
-    return sqlite3_create_collation(
-        db,
-        b"uint\0" as *const u8 as *const libc::c_char,
-        1 as libc::c_int,
-        0 as *mut libc::c_void,
-        Some(
-            uintCollFunc
-                as unsafe extern "C" fn(
-                    *mut libc::c_void,
-                    libc::c_int,
-                    *const libc::c_void,
-                    libc::c_int,
-                    *const libc::c_void,
-                ) -> libc::c_int,
-        ),
-    );
-}
-unsafe extern "C" fn decimal_clear(mut p: *mut Decimal) {
-    sqlite3_free((*p).a as *mut libc::c_void);
-}
-unsafe extern "C" fn decimal_free(mut p: *mut Decimal) {
-    if !p.is_null() {
-        decimal_clear(p);
-        sqlite3_free(p as *mut libc::c_void);
-    }
-}
-unsafe extern "C" fn decimal_new(
-    mut pCtx: *mut sqlite3_context,
-    mut pIn: *mut sqlite3_value,
-    mut nAlt: libc::c_int,
-    mut zAlt: *const libc::c_uchar,
-) -> *mut Decimal {
-    let mut current_block: u64;
-    let mut p: *mut Decimal = 0 as *mut Decimal;
-    let mut n: libc::c_int = 0;
-    let mut i: libc::c_int = 0;
-    let mut zIn: *const libc::c_uchar = 0 as *const libc::c_uchar;
-    let mut iExp: libc::c_int = 0 as libc::c_int;
-    p = sqlite3_malloc(::std::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int)
-        as *mut Decimal;
-    if !p.is_null() {
-        (*p).sign = 0 as libc::c_int as libc::c_char;
-        (*p).oom = 0 as libc::c_int as libc::c_char;
-        (*p).isInit = 1 as libc::c_int as libc::c_char;
-        (*p).isNull = 0 as libc::c_int as libc::c_char;
-        (*p).nDigit = 0 as libc::c_int;
-        (*p).nFrac = 0 as libc::c_int;
-        if !zAlt.is_null() {
-            n = nAlt;
-            zIn = zAlt;
-        } else {
-            if sqlite3_value_type(pIn) == 5 as libc::c_int {
-                let ref mut fresh50 = (*p).a;
-                *fresh50 = 0 as *mut libc::c_schar;
-                (*p).isNull = 1 as libc::c_int as libc::c_char;
-                return p;
-            }
-            n = sqlite3_value_bytes(pIn);
-            zIn = sqlite3_value_text(pIn);
-        }
-        let ref mut fresh51 = (*p).a;
-        *fresh51 = sqlite3_malloc64((n + 1 as libc::c_int) as sqlite3_uint64)
-            as *mut libc::c_schar;
-        if !((*p).a).is_null() {
-            i = 0 as libc::c_int;
-            while *(*__ctype_b_loc())
-                .offset(*zIn.offset(i as isize) as libc::c_int as isize) as libc::c_int
-                & _ISspace as libc::c_int as libc::c_ushort as libc::c_int != 0
-            {
-                i += 1;
-            }
-            if *zIn.offset(i as isize) as libc::c_int == '-' as i32 {
-                (*p).sign = 1 as libc::c_int as libc::c_char;
-                i += 1;
-            } else if *zIn.offset(i as isize) as libc::c_int == '+' as i32 {
-                i += 1;
-            }
-            while i < n && *zIn.offset(i as isize) as libc::c_int == '0' as i32 {
-                i += 1;
-            }
-            while i < n {
-                let mut c: libc::c_char = *zIn.offset(i as isize) as libc::c_char;
-                if c as libc::c_int >= '0' as i32 && c as libc::c_int <= '9' as i32 {
-                    let ref mut fresh52 = (*p).nDigit;
-                    let fresh53 = *fresh52;
-                    *fresh52 = *fresh52 + 1;
-                    *((*p).a)
-                        .offset(
-                            fresh53 as isize,
-                        ) = (c as libc::c_int - '0' as i32) as libc::c_schar;
-                } else if c as libc::c_int == '.' as i32 {
-                    (*p).nFrac = (*p).nDigit + 1 as libc::c_int;
-                } else if c as libc::c_int == 'e' as i32
-                        || c as libc::c_int == 'E' as i32
-                    {
-                    let mut j: libc::c_int = i + 1 as libc::c_int;
-                    let mut neg: libc::c_int = 0 as libc::c_int;
-                    if j >= n {
-                        break;
-                    }
-                    if *zIn.offset(j as isize) as libc::c_int == '-' as i32 {
-                        neg = 1 as libc::c_int;
-                        j += 1;
-                    } else if *zIn.offset(j as isize) as libc::c_int == '+' as i32 {
-                        j += 1;
-                    }
-                    while j < n && iExp < 1000000 as libc::c_int {
-                        if *zIn.offset(j as isize) as libc::c_int >= '0' as i32
-                            && *zIn.offset(j as isize) as libc::c_int <= '9' as i32
-                        {
-                            iExp = iExp * 10 as libc::c_int
-                                + *zIn.offset(j as isize) as libc::c_int - '0' as i32;
-                        }
-                        j += 1;
-                    }
-                    if neg != 0 {
-                        iExp = -iExp;
-                    }
-                    break;
-                }
-                i += 1;
-            }
-            if (*p).nFrac != 0 {
-                (*p).nFrac = (*p).nDigit - ((*p).nFrac - 1 as libc::c_int);
-            }
-            if iExp > 0 as libc::c_int {
-                if (*p).nFrac > 0 as libc::c_int {
-                    if iExp <= (*p).nFrac {
-                        (*p).nFrac -= iExp;
-                        iExp = 0 as libc::c_int;
-                    } else {
-                        iExp -= (*p).nFrac;
-                        (*p).nFrac = 0 as libc::c_int;
-                    }
-                }
-                if iExp > 0 as libc::c_int {
-                    let ref mut fresh54 = (*p).a;
-                    *fresh54 = sqlite3_realloc64(
-                        (*p).a as *mut libc::c_void,
-                        ((*p).nDigit + iExp + 1 as libc::c_int) as sqlite3_uint64,
-                    ) as *mut libc::c_schar;
-                    if ((*p).a).is_null() {
-                        current_block = 10261281462084195842;
-                    } else {
-                        memset(
-                            ((*p).a).offset((*p).nDigit as isize) as *mut libc::c_void,
-                            0 as libc::c_int,
-                            iExp as libc::c_ulong,
-                        );
-                        (*p).nDigit += iExp;
-                        current_block = 17995254032144898061;
-                    }
-                } else {
-                    current_block = 17995254032144898061;
-                }
-            } else if iExp < 0 as libc::c_int {
-                let mut nExtra: libc::c_int = 0;
-                iExp = -iExp;
-                nExtra = (*p).nDigit - (*p).nFrac - 1 as libc::c_int;
-                if nExtra != 0 {
-                    if nExtra >= iExp {
-                        (*p).nFrac += iExp;
-                        iExp = 0 as libc::c_int;
-                    } else {
-                        iExp -= nExtra;
-                        (*p).nFrac = (*p).nDigit - 1 as libc::c_int;
-                    }
-                }
-                if iExp > 0 as libc::c_int {
-                    let ref mut fresh55 = (*p).a;
-                    *fresh55 = sqlite3_realloc64(
-                        (*p).a as *mut libc::c_void,
-                        ((*p).nDigit + iExp + 1 as libc::c_int) as sqlite3_uint64,
-                    ) as *mut libc::c_schar;
-                    if ((*p).a).is_null() {
-                        current_block = 10261281462084195842;
-                    } else {
-                        memmove(
-                            ((*p).a).offset(iExp as isize) as *mut libc::c_void,
-                            (*p).a as *const libc::c_void,
-                            (*p).nDigit as libc::c_ulong,
-                        );
-                        memset(
-                            (*p).a as *mut libc::c_void,
-                            0 as libc::c_int,
-                            iExp as libc::c_ulong,
-                        );
-                        (*p).nDigit += iExp;
-                        (*p).nFrac += iExp;
-                        current_block = 17995254032144898061;
-                    }
-                } else {
-                    current_block = 17995254032144898061;
-                }
-            } else {
-                current_block = 17995254032144898061;
-            }
-            match current_block {
-                10261281462084195842 => {}
-                _ => return p,
-            }
-        }
-    }
-    if !pCtx.is_null() {
-        sqlite3_result_error_nomem(pCtx);
-    }
-    sqlite3_free(p as *mut libc::c_void);
-    return 0 as *mut Decimal;
-}
-unsafe extern "C" fn decimal_result(
-    mut pCtx: *mut sqlite3_context,
-    mut p: *mut Decimal,
-) {
-    let mut z: *mut libc::c_char = 0 as *mut libc::c_char;
-    let mut i: libc::c_int = 0;
-    let mut j: libc::c_int = 0;
-    let mut n: libc::c_int = 0;
-    if p.is_null() || (*p).oom as libc::c_int != 0 {
-        sqlite3_result_error_nomem(pCtx);
-        return;
-    }
-    if (*p).isNull != 0 {
-        sqlite3_result_null(pCtx);
-        return;
-    }
-    z = sqlite3_malloc((*p).nDigit + 4 as libc::c_int) as *mut libc::c_char;
-    if z.is_null() {
-        sqlite3_result_error_nomem(pCtx);
-        return;
-    }
-    i = 0 as libc::c_int;
-    if (*p).nDigit == 0 as libc::c_int
-        || (*p).nDigit == 1 as libc::c_int
-            && *((*p).a).offset(0 as libc::c_int as isize) as libc::c_int
-                == 0 as libc::c_int
-    {
-        (*p).sign = 0 as libc::c_int as libc::c_char;
-    }
-    if (*p).sign != 0 {
-        *z.offset(0 as libc::c_int as isize) = '-' as i32 as libc::c_char;
-        i = 1 as libc::c_int;
-    }
-    n = (*p).nDigit - (*p).nFrac;
-    if n <= 0 as libc::c_int {
-        let fresh56 = i;
-        i = i + 1;
-        *z.offset(fresh56 as isize) = '0' as i32 as libc::c_char;
-    }
-    j = 0 as libc::c_int;
-    while n > 1 as libc::c_int
-        && *((*p).a).offset(j as isize) as libc::c_int == 0 as libc::c_int
-    {
-        j += 1;
-        n -= 1;
-    }
-    while n > 0 as libc::c_int {
-        let fresh57 = i;
-        i = i + 1;
-        *z
-            .offset(
-                fresh57 as isize,
-            ) = (*((*p).a).offset(j as isize) as libc::c_int + '0' as i32)
-            as libc::c_char;
-        j += 1;
-        n -= 1;
-    }
-    if (*p).nFrac != 0 {
-        let fresh58 = i;
-        i = i + 1;
-        *z.offset(fresh58 as isize) = '.' as i32 as libc::c_char;
-        loop {
-            let fresh59 = i;
-            i = i + 1;
-            *z
-                .offset(
-                    fresh59 as isize,
-                ) = (*((*p).a).offset(j as isize) as libc::c_int + '0' as i32)
-                as libc::c_char;
-            j += 1;
-            if !(j < (*p).nDigit) {
-                break;
-            }
-        }
-    }
-    *z.offset(i as isize) = 0 as libc::c_int as libc::c_char;
-    sqlite3_result_text(
-        pCtx,
-        z,
-        i,
-        Some(sqlite3_free as unsafe extern "C" fn(*mut libc::c_void) -> ()),
-    );
-}
-unsafe extern "C" fn decimalFunc(
-    mut context: *mut sqlite3_context,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) {
-    let mut p: *mut Decimal = decimal_new(
-        context,
-        *argv.offset(0 as libc::c_int as isize),
-        0 as libc::c_int,
-        0 as *const libc::c_uchar,
-    );
-    decimal_result(context, p);
-    decimal_free(p);
-}
-unsafe extern "C" fn decimal_cmp(
-    mut pA: *const Decimal,
-    mut pB: *const Decimal,
-) -> libc::c_int {
-    let mut nASig: libc::c_int = 0;
-    let mut nBSig: libc::c_int = 0;
-    let mut rc: libc::c_int = 0;
-    let mut n: libc::c_int = 0;
-    if (*pA).sign as libc::c_int != (*pB).sign as libc::c_int {
-        return if (*pA).sign as libc::c_int != 0 {
-            -(1 as libc::c_int)
-        } else {
-            1 as libc::c_int
-        };
-    }
-    if (*pA).sign != 0 {
-        let mut pTemp: *const Decimal = pA;
-        pA = pB;
-        pB = pTemp;
-    }
-    nASig = (*pA).nDigit - (*pA).nFrac;
-    nBSig = (*pB).nDigit - (*pB).nFrac;
-    if nASig != nBSig {
-        return nASig - nBSig;
-    }
-    n = (*pA).nDigit;
-    if n > (*pB).nDigit {
-        n = (*pB).nDigit;
-    }
-    rc = memcmp(
-        (*pA).a as *const libc::c_void,
-        (*pB).a as *const libc::c_void,
-        n as libc::c_ulong,
-    );
-    if rc == 0 as libc::c_int {
-        rc = (*pA).nDigit - (*pB).nDigit;
-    }
-    return rc;
-}
-unsafe extern "C" fn decimalCmpFunc(
-    mut context: *mut sqlite3_context,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) {
-    let mut pA: *mut Decimal = 0 as *mut Decimal;
-    let mut pB: *mut Decimal = 0 as *mut Decimal;
-    let mut rc: libc::c_int = 0;
-    pA = decimal_new(
-        context,
-        *argv.offset(0 as libc::c_int as isize),
-        0 as libc::c_int,
-        0 as *const libc::c_uchar,
-    );
-    if !(pA.is_null() || (*pA).isNull as libc::c_int != 0) {
-        pB = decimal_new(
-            context,
-            *argv.offset(1 as libc::c_int as isize),
-            0 as libc::c_int,
-            0 as *const libc::c_uchar,
-        );
-        if !(pB.is_null() || (*pB).isNull as libc::c_int != 0) {
-            rc = decimal_cmp(pA, pB);
-            if rc < 0 as libc::c_int {
-                rc = -(1 as libc::c_int);
-            } else if rc > 0 as libc::c_int {
-                rc = 1 as libc::c_int;
-            }
-            sqlite3_result_int(context, rc);
-        }
-    }
-    decimal_free(pA);
-    decimal_free(pB);
-}
-unsafe extern "C" fn decimal_expand(
-    mut p: *mut Decimal,
-    mut nDigit: libc::c_int,
-    mut nFrac: libc::c_int,
-) {
-    let mut nAddSig: libc::c_int = 0;
-    let mut nAddFrac: libc::c_int = 0;
-    if p.is_null() {
-        return;
-    }
-    nAddFrac = nFrac - (*p).nFrac;
-    nAddSig = nDigit - (*p).nDigit - nAddFrac;
-    if nAddFrac == 0 as libc::c_int && nAddSig == 0 as libc::c_int {
-        return;
-    }
-    let ref mut fresh60 = (*p).a;
-    *fresh60 = sqlite3_realloc64(
-        (*p).a as *mut libc::c_void,
-        (nDigit + 1 as libc::c_int) as sqlite3_uint64,
-    ) as *mut libc::c_schar;
-    if ((*p).a).is_null() {
-        (*p).oom = 1 as libc::c_int as libc::c_char;
-        return;
-    }
-    if nAddSig != 0 {
-        memmove(
-            ((*p).a).offset(nAddSig as isize) as *mut libc::c_void,
-            (*p).a as *const libc::c_void,
-            (*p).nDigit as libc::c_ulong,
-        );
-        memset((*p).a as *mut libc::c_void, 0 as libc::c_int, nAddSig as libc::c_ulong);
-        (*p).nDigit += nAddSig;
-    }
-    if nAddFrac != 0 {
-        memset(
-            ((*p).a).offset((*p).nDigit as isize) as *mut libc::c_void,
-            0 as libc::c_int,
-            nAddFrac as libc::c_ulong,
-        );
-        (*p).nDigit += nAddFrac;
-        (*p).nFrac += nAddFrac;
-    }
-}
-unsafe extern "C" fn decimal_add(mut pA: *mut Decimal, mut pB: *mut Decimal) {
-    let mut nSig: libc::c_int = 0;
-    let mut nFrac: libc::c_int = 0;
-    let mut nDigit: libc::c_int = 0;
-    let mut i: libc::c_int = 0;
-    let mut rc: libc::c_int = 0;
-    if pA.is_null() {
-        return;
-    }
-    if (*pA).oom as libc::c_int != 0 || pB.is_null() || (*pB).oom as libc::c_int != 0 {
-        (*pA).oom = 1 as libc::c_int as libc::c_char;
-        return;
-    }
-    if (*pA).isNull as libc::c_int != 0 || (*pB).isNull as libc::c_int != 0 {
-        (*pA).isNull = 1 as libc::c_int as libc::c_char;
-        return;
-    }
-    nSig = (*pA).nDigit - (*pA).nFrac;
-    if nSig != 0
-        && *((*pA).a).offset(0 as libc::c_int as isize) as libc::c_int
-            == 0 as libc::c_int
-    {
-        nSig -= 1;
-    }
-    if nSig < (*pB).nDigit - (*pB).nFrac {
-        nSig = (*pB).nDigit - (*pB).nFrac;
-    }
-    nFrac = (*pA).nFrac;
-    if nFrac < (*pB).nFrac {
-        nFrac = (*pB).nFrac;
-    }
-    nDigit = nSig + nFrac + 1 as libc::c_int;
-    decimal_expand(pA, nDigit, nFrac);
-    decimal_expand(pB, nDigit, nFrac);
-    if (*pA).oom as libc::c_int != 0 || (*pB).oom as libc::c_int != 0 {
-        (*pA).oom = 1 as libc::c_int as libc::c_char;
-    } else if (*pA).sign as libc::c_int == (*pB).sign as libc::c_int {
-        let mut carry: libc::c_int = 0 as libc::c_int;
-        i = nDigit - 1 as libc::c_int;
-        while i >= 0 as libc::c_int {
-            let mut x: libc::c_int = *((*pA).a).offset(i as isize) as libc::c_int
-                + *((*pB).a).offset(i as isize) as libc::c_int + carry;
-            if x >= 10 as libc::c_int {
-                carry = 1 as libc::c_int;
-                *((*pA).a).offset(i as isize) = (x - 10 as libc::c_int) as libc::c_schar;
-            } else {
-                carry = 0 as libc::c_int;
-                *((*pA).a).offset(i as isize) = x as libc::c_schar;
-            }
-            i -= 1;
-        }
-    } else {
-        let mut aA: *mut libc::c_schar = 0 as *mut libc::c_schar;
-        let mut aB: *mut libc::c_schar = 0 as *mut libc::c_schar;
-        let mut borrow: libc::c_int = 0 as libc::c_int;
-        rc = memcmp(
-            (*pA).a as *const libc::c_void,
-            (*pB).a as *const libc::c_void,
-            nDigit as libc::c_ulong,
-        );
-        if rc < 0 as libc::c_int {
-            aA = (*pB).a;
-            aB = (*pA).a;
-            (*pA).sign = ((*pA).sign == 0) as libc::c_int as libc::c_char;
-        } else {
-            aA = (*pA).a;
-            aB = (*pB).a;
-        }
-        i = nDigit - 1 as libc::c_int;
-        while i >= 0 as libc::c_int {
-            let mut x_0: libc::c_int = *aA.offset(i as isize) as libc::c_int
-                - *aB.offset(i as isize) as libc::c_int - borrow;
-            if x_0 < 0 as libc::c_int {
-                *((*pA).a)
-                    .offset(i as isize) = (x_0 + 10 as libc::c_int) as libc::c_schar;
-                borrow = 1 as libc::c_int;
-            } else {
-                *((*pA).a).offset(i as isize) = x_0 as libc::c_schar;
-                borrow = 0 as libc::c_int;
-            }
-            i -= 1;
-        }
-    };
-}
-unsafe extern "C" fn decimalCollFunc(
-    mut notUsed: *mut libc::c_void,
-    mut nKey1: libc::c_int,
-    mut pKey1: *const libc::c_void,
-    mut nKey2: libc::c_int,
-    mut pKey2: *const libc::c_void,
-) -> libc::c_int {
-    let mut zA: *const libc::c_uchar = pKey1 as *const libc::c_uchar;
-    let mut zB: *const libc::c_uchar = pKey2 as *const libc::c_uchar;
-    let mut pA: *mut Decimal = decimal_new(
-        0 as *mut sqlite3_context,
-        0 as *mut sqlite3_value,
-        nKey1,
-        zA,
-    );
-    let mut pB: *mut Decimal = decimal_new(
-        0 as *mut sqlite3_context,
-        0 as *mut sqlite3_value,
-        nKey2,
-        zB,
-    );
-    let mut rc: libc::c_int = 0;
-    if pA.is_null() || pB.is_null() {
-        rc = 0 as libc::c_int;
-    } else {
-        rc = decimal_cmp(pA, pB);
-    }
-    decimal_free(pA);
-    decimal_free(pB);
-    return rc;
-}
-unsafe extern "C" fn decimalAddFunc(
-    mut context: *mut sqlite3_context,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) {
-    let mut pA: *mut Decimal = decimal_new(
-        context,
-        *argv.offset(0 as libc::c_int as isize),
-        0 as libc::c_int,
-        0 as *const libc::c_uchar,
-    );
-    let mut pB: *mut Decimal = decimal_new(
-        context,
-        *argv.offset(1 as libc::c_int as isize),
-        0 as libc::c_int,
-        0 as *const libc::c_uchar,
-    );
-    decimal_add(pA, pB);
-    decimal_result(context, pA);
-    decimal_free(pA);
-    decimal_free(pB);
-}
-unsafe extern "C" fn decimalSubFunc(
-    mut context: *mut sqlite3_context,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) {
-    let mut pA: *mut Decimal = decimal_new(
-        context,
-        *argv.offset(0 as libc::c_int as isize),
-        0 as libc::c_int,
-        0 as *const libc::c_uchar,
-    );
-    let mut pB: *mut Decimal = decimal_new(
-        context,
-        *argv.offset(1 as libc::c_int as isize),
-        0 as libc::c_int,
-        0 as *const libc::c_uchar,
-    );
-    if !pB.is_null() {
-        (*pB).sign = ((*pB).sign == 0) as libc::c_int as libc::c_char;
-        decimal_add(pA, pB);
-        decimal_result(context, pA);
-    }
-    decimal_free(pA);
-    decimal_free(pB);
-}
-unsafe extern "C" fn decimalSumStep(
-    mut context: *mut sqlite3_context,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) {
-    let mut p: *mut Decimal = 0 as *mut Decimal;
-    let mut pArg: *mut Decimal = 0 as *mut Decimal;
-    p = sqlite3_aggregate_context(
-        context,
-        ::std::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int,
-    ) as *mut Decimal;
-    if p.is_null() {
-        return;
-    }
-    if (*p).isInit == 0 {
-        (*p).isInit = 1 as libc::c_int as libc::c_char;
-        let ref mut fresh61 = (*p).a;
-        *fresh61 = sqlite3_malloc(2 as libc::c_int) as *mut libc::c_schar;
-        if ((*p).a).is_null() {
-            (*p).oom = 1 as libc::c_int as libc::c_char;
-        } else {
-            *((*p).a)
-                .offset(0 as libc::c_int as isize) = 0 as libc::c_int as libc::c_schar;
-        }
-        (*p).nDigit = 1 as libc::c_int;
-        (*p).nFrac = 0 as libc::c_int;
-    }
-    if sqlite3_value_type(*argv.offset(0 as libc::c_int as isize)) == 5 as libc::c_int {
-        return;
-    }
-    pArg = decimal_new(
-        context,
-        *argv.offset(0 as libc::c_int as isize),
-        0 as libc::c_int,
-        0 as *const libc::c_uchar,
-    );
-    decimal_add(p, pArg);
-    decimal_free(pArg);
-}
-unsafe extern "C" fn decimalSumInverse(
-    mut context: *mut sqlite3_context,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) {
-    let mut p: *mut Decimal = 0 as *mut Decimal;
-    let mut pArg: *mut Decimal = 0 as *mut Decimal;
-    p = sqlite3_aggregate_context(
-        context,
-        ::std::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int,
-    ) as *mut Decimal;
-    if p.is_null() {
-        return;
-    }
-    if sqlite3_value_type(*argv.offset(0 as libc::c_int as isize)) == 5 as libc::c_int {
-        return;
-    }
-    pArg = decimal_new(
-        context,
-        *argv.offset(0 as libc::c_int as isize),
-        0 as libc::c_int,
-        0 as *const libc::c_uchar,
-    );
-    if !pArg.is_null() {
-        (*pArg).sign = ((*pArg).sign == 0) as libc::c_int as libc::c_char;
-    }
-    decimal_add(p, pArg);
-    decimal_free(pArg);
-}
-unsafe extern "C" fn decimalSumValue(mut context: *mut sqlite3_context) {
-    let mut p: *mut Decimal = sqlite3_aggregate_context(context, 0 as libc::c_int)
-        as *mut Decimal;
-    if p.is_null() {
-        return;
-    }
-    decimal_result(context, p);
-}
-unsafe extern "C" fn decimalSumFinalize(mut context: *mut sqlite3_context) {
-    let mut p: *mut Decimal = sqlite3_aggregate_context(context, 0 as libc::c_int)
-        as *mut Decimal;
-    if p.is_null() {
-        return;
-    }
-    decimal_result(context, p);
-    decimal_clear(p);
-}
-unsafe extern "C" fn decimalMulFunc(
-    mut context: *mut sqlite3_context,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) {
-    let mut pA: *mut Decimal = decimal_new(
-        context,
-        *argv.offset(0 as libc::c_int as isize),
-        0 as libc::c_int,
-        0 as *const libc::c_uchar,
-    );
-    let mut pB: *mut Decimal = decimal_new(
-        context,
-        *argv.offset(1 as libc::c_int as isize),
-        0 as libc::c_int,
-        0 as *const libc::c_uchar,
-    );
-    let mut acc: *mut libc::c_schar = 0 as *mut libc::c_schar;
-    let mut i: libc::c_int = 0;
-    let mut j: libc::c_int = 0;
-    let mut k: libc::c_int = 0;
-    let mut minFrac: libc::c_int = 0;
-    if !(pA.is_null() || (*pA).oom as libc::c_int != 0
-        || (*pA).isNull as libc::c_int != 0 || pB.is_null()
-        || (*pB).oom as libc::c_int != 0 || (*pB).isNull as libc::c_int != 0)
-    {
-        acc = sqlite3_malloc64(
-            ((*pA).nDigit + (*pB).nDigit + 2 as libc::c_int) as sqlite3_uint64,
-        ) as *mut libc::c_schar;
-        if acc.is_null() {
-            sqlite3_result_error_nomem(context);
-        } else {
-            memset(
-                acc as *mut libc::c_void,
-                0 as libc::c_int,
-                ((*pA).nDigit + (*pB).nDigit + 2 as libc::c_int) as libc::c_ulong,
-            );
-            minFrac = (*pA).nFrac;
-            if (*pB).nFrac < minFrac {
-                minFrac = (*pB).nFrac;
-            }
-            i = (*pA).nDigit - 1 as libc::c_int;
-            while i >= 0 as libc::c_int {
-                let mut f: libc::c_schar = *((*pA).a).offset(i as isize);
-                let mut carry: libc::c_int = 0 as libc::c_int;
-                let mut x: libc::c_int = 0;
-                j = (*pB).nDigit - 1 as libc::c_int;
-                k = i + j + 3 as libc::c_int;
-                while j >= 0 as libc::c_int {
-                    x = *acc.offset(k as isize) as libc::c_int
-                        + f as libc::c_int * *((*pB).a).offset(j as isize) as libc::c_int
-                        + carry;
-                    *acc.offset(k as isize) = (x % 10 as libc::c_int) as libc::c_schar;
-                    carry = x / 10 as libc::c_int;
-                    j -= 1;
-                    k -= 1;
-                }
-                x = *acc.offset(k as isize) as libc::c_int + carry;
-                *acc.offset(k as isize) = (x % 10 as libc::c_int) as libc::c_schar;
-                let ref mut fresh62 = *acc.offset((k - 1 as libc::c_int) as isize);
-                *fresh62 = (*fresh62 as libc::c_int + x / 10 as libc::c_int)
-                    as libc::c_schar;
-                i -= 1;
-            }
-            sqlite3_free((*pA).a as *mut libc::c_void);
-            let ref mut fresh63 = (*pA).a;
-            *fresh63 = acc;
-            acc = 0 as *mut libc::c_schar;
-            (*pA).nDigit += (*pB).nDigit + 2 as libc::c_int;
-            (*pA).nFrac += (*pB).nFrac;
-            let ref mut fresh64 = (*pA).sign;
-            *fresh64 = (*fresh64 as libc::c_int ^ (*pB).sign as libc::c_int)
-                as libc::c_char;
-            while (*pA).nFrac > minFrac
-                && *((*pA).a).offset(((*pA).nDigit - 1 as libc::c_int) as isize)
-                    as libc::c_int == 0 as libc::c_int
-            {
-                let ref mut fresh65 = (*pA).nFrac;
-                *fresh65 -= 1;
-                let ref mut fresh66 = (*pA).nDigit;
-                *fresh66 -= 1;
-            }
-            decimal_result(context, pA);
-        }
-    }
-    sqlite3_free(acc as *mut libc::c_void);
-    decimal_free(pA);
-    decimal_free(pB);
-}
-#[no_mangle]
-pub unsafe extern "C" fn sqlite3_decimal_init(
-    mut db: *mut sqlite3,
-    mut pzErrMsg: *mut *mut libc::c_char,
-    mut pApi: *const sqlite3_api_routines,
-) -> libc::c_int {
-    let mut rc: libc::c_int = 0 as libc::c_int;
-    static mut aFunc: [C2RustUnnamed_16; 5] = unsafe {
-        [
-            {
-                let mut init = C2RustUnnamed_16 {
-                    zFuncName: b"decimal\0" as *const u8 as *const libc::c_char,
-                    nArg: 1 as libc::c_int,
-                    xFunc: Some(
-                        decimalFunc
-                            as unsafe extern "C" fn(
-                                *mut sqlite3_context,
-                                libc::c_int,
-                                *mut *mut sqlite3_value,
-                            ) -> (),
-                    ),
-                };
-                init
-            },
-            {
-                let mut init = C2RustUnnamed_16 {
-                    zFuncName: b"decimal_cmp\0" as *const u8 as *const libc::c_char,
-                    nArg: 2 as libc::c_int,
-                    xFunc: Some(
-                        decimalCmpFunc
-                            as unsafe extern "C" fn(
-                                *mut sqlite3_context,
-                                libc::c_int,
-                                *mut *mut sqlite3_value,
-                            ) -> (),
-                    ),
-                };
-                init
-            },
-            {
-                let mut init = C2RustUnnamed_16 {
-                    zFuncName: b"decimal_add\0" as *const u8 as *const libc::c_char,
-                    nArg: 2 as libc::c_int,
-                    xFunc: Some(
-                        decimalAddFunc
-                            as unsafe extern "C" fn(
-                                *mut sqlite3_context,
-                                libc::c_int,
-                                *mut *mut sqlite3_value,
-                            ) -> (),
-                    ),
-                };
-                init
-            },
-            {
-                let mut init = C2RustUnnamed_16 {
-                    zFuncName: b"decimal_sub\0" as *const u8 as *const libc::c_char,
-                    nArg: 2 as libc::c_int,
-                    xFunc: Some(
-                        decimalSubFunc
-                            as unsafe extern "C" fn(
-                                *mut sqlite3_context,
-                                libc::c_int,
-                                *mut *mut sqlite3_value,
-                            ) -> (),
-                    ),
-                };
-                init
-            },
-            {
-                let mut init = C2RustUnnamed_16 {
-                    zFuncName: b"decimal_mul\0" as *const u8 as *const libc::c_char,
-                    nArg: 2 as libc::c_int,
-                    xFunc: Some(
-                        decimalMulFunc
-                            as unsafe extern "C" fn(
-                                *mut sqlite3_context,
-                                libc::c_int,
-                                *mut *mut sqlite3_value,
-                            ) -> (),
-                    ),
-                };
-                init
-            },
-        ]
-    };
-    let mut i: libc::c_uint = 0;
-    i = 0 as libc::c_int as libc::c_uint;
-    while (i as libc::c_ulong)
-        < (::std::mem::size_of::<[C2RustUnnamed_16; 5]>() as libc::c_ulong)
-            .wrapping_div(::std::mem::size_of::<C2RustUnnamed_16>() as libc::c_ulong)
-        && rc == 0 as libc::c_int
-    {
-        rc = sqlite3_create_function(
-            db,
-            aFunc[i as usize].zFuncName,
-            aFunc[i as usize].nArg,
-            1 as libc::c_int | 0x200000 as libc::c_int | 0x800 as libc::c_int,
-            0 as *mut libc::c_void,
-            aFunc[i as usize].xFunc,
-            None,
-            None,
-        );
-        i = i.wrapping_add(1);
-    }
-    if rc == 0 as libc::c_int {
-        rc = sqlite3_create_window_function(
-            db,
-            b"decimal_sum\0" as *const u8 as *const libc::c_char,
-            1 as libc::c_int,
-            1 as libc::c_int | 0x200000 as libc::c_int | 0x800 as libc::c_int,
-            0 as *mut libc::c_void,
-            Some(
-                decimalSumStep
-                    as unsafe extern "C" fn(
-                        *mut sqlite3_context,
-                        libc::c_int,
-                        *mut *mut sqlite3_value,
-                    ) -> (),
-            ),
-            Some(decimalSumFinalize as unsafe extern "C" fn(*mut sqlite3_context) -> ()),
-            Some(decimalSumValue as unsafe extern "C" fn(*mut sqlite3_context) -> ()),
-            Some(
-                decimalSumInverse
-                    as unsafe extern "C" fn(
-                        *mut sqlite3_context,
-                        libc::c_int,
-                        *mut *mut sqlite3_value,
-                    ) -> (),
-            ),
-            None,
-        );
-    }
-    if rc == 0 as libc::c_int {
-        rc = sqlite3_create_collation(
-            db,
-            b"decimal\0" as *const u8 as *const libc::c_char,
-            1 as libc::c_int,
-            0 as *mut libc::c_void,
-            Some(
-                decimalCollFunc
-                    as unsafe extern "C" fn(
-                        *mut libc::c_void,
-                        libc::c_int,
-                        *const libc::c_void,
-                        libc::c_int,
-                        *const libc::c_void,
-                    ) -> libc::c_int,
-            ),
-        );
-    }
-    return rc;
-}
-unsafe extern "C" fn ieee754func(
-    mut context: *mut sqlite3_context,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) {
-    if argc == 1 as libc::c_int {
-        let mut m: sqlite3_int64 = 0;
-        let mut a: sqlite3_int64 = 0;
-        let mut r: libc::c_double = 0.;
-        let mut e: libc::c_int = 0;
-        let mut isNeg: libc::c_int = 0;
-        let mut zResult: [libc::c_char; 100] = [0; 100];
-        if ::std::mem::size_of::<sqlite3_int64>() as libc::c_ulong
-            == ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
-        {} else {
-            __assert_fail(
-                b"sizeof(m)==sizeof(r)\0" as *const u8 as *const libc::c_char,
-                b"shell.c\0" as *const u8 as *const libc::c_char,
-                5280 as libc::c_int as libc::c_uint,
-                (*::std::mem::transmute::<
-                    &[u8; 59],
-                    &[libc::c_char; 59],
-                >(b"void ieee754func(sqlite3_context *, int, sqlite3_value **)\0"))
-                    .as_ptr(),
-            );
-        }
-        if sqlite3_value_type(*argv.offset(0 as libc::c_int as isize))
-            == 4 as libc::c_int
-            && sqlite3_value_bytes(*argv.offset(0 as libc::c_int as isize))
-                as libc::c_ulong
-                == ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
-        {
-            let mut x: *const libc::c_uchar = sqlite3_value_blob(
-                *argv.offset(0 as libc::c_int as isize),
-            ) as *const libc::c_uchar;
-            let mut i: libc::c_uint = 0;
-            let mut v: sqlite3_uint64 = 0 as libc::c_int as sqlite3_uint64;
-            i = 0 as libc::c_int as libc::c_uint;
-            while (i as libc::c_ulong)
-                < ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
-            {
-                v = v << 8 as libc::c_int | *x.offset(i as isize) as libc::c_ulonglong;
-                i = i.wrapping_add(1);
-            }
-            memcpy(
-                &mut r as *mut libc::c_double as *mut libc::c_void,
-                &mut v as *mut sqlite3_uint64 as *const libc::c_void,
-                ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
-            );
-        } else {
-            r = sqlite3_value_double(*argv.offset(0 as libc::c_int as isize));
-        }
-        if r < 0.0f64 {
-            isNeg = 1 as libc::c_int;
-            r = -r;
-        } else {
-            isNeg = 0 as libc::c_int;
-        }
-        memcpy(
-            &mut a as *mut sqlite3_int64 as *mut libc::c_void,
-            &mut r as *mut libc::c_double as *const libc::c_void,
-            ::std::mem::size_of::<sqlite3_int64>() as libc::c_ulong,
-        );
-        if a == 0 as libc::c_int as libc::c_longlong {
-            e = 0 as libc::c_int;
-            m = 0 as libc::c_int as sqlite3_int64;
-        } else {
-            e = (a >> 52 as libc::c_int) as libc::c_int;
-            m = a
-                & ((1 as libc::c_int as sqlite3_int64) << 52 as libc::c_int)
-                    - 1 as libc::c_int as libc::c_longlong;
-            if e == 0 as libc::c_int {
-                m <<= 1 as libc::c_int;
-            } else {
-                m |= (1 as libc::c_int as sqlite3_int64) << 52 as libc::c_int;
-            }
-            while e < 1075 as libc::c_int && m > 0 as libc::c_int as libc::c_longlong
-                && m & 1 as libc::c_int as libc::c_longlong
-                    == 0 as libc::c_int as libc::c_longlong
-            {
-                m >>= 1 as libc::c_int;
-                e += 1;
-            }
-            if isNeg != 0 {
-                m = -m;
-            }
-        }
-        match *(sqlite3_user_data(context) as *mut libc::c_int) {
-            0 => {
-                sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
-                        as libc::c_int,
-                    zResult.as_mut_ptr(),
-                    b"ieee754(%lld,%d)\0" as *const u8 as *const libc::c_char,
-                    m,
-                    e - 1075 as libc::c_int,
-                );
-                sqlite3_result_text(
-                    context,
-                    zResult.as_mut_ptr(),
-                    -(1 as libc::c_int),
-                    ::std::mem::transmute::<
-                        libc::intptr_t,
-                        sqlite3_destructor_type,
-                    >(-(1 as libc::c_int) as libc::intptr_t),
-                );
-            }
-            1 => {
-                sqlite3_result_int64(context, m);
-            }
-            2 => {
-                sqlite3_result_int(context, e - 1075 as libc::c_int);
-            }
-            _ => {}
-        }
-    } else {
-        let mut m_0: sqlite3_int64 = 0;
-        let mut e_0: sqlite3_int64 = 0;
-        let mut a_0: sqlite3_int64 = 0;
-        let mut r_0: libc::c_double = 0.;
-        let mut isNeg_0: libc::c_int = 0 as libc::c_int;
-        m_0 = sqlite3_value_int64(*argv.offset(0 as libc::c_int as isize));
-        e_0 = sqlite3_value_int64(*argv.offset(1 as libc::c_int as isize));
-        if e_0 > 10000 as libc::c_int as libc::c_longlong {
-            e_0 = 10000 as libc::c_int as sqlite3_int64;
-        } else if e_0 < -(10000 as libc::c_int) as libc::c_longlong {
-            e_0 = -(10000 as libc::c_int) as sqlite3_int64;
-        }
-        if m_0 < 0 as libc::c_int as libc::c_longlong {
-            isNeg_0 = 1 as libc::c_int;
-            m_0 = -m_0;
-            if m_0 < 0 as libc::c_int as libc::c_longlong {
-                return;
-            }
-        } else if m_0 == 0 as libc::c_int as libc::c_longlong
-                && e_0 > -(1000 as libc::c_int) as libc::c_longlong
-                && e_0 < 1000 as libc::c_int as libc::c_longlong
-            {
-            sqlite3_result_double(context, 0.0f64);
-            return;
-        }
-        while m_0 >> 32 as libc::c_int & 0xffe00000 as libc::c_uint as libc::c_longlong
-            != 0
-        {
-            m_0 >>= 1 as libc::c_int;
-            e_0 += 1;
-        }
-        while m_0 != 0 as libc::c_int as libc::c_longlong
-            && m_0 >> 32 as libc::c_int & 0xfff00000 as libc::c_uint as libc::c_longlong
-                == 0 as libc::c_int as libc::c_longlong
-        {
-            m_0 <<= 1 as libc::c_int;
-            e_0 -= 1;
-        }
-        e_0 += 1075 as libc::c_int as libc::c_longlong;
-        if e_0 <= 0 as libc::c_int as libc::c_longlong {
-            if 1 as libc::c_int as libc::c_longlong - e_0
-                >= 64 as libc::c_int as libc::c_longlong
-            {
-                m_0 = 0 as libc::c_int as sqlite3_int64;
-            } else {
-                m_0 >>= 1 as libc::c_int as libc::c_longlong - e_0;
-            }
-            e_0 = 0 as libc::c_int as sqlite3_int64;
-        } else if e_0 > 0x7ff as libc::c_int as libc::c_longlong {
-            e_0 = 0x7ff as libc::c_int as sqlite3_int64;
-        }
-        a_0 = m_0
-            & ((1 as libc::c_int as sqlite3_int64) << 52 as libc::c_int)
-                - 1 as libc::c_int as libc::c_longlong;
-        a_0 |= e_0 << 52 as libc::c_int;
-        if isNeg_0 != 0 {
-            a_0 = (a_0 as libc::c_ulonglong
-                | (1 as libc::c_int as sqlite3_uint64) << 63 as libc::c_int)
-                as sqlite3_int64;
-        }
-        memcpy(
-            &mut r_0 as *mut libc::c_double as *mut libc::c_void,
-            &mut a_0 as *mut sqlite3_int64 as *const libc::c_void,
-            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
-        );
-        sqlite3_result_double(context, r_0);
-    };
-}
-unsafe extern "C" fn ieee754func_from_blob(
-    mut context: *mut sqlite3_context,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) {
-    if sqlite3_value_type(*argv.offset(0 as libc::c_int as isize)) == 4 as libc::c_int
-        && sqlite3_value_bytes(*argv.offset(0 as libc::c_int as isize)) as libc::c_ulong
-            == ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
-    {
-        let mut r: libc::c_double = 0.;
-        let mut x: *const libc::c_uchar = sqlite3_value_blob(
-            *argv.offset(0 as libc::c_int as isize),
-        ) as *const libc::c_uchar;
-        let mut i: libc::c_uint = 0;
-        let mut v: sqlite3_uint64 = 0 as libc::c_int as sqlite3_uint64;
-        i = 0 as libc::c_int as libc::c_uint;
-        while (i as libc::c_ulong)
-            < ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
-        {
-            v = v << 8 as libc::c_int | *x.offset(i as isize) as libc::c_ulonglong;
-            i = i.wrapping_add(1);
-        }
-        memcpy(
-            &mut r as *mut libc::c_double as *mut libc::c_void,
-            &mut v as *mut sqlite3_uint64 as *const libc::c_void,
-            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
-        );
-        sqlite3_result_double(context, r);
-    }
-}
-unsafe extern "C" fn ieee754func_to_blob(
-    mut context: *mut sqlite3_context,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) {
-    if sqlite3_value_type(*argv.offset(0 as libc::c_int as isize)) == 2 as libc::c_int
-        || sqlite3_value_type(*argv.offset(0 as libc::c_int as isize))
-            == 1 as libc::c_int
-    {
-        let mut r: libc::c_double = sqlite3_value_double(
-            *argv.offset(0 as libc::c_int as isize),
-        );
-        let mut v: sqlite3_uint64 = 0;
-        let mut a: [libc::c_uchar; 8] = [0; 8];
-        let mut i: libc::c_uint = 0;
-        memcpy(
-            &mut v as *mut sqlite3_uint64 as *mut libc::c_void,
-            &mut r as *mut libc::c_double as *const libc::c_void,
-            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
-        );
-        i = 1 as libc::c_int as libc::c_uint;
-        while i as libc::c_ulong
-            <= ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
-        {
-            a[(::std::mem::size_of::<libc::c_double>() as libc::c_ulong)
-                .wrapping_sub(i as libc::c_ulong)
-                as usize] = (v & 0xff as libc::c_int as libc::c_ulonglong)
-                as libc::c_uchar;
-            v >>= 8 as libc::c_int;
-            i = i.wrapping_add(1);
-        }
-        sqlite3_result_blob(
-            context,
-            a.as_mut_ptr() as *const libc::c_void,
-            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong as libc::c_int,
-            ::std::mem::transmute::<
-                libc::intptr_t,
-                sqlite3_destructor_type,
-            >(-(1 as libc::c_int) as libc::intptr_t),
-        );
-    }
-}
-#[no_mangle]
-pub unsafe extern "C" fn sqlite3_ieee_init(
-    mut db: *mut sqlite3,
-    mut pzErrMsg: *mut *mut libc::c_char,
-    mut pApi: *const sqlite3_api_routines,
-) -> libc::c_int {
-    static mut aFunc: [C2RustUnnamed_17; 6] = unsafe {
-        [
-            {
-                let mut init = C2RustUnnamed_17 {
-                    zFName: b"ieee754\0" as *const u8 as *const libc::c_char
-                        as *mut libc::c_char,
-                    nArg: 1 as libc::c_int,
-                    iAux: 0 as libc::c_int,
-                    xFunc: Some(
-                        ieee754func
-                            as unsafe extern "C" fn(
-                                *mut sqlite3_context,
-                                libc::c_int,
-                                *mut *mut sqlite3_value,
-                            ) -> (),
-                    ),
-                };
-                init
-            },
-            {
-                let mut init = C2RustUnnamed_17 {
-                    zFName: b"ieee754\0" as *const u8 as *const libc::c_char
-                        as *mut libc::c_char,
-                    nArg: 2 as libc::c_int,
-                    iAux: 0 as libc::c_int,
-                    xFunc: Some(
-                        ieee754func
-                            as unsafe extern "C" fn(
-                                *mut sqlite3_context,
-                                libc::c_int,
-                                *mut *mut sqlite3_value,
-                            ) -> (),
-                    ),
-                };
-                init
-            },
-            {
-                let mut init = C2RustUnnamed_17 {
-                    zFName: b"ieee754_mantissa\0" as *const u8 as *const libc::c_char
-                        as *mut libc::c_char,
-                    nArg: 1 as libc::c_int,
-                    iAux: 1 as libc::c_int,
-                    xFunc: Some(
-                        ieee754func
-                            as unsafe extern "C" fn(
-                                *mut sqlite3_context,
-                                libc::c_int,
-                                *mut *mut sqlite3_value,
-                            ) -> (),
-                    ),
-                };
-                init
-            },
-            {
-                let mut init = C2RustUnnamed_17 {
-                    zFName: b"ieee754_exponent\0" as *const u8 as *const libc::c_char
-                        as *mut libc::c_char,
-                    nArg: 1 as libc::c_int,
-                    iAux: 2 as libc::c_int,
-                    xFunc: Some(
-                        ieee754func
-                            as unsafe extern "C" fn(
-                                *mut sqlite3_context,
-                                libc::c_int,
-                                *mut *mut sqlite3_value,
-                            ) -> (),
-                    ),
-                };
-                init
-            },
-            {
-                let mut init = C2RustUnnamed_17 {
-                    zFName: b"ieee754_to_blob\0" as *const u8 as *const libc::c_char
-                        as *mut libc::c_char,
-                    nArg: 1 as libc::c_int,
-                    iAux: 0 as libc::c_int,
-                    xFunc: Some(
-                        ieee754func_to_blob
-                            as unsafe extern "C" fn(
-                                *mut sqlite3_context,
-                                libc::c_int,
-                                *mut *mut sqlite3_value,
-                            ) -> (),
-                    ),
-                };
-                init
-            },
-            {
-                let mut init = C2RustUnnamed_17 {
-                    zFName: b"ieee754_from_blob\0" as *const u8 as *const libc::c_char
-                        as *mut libc::c_char,
-                    nArg: 1 as libc::c_int,
-                    iAux: 0 as libc::c_int,
-                    xFunc: Some(
-                        ieee754func_from_blob
-                            as unsafe extern "C" fn(
-                                *mut sqlite3_context,
-                                libc::c_int,
-                                *mut *mut sqlite3_value,
-                            ) -> (),
-                    ),
-                };
-                init
-            },
-        ]
-    };
-    let mut i: libc::c_uint = 0;
-    let mut rc: libc::c_int = 0 as libc::c_int;
-    i = 0 as libc::c_int as libc::c_uint;
-    while (i as libc::c_ulong)
-        < (::std::mem::size_of::<[C2RustUnnamed_17; 6]>() as libc::c_ulong)
-            .wrapping_div(::std::mem::size_of::<C2RustUnnamed_17>() as libc::c_ulong)
-        && rc == 0 as libc::c_int
-    {
-        rc = sqlite3_create_function(
-            db,
-            aFunc[i as usize].zFName,
-            aFunc[i as usize].nArg,
-            1 as libc::c_int | 0x200000 as libc::c_int,
-            &(*aFunc.as_ptr().offset(i as isize)).iAux as *const libc::c_int
-                as *mut libc::c_void,
-            aFunc[i as usize].xFunc,
-            None,
-            None,
-        );
-        i = i.wrapping_add(1);
-    }
-    return rc;
-}
-unsafe extern "C" fn seriesConnect(
-    mut db: *mut sqlite3,
-    mut pUnused: *mut libc::c_void,
-    mut argcUnused: libc::c_int,
-    mut argvUnused: *const *const libc::c_char,
-    mut ppVtab: *mut *mut sqlite3_vtab,
-    mut pzErrUnused: *mut *mut libc::c_char,
-) -> libc::c_int {
-    let mut pNew: *mut sqlite3_vtab = 0 as *mut sqlite3_vtab;
-    let mut rc: libc::c_int = 0;
-    rc = sqlite3_declare_vtab(
-        db,
-        b"CREATE TABLE x(value,start hidden,stop hidden,step hidden)\0" as *const u8
-            as *const libc::c_char,
-    );
-    if rc == 0 as libc::c_int {
-        *ppVtab = sqlite3_malloc(
-            ::std::mem::size_of::<sqlite3_vtab>() as libc::c_ulong as libc::c_int,
-        ) as *mut sqlite3_vtab;
-        pNew = *ppVtab;
-        if pNew.is_null() {
-            return 7 as libc::c_int;
-        }
-        memset(
-            pNew as *mut libc::c_void,
-            0 as libc::c_int,
-            ::std::mem::size_of::<sqlite3_vtab>() as libc::c_ulong,
-        );
-        sqlite3_vtab_config(db, 2 as libc::c_int);
-    }
-    return rc;
-}
-unsafe extern "C" fn seriesDisconnect(mut pVtab: *mut sqlite3_vtab) -> libc::c_int {
-    sqlite3_free(pVtab as *mut libc::c_void);
-    return 0 as libc::c_int;
-}
-unsafe extern "C" fn seriesOpen(
-    mut pUnused: *mut sqlite3_vtab,
-    mut ppCursor: *mut *mut sqlite3_vtab_cursor,
-) -> libc::c_int {
-    let mut pCur: *mut series_cursor = 0 as *mut series_cursor;
-    pCur = sqlite3_malloc(
-        ::std::mem::size_of::<series_cursor>() as libc::c_ulong as libc::c_int,
-    ) as *mut series_cursor;
-    if pCur.is_null() {
-        return 7 as libc::c_int;
-    }
-    memset(
-        pCur as *mut libc::c_void,
-        0 as libc::c_int,
-        ::std::mem::size_of::<series_cursor>() as libc::c_ulong,
-    );
-    *ppCursor = &mut (*pCur).base;
-    return 0 as libc::c_int;
-}
-unsafe extern "C" fn seriesClose(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int {
-    sqlite3_free(cur as *mut libc::c_void);
-    return 0 as libc::c_int;
-}
-unsafe extern "C" fn seriesNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int {
-    let mut pCur: *mut series_cursor = cur as *mut series_cursor;
-    if (*pCur).isDesc != 0 {
-        let ref mut fresh67 = (*pCur).iValue;
-        *fresh67 -= (*pCur).iStep;
-    } else {
-        let ref mut fresh68 = (*pCur).iValue;
-        *fresh68 += (*pCur).iStep;
-    }
-    let ref mut fresh69 = (*pCur).iRowid;
-    *fresh69 += 1;
-    return 0 as libc::c_int;
-}
-unsafe extern "C" fn seriesColumn(
-    mut cur: *mut sqlite3_vtab_cursor,
-    mut ctx: *mut sqlite3_context,
-    mut i: libc::c_int,
-) -> libc::c_int {
-    let mut pCur: *mut series_cursor = cur as *mut series_cursor;
-    let mut x: sqlite3_int64 = 0 as libc::c_int as sqlite3_int64;
-    match i {
-        1 => {
-            x = (*pCur).mnValue;
-        }
-        2 => {
-            x = (*pCur).mxValue;
-        }
-        3 => {
-            x = (*pCur).iStep;
-        }
-        _ => {
-            x = (*pCur).iValue;
-        }
-    }
-    sqlite3_result_int64(ctx, x);
-    return 0 as libc::c_int;
-}
-unsafe extern "C" fn seriesRowid(
-    mut cur: *mut sqlite3_vtab_cursor,
-    mut pRowid: *mut sqlite_int64,
-) -> libc::c_int {
-    let mut pCur: *mut series_cursor = cur as *mut series_cursor;
-    *pRowid = (*pCur).iRowid;
-    return 0 as libc::c_int;
-}
-unsafe extern "C" fn seriesEof(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int {
-    let mut pCur: *mut series_cursor = cur as *mut series_cursor;
-    if (*pCur).isDesc != 0 {
-        return ((*pCur).iValue < (*pCur).mnValue) as libc::c_int
-    } else {
-        return ((*pCur).iValue > (*pCur).mxValue) as libc::c_int
-    };
-}
-unsafe extern "C" fn seriesFilter(
-    mut pVtabCursor: *mut sqlite3_vtab_cursor,
-    mut idxNum: libc::c_int,
-    mut idxStrUnused: *const libc::c_char,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) -> libc::c_int {
-    let mut pCur: *mut series_cursor = pVtabCursor as *mut series_cursor;
-    let mut i: libc::c_int = 0 as libc::c_int;
-    if idxNum & 1 as libc::c_int != 0 {
-        let fresh70 = i;
-        i = i + 1;
-        (*pCur).mnValue = sqlite3_value_int64(*argv.offset(fresh70 as isize));
-    } else {
-        (*pCur).mnValue = 0 as libc::c_int as sqlite3_int64;
-    }
-    if idxNum & 2 as libc::c_int != 0 {
-        let fresh71 = i;
-        i = i + 1;
-        (*pCur).mxValue = sqlite3_value_int64(*argv.offset(fresh71 as isize));
-    } else {
-        (*pCur).mxValue = 0xffffffff as libc::c_uint as sqlite3_int64;
-    }
-    if idxNum & 4 as libc::c_int != 0 {
-        let fresh72 = i;
-        i = i + 1;
-        (*pCur).iStep = sqlite3_value_int64(*argv.offset(fresh72 as isize));
-        if (*pCur).iStep == 0 as libc::c_int as libc::c_longlong {
-            (*pCur).iStep = 1 as libc::c_int as sqlite3_int64;
-        } else if (*pCur).iStep < 0 as libc::c_int as libc::c_longlong {
-            (*pCur).iStep = -(*pCur).iStep;
-            if idxNum & 16 as libc::c_int == 0 as libc::c_int {
-                idxNum |= 8 as libc::c_int;
-            }
-        }
-    } else {
-        (*pCur).iStep = 1 as libc::c_int as sqlite3_int64;
-    }
-    i = 0 as libc::c_int;
-    while i < argc {
-        if sqlite3_value_type(*argv.offset(i as isize)) == 5 as libc::c_int {
-            (*pCur).mnValue = 1 as libc::c_int as sqlite3_int64;
-            (*pCur).mxValue = 0 as libc::c_int as sqlite3_int64;
-            break;
-        } else {
-            i += 1;
-        }
-    }
-    if idxNum & 8 as libc::c_int != 0 {
-        (*pCur).isDesc = 1 as libc::c_int;
-        (*pCur).iValue = (*pCur).mxValue;
-        if (*pCur).iStep > 0 as libc::c_int as libc::c_longlong {
-            let ref mut fresh73 = (*pCur).iValue;
-            *fresh73 -= ((*pCur).mxValue - (*pCur).mnValue) % (*pCur).iStep;
-        }
-    } else {
-        (*pCur).isDesc = 0 as libc::c_int;
-        (*pCur).iValue = (*pCur).mnValue;
-    }
-    (*pCur).iRowid = 1 as libc::c_int as sqlite3_int64;
-    return 0 as libc::c_int;
-}
-unsafe extern "C" fn seriesBestIndex(
-    mut pVTab: *mut sqlite3_vtab,
-    mut pIdxInfo: *mut sqlite3_index_info,
-) -> libc::c_int {
-    let mut i: libc::c_int = 0;
-    let mut j: libc::c_int = 0;
-    let mut idxNum: libc::c_int = 0 as libc::c_int;
-    let mut bStartSeen: libc::c_int = 0 as libc::c_int;
-    let mut unusableMask: libc::c_int = 0 as libc::c_int;
-    let mut nArg: libc::c_int = 0 as libc::c_int;
-    let mut aIdx: [libc::c_int; 3] = [0; 3];
-    let mut pConstraint: *const sqlite3_index_constraint = 0
-        as *const sqlite3_index_constraint;
-    if 2 as libc::c_int == 1 as libc::c_int + 1 as libc::c_int {} else {
-        __assert_fail(
-            b"SERIES_COLUMN_STOP == SERIES_COLUMN_START+1\0" as *const u8
-                as *const libc::c_char,
-            b"shell.c\0" as *const u8 as *const libc::c_char,
-            5802 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
-                &[u8; 58],
-                &[libc::c_char; 58],
-            >(b"int seriesBestIndex(sqlite3_vtab *, sqlite3_index_info *)\0"))
-                .as_ptr(),
-        );
-    }
-    if 3 as libc::c_int == 1 as libc::c_int + 2 as libc::c_int {} else {
-        __assert_fail(
-            b"SERIES_COLUMN_STEP == SERIES_COLUMN_START+2\0" as *const u8
-                as *const libc::c_char,
-            b"shell.c\0" as *const u8 as *const libc::c_char,
-            5803 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
-                &[u8; 58],
-                &[libc::c_char; 58],
-            >(b"int seriesBestIndex(sqlite3_vtab *, sqlite3_index_info *)\0"))
-                .as_ptr(),
-        );
-    }
-    aIdx[2 as libc::c_int as usize] = -(1 as libc::c_int);
-    aIdx[1 as libc::c_int as usize] = aIdx[2 as libc::c_int as usize];
-    aIdx[0 as libc::c_int as usize] = aIdx[1 as libc::c_int as usize];
-    pConstraint = (*pIdxInfo).aConstraint;
-    i = 0 as libc::c_int;
-    while i < (*pIdxInfo).nConstraint {
-        let mut iCol: libc::c_int = 0;
-        let mut iMask: libc::c_int = 0;
-        if !((*pConstraint).iColumn < 1 as libc::c_int) {
-            iCol = (*pConstraint).iColumn - 1 as libc::c_int;
-            if iCol >= 0 as libc::c_int && iCol <= 2 as libc::c_int {} else {
-                __assert_fail(
-                    b"iCol>=0 && iCol<=2\0" as *const u8 as *const libc::c_char,
-                    b"shell.c\0" as *const u8 as *const libc::c_char,
-                    5812 as libc::c_int as libc::c_uint,
-                    (*::std::mem::transmute::<
-                        &[u8; 58],
-                        &[libc::c_char; 58],
-                    >(b"int seriesBestIndex(sqlite3_vtab *, sqlite3_index_info *)\0"))
-                        .as_ptr(),
-                );
-            }
-            iMask = (1 as libc::c_int) << iCol;
-            if iCol == 0 as libc::c_int {
-                bStartSeen = 1 as libc::c_int;
-            }
-            if (*pConstraint).usable as libc::c_int == 0 as libc::c_int {
-                unusableMask |= iMask;
-            } else if (*pConstraint).op as libc::c_int == 2 as libc::c_int {
-                idxNum |= iMask;
-                aIdx[iCol as usize] = i;
-            }
-        }
-        i += 1;
-        pConstraint = pConstraint.offset(1);
-    }
-    i = 0 as libc::c_int;
-    while i < 3 as libc::c_int {
-        j = aIdx[i as usize];
-        if j >= 0 as libc::c_int {
-            nArg += 1;
-            (*((*pIdxInfo).aConstraintUsage).offset(j as isize)).argvIndex = nArg;
-            (*((*pIdxInfo).aConstraintUsage).offset(j as isize))
-                .omit = (0 as libc::c_int == 0) as libc::c_int as libc::c_uchar;
-        }
-        i += 1;
-    }
-    if bStartSeen == 0 {
-        sqlite3_free((*pVTab).zErrMsg as *mut libc::c_void);
-        let ref mut fresh74 = (*pVTab).zErrMsg;
-        *fresh74 = sqlite3_mprintf(
-            b"first argument to \"generate_series()\" missing or unusable\0" as *const u8
-                as *const libc::c_char,
-        );
-        return 1 as libc::c_int;
-    }
-    if unusableMask & !idxNum != 0 as libc::c_int {
-        return 19 as libc::c_int;
-    }
-    if idxNum & 3 as libc::c_int == 3 as libc::c_int {
-        (*pIdxInfo)
-            .estimatedCost = (2 as libc::c_int
-            - (idxNum & 4 as libc::c_int != 0 as libc::c_int) as libc::c_int)
-            as libc::c_double;
-        (*pIdxInfo).estimatedRows = 1000 as libc::c_int as sqlite3_int64;
-        if (*pIdxInfo).nOrderBy >= 1 as libc::c_int
-            && (*((*pIdxInfo).aOrderBy).offset(0 as libc::c_int as isize)).iColumn
-                == 0 as libc::c_int
-        {
-            if (*((*pIdxInfo).aOrderBy).offset(0 as libc::c_int as isize)).desc != 0 {
-                idxNum |= 8 as libc::c_int;
-            } else {
-                idxNum |= 16 as libc::c_int;
-            }
-            (*pIdxInfo).orderByConsumed = 1 as libc::c_int;
-        }
-    } else {
-        (*pIdxInfo).estimatedRows = 2147483647 as libc::c_int as sqlite3_int64;
-    }
-    (*pIdxInfo).idxNum = idxNum;
-    return 0 as libc::c_int;
-}
-static mut seriesModule: sqlite3_module = unsafe {
-    {
-        let mut init = sqlite3_module {
-            iVersion: 0 as libc::c_int,
-            xCreate: None,
-            xConnect: Some(
-                seriesConnect
-                    as unsafe extern "C" fn(
-                        *mut sqlite3,
-                        *mut libc::c_void,
-                        libc::c_int,
-                        *const *const libc::c_char,
-                        *mut *mut sqlite3_vtab,
-                        *mut *mut libc::c_char,
-                    ) -> libc::c_int,
-            ),
-            xBestIndex: Some(
-                seriesBestIndex
-                    as unsafe extern "C" fn(
-                        *mut sqlite3_vtab,
-                        *mut sqlite3_index_info,
-                    ) -> libc::c_int,
-            ),
-            xDisconnect: Some(
-                seriesDisconnect
-                    as unsafe extern "C" fn(*mut sqlite3_vtab) -> libc::c_int,
-            ),
-            xDestroy: None,
-            xOpen: Some(
-                seriesOpen
-                    as unsafe extern "C" fn(
-                        *mut sqlite3_vtab,
-                        *mut *mut sqlite3_vtab_cursor,
-                    ) -> libc::c_int,
-            ),
-            xClose: Some(
-                seriesClose
-                    as unsafe extern "C" fn(*mut sqlite3_vtab_cursor) -> libc::c_int,
-            ),
-            xFilter: Some(
-                seriesFilter
-                    as unsafe extern "C" fn(
-                        *mut sqlite3_vtab_cursor,
-                        libc::c_int,
-                        *const libc::c_char,
-                        libc::c_int,
-                        *mut *mut sqlite3_value,
-                    ) -> libc::c_int,
-            ),
-            xNext: Some(
-                seriesNext
-                    as unsafe extern "C" fn(*mut sqlite3_vtab_cursor) -> libc::c_int,
-            ),
-            xEof: Some(
-                seriesEof
-                    as unsafe extern "C" fn(*mut sqlite3_vtab_cursor) -> libc::c_int,
-            ),
-            xColumn: Some(
-                seriesColumn
-                    as unsafe extern "C" fn(
-                        *mut sqlite3_vtab_cursor,
-                        *mut sqlite3_context,
-                        libc::c_int,
-                    ) -> libc::c_int,
-            ),
-            xRowid: Some(
-                seriesRowid
-                    as unsafe extern "C" fn(
-                        *mut sqlite3_vtab_cursor,
-                        *mut sqlite_int64,
-                    ) -> libc::c_int,
-            ),
-            xUpdate: None,
-            xBegin: None,
-            xSync: None,
-            xCommit: None,
-            xRollback: None,
-            xFindFunction: None,
-            xRename: None,
-            xSavepoint: None,
-            xRelease: None,
-            xRollbackTo: None,
-            xShadowName: None,
-        };
-        init
-    }
-};
-#[no_mangle]
-pub unsafe extern "C" fn sqlite3_series_init(
-    mut db: *mut sqlite3,
-    mut pzErrMsg: *mut *mut libc::c_char,
-    mut pApi: *const sqlite3_api_routines,
-) -> libc::c_int {
-    let mut rc: libc::c_int = 0 as libc::c_int;
-    if sqlite3_libversion_number() < 3008012 as libc::c_int && !pzErrMsg.is_null() {
-        *pzErrMsg = sqlite3_mprintf(
-            b"generate_series() requires SQLite 3.8.12 or later\0" as *const u8
-                as *const libc::c_char,
-        );
-        return 1 as libc::c_int;
-    }
-    rc = sqlite3_create_module(
-        db,
-        b"generate_series\0" as *const u8 as *const libc::c_char,
-        &mut seriesModule,
-        0 as *mut libc::c_void,
-    );
-    return rc;
-}
-unsafe extern "C" fn re_add_state(mut pSet: *mut ReStateSet, mut newState: libc::c_int) {
-    let mut i: libc::c_uint = 0;
-    i = 0 as libc::c_int as libc::c_uint;
-    while i < (*pSet).nState {
-        if *((*pSet).aState).offset(i as isize) as libc::c_int == newState {
-            return;
-        }
-        i = i.wrapping_add(1);
-    }
-    let ref mut fresh75 = (*pSet).nState;
-    let fresh76 = *fresh75;
-    *fresh75 = (*fresh75).wrapping_add(1);
-    *((*pSet).aState).offset(fresh76 as isize) = newState as ReStateNumber;
-}
-unsafe extern "C" fn re_next_char(mut p: *mut ReInput) -> libc::c_uint {
-    let mut c: libc::c_uint = 0;
-    if (*p).i >= (*p).mx {
-        return 0 as libc::c_int as libc::c_uint;
-    }
-    let ref mut fresh77 = (*p).i;
-    let fresh78 = *fresh77;
-    *fresh77 = *fresh77 + 1;
-    c = *((*p).z).offset(fresh78 as isize) as libc::c_uint;
-    if c >= 0x80 as libc::c_int as libc::c_uint {
-        if c & 0xe0 as libc::c_int as libc::c_uint == 0xc0 as libc::c_int as libc::c_uint
-            && (*p).i < (*p).mx
-            && *((*p).z).offset((*p).i as isize) as libc::c_int & 0xc0 as libc::c_int
-                == 0x80 as libc::c_int
-        {
-            let ref mut fresh79 = (*p).i;
-            let fresh80 = *fresh79;
-            *fresh79 = *fresh79 + 1;
-            c = (c & 0x1f as libc::c_int as libc::c_uint) << 6 as libc::c_int
-                | (*((*p).z).offset(fresh80 as isize) as libc::c_int
-                    & 0x3f as libc::c_int) as libc::c_uint;
-            if c < 0x80 as libc::c_int as libc::c_uint {
-                c = 0xfffd as libc::c_int as libc::c_uint;
-            }
-        } else if c & 0xf0 as libc::c_int as libc::c_uint
-                == 0xe0 as libc::c_int as libc::c_uint
-                && ((*p).i + 1 as libc::c_int) < (*p).mx
-                && *((*p).z).offset((*p).i as isize) as libc::c_int & 0xc0 as libc::c_int
-                    == 0x80 as libc::c_int
-                && *((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
-                    & 0xc0 as libc::c_int == 0x80 as libc::c_int
-            {
-            c = (c & 0xf as libc::c_int as libc::c_uint) << 12 as libc::c_int
-                | ((*((*p).z).offset((*p).i as isize) as libc::c_int
-                    & 0x3f as libc::c_int) << 6 as libc::c_int) as libc::c_uint
-                | (*((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
-                    & 0x3f as libc::c_int) as libc::c_uint;
-            (*p).i += 2 as libc::c_int;
-            if c <= 0x7ff as libc::c_int as libc::c_uint
-                || c >= 0xd800 as libc::c_int as libc::c_uint
-                    && c <= 0xdfff as libc::c_int as libc::c_uint
-            {
-                c = 0xfffd as libc::c_int as libc::c_uint;
-            }
-        } else if c & 0xf8 as libc::c_int as libc::c_uint
-                == 0xf0 as libc::c_int as libc::c_uint
-                && ((*p).i + 3 as libc::c_int) < (*p).mx
-                && *((*p).z).offset((*p).i as isize) as libc::c_int & 0xc0 as libc::c_int
-                    == 0x80 as libc::c_int
-                && *((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
-                    & 0xc0 as libc::c_int == 0x80 as libc::c_int
-                && *((*p).z).offset(((*p).i + 2 as libc::c_int) as isize) as libc::c_int
-                    & 0xc0 as libc::c_int == 0x80 as libc::c_int
-            {
-            c = (c & 0x7 as libc::c_int as libc::c_uint) << 18 as libc::c_int
-                | ((*((*p).z).offset((*p).i as isize) as libc::c_int
-                    & 0x3f as libc::c_int) << 12 as libc::c_int) as libc::c_uint
-                | ((*((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
-                    & 0x3f as libc::c_int) << 6 as libc::c_int) as libc::c_uint
-                | (*((*p).z).offset(((*p).i + 2 as libc::c_int) as isize) as libc::c_int
-                    & 0x3f as libc::c_int) as libc::c_uint;
-            (*p).i += 3 as libc::c_int;
-            if c <= 0xffff as libc::c_int as libc::c_uint
-                || c > 0x10ffff as libc::c_int as libc::c_uint
-            {
-                c = 0xfffd as libc::c_int as libc::c_uint;
-            }
-        } else {
-            c = 0xfffd as libc::c_int as libc::c_uint;
-        }
-    }
-    return c;
-}
-unsafe extern "C" fn re_next_char_nocase(mut p: *mut ReInput) -> libc::c_uint {
-    let mut c: libc::c_uint = re_next_char(p);
-    if c >= 'A' as i32 as libc::c_uint && c <= 'Z' as i32 as libc::c_uint {
-        c = c.wrapping_add(('a' as i32 - 'A' as i32) as libc::c_uint);
-    }
-    return c;
-}
-unsafe extern "C" fn re_word_char(mut c: libc::c_int) -> libc::c_int {
-    return (c >= '0' as i32 && c <= '9' as i32 || c >= 'a' as i32 && c <= 'z' as i32
-        || c >= 'A' as i32 && c <= 'Z' as i32 || c == '_' as i32) as libc::c_int;
-}
-unsafe extern "C" fn re_digit_char(mut c: libc::c_int) -> libc::c_int {
-    return (c >= '0' as i32 && c <= '9' as i32) as libc::c_int;
-}
-unsafe extern "C" fn re_space_char(mut c: libc::c_int) -> libc::c_int {
-    return (c == ' ' as i32 || c == '\t' as i32 || c == '\n' as i32 || c == '\r' as i32
-        || c == '\u{b}' as i32 || c == '\u{c}' as i32) as libc::c_int;
-}
-unsafe extern "C" fn sqlite3re_match(
-    mut pRe: *mut ReCompiled,
-    mut zIn: *const libc::c_uchar,
-    mut nIn: libc::c_int,
-) -> libc::c_int {
-    let mut current_block: u64;
-    let mut aStateSet: [ReStateSet; 2] = [ReStateSet {
-        nState: 0,
-        aState: 0 as *mut ReStateNumber,
-    }; 2];
-    let mut pThis: *mut ReStateSet = 0 as *mut ReStateSet;
-    let mut pNext: *mut ReStateSet = 0 as *mut ReStateSet;
-    let mut aSpace: [ReStateNumber; 100] = [0; 100];
-    let mut pToFree: *mut ReStateNumber = 0 as *mut ReStateNumber;
-    let mut i: libc::c_uint = 0 as libc::c_int as libc::c_uint;
-    let mut iSwap: libc::c_uint = 0 as libc::c_int as libc::c_uint;
-    let mut c: libc::c_int = 0 as libc::c_int + 1 as libc::c_int;
-    let mut cPrev: libc::c_int = 0 as libc::c_int;
-    let mut rc: libc::c_int = 0 as libc::c_int;
-    let mut in_0: ReInput = ReInput {
-        z: 0 as *const libc::c_uchar,
-        i: 0,
-        mx: 0,
-    };
-    in_0.z = zIn;
-    in_0.i = 0 as libc::c_int;
-    in_0
-        .mx = if nIn >= 0 as libc::c_int {
-        nIn
-    } else {
-        strlen(zIn as *const libc::c_char) as libc::c_int
-    };
-    if (*pRe).nInit != 0 {
-        let mut x: libc::c_uchar = (*pRe).zInit[0 as libc::c_int as usize];
-        while in_0.i + (*pRe).nInit <= in_0.mx
-            && (*zIn.offset(in_0.i as isize) as libc::c_int != x as libc::c_int
-                || strncmp(
-                    (zIn as *const libc::c_char).offset(in_0.i as isize),
-                    ((*pRe).zInit).as_mut_ptr() as *const libc::c_char,
-                    (*pRe).nInit as libc::c_ulong,
-                ) != 0 as libc::c_int)
-        {
-            in_0.i += 1;
-        }
-        if in_0.i + (*pRe).nInit > in_0.mx {
-            return 0 as libc::c_int;
-        }
-    }
-    if (*pRe).nState as libc::c_ulong
-        <= (::std::mem::size_of::<[ReStateNumber; 100]>() as libc::c_ulong)
-            .wrapping_div(
-                (::std::mem::size_of::<ReStateNumber>() as libc::c_ulong)
-                    .wrapping_mul(2 as libc::c_int as libc::c_ulong),
-            )
-    {
-        pToFree = 0 as *mut ReStateNumber;
-        aStateSet[0 as libc::c_int as usize].aState = aSpace.as_mut_ptr();
-    } else {
-        pToFree = sqlite3_malloc64(
-            (::std::mem::size_of::<ReStateNumber>() as libc::c_ulong)
-                .wrapping_mul(2 as libc::c_int as libc::c_ulong)
-                .wrapping_mul((*pRe).nState as libc::c_ulong) as sqlite3_uint64,
-        ) as *mut ReStateNumber;
-        if pToFree.is_null() {
-            return -(1 as libc::c_int);
-        }
-        aStateSet[0 as libc::c_int as usize].aState = pToFree;
-    }
-    aStateSet[1 as libc::c_int as usize]
-        .aState = &mut *((*aStateSet.as_mut_ptr().offset(0 as libc::c_int as isize))
-        .aState)
-        .offset((*pRe).nState as isize) as *mut ReStateNumber;
-    pNext = &mut *aStateSet.as_mut_ptr().offset(1 as libc::c_int as isize)
-        as *mut ReStateSet;
-    (*pNext).nState = 0 as libc::c_int as libc::c_uint;
-    re_add_state(pNext, 0 as libc::c_int);
-    's_132: loop {
-        if !(c != 0 as libc::c_int && (*pNext).nState > 0 as libc::c_int as libc::c_uint)
-        {
-            current_block = 14865402277128115059;
-            break;
-        }
-        cPrev = c;
-        c = ((*pRe).xNextChar).expect("non-null function pointer")(&mut in_0)
-            as libc::c_int;
-        pThis = pNext;
-        pNext = &mut *aStateSet.as_mut_ptr().offset(iSwap as isize) as *mut ReStateSet;
-        iSwap = (1 as libc::c_int as libc::c_uint).wrapping_sub(iSwap);
-        (*pNext).nState = 0 as libc::c_int as libc::c_uint;
-        i = 0 as libc::c_int as libc::c_uint;
-        while i < (*pThis).nState {
-            let mut x_0: libc::c_int = *((*pThis).aState).offset(i as isize)
-                as libc::c_int;
-            match *((*pRe).aOp).offset(x_0 as isize) as libc::c_int {
-                1 => {
-                    if *((*pRe).aArg).offset(x_0 as isize) == c {
-                        re_add_state(pNext, x_0 + 1 as libc::c_int);
-                    }
-                    current_block = 18377268871191777778;
-                }
-                2 => {
-                    if c != 0 as libc::c_int {
-                        re_add_state(pNext, x_0 + 1 as libc::c_int);
-                    }
-                    current_block = 18377268871191777778;
-                }
-                11 => {
-                    if re_word_char(c) != 0 {
-                        re_add_state(pNext, x_0 + 1 as libc::c_int);
-                    }
-                    current_block = 18377268871191777778;
-                }
-                12 => {
-                    if re_word_char(c) == 0 && c != 0 as libc::c_int {
-                        re_add_state(pNext, x_0 + 1 as libc::c_int);
-                    }
-                    current_block = 18377268871191777778;
-                }
-                13 => {
-                    if re_digit_char(c) != 0 {
-                        re_add_state(pNext, x_0 + 1 as libc::c_int);
-                    }
-                    current_block = 18377268871191777778;
-                }
-                14 => {
-                    if re_digit_char(c) == 0 && c != 0 as libc::c_int {
-                        re_add_state(pNext, x_0 + 1 as libc::c_int);
-                    }
-                    current_block = 18377268871191777778;
-                }
-                15 => {
-                    if re_space_char(c) != 0 {
-                        re_add_state(pNext, x_0 + 1 as libc::c_int);
-                    }
-                    current_block = 18377268871191777778;
-                }
-                16 => {
-                    if re_space_char(c) == 0 && c != 0 as libc::c_int {
-                        re_add_state(pNext, x_0 + 1 as libc::c_int);
-                    }
-                    current_block = 18377268871191777778;
-                }
-                17 => {
-                    if re_word_char(c) != re_word_char(cPrev) {
-                        re_add_state(pThis, x_0 + 1 as libc::c_int);
-                    }
-                    current_block = 18377268871191777778;
-                }
-                3 => {
-                    re_add_state(pNext, x_0);
-                    re_add_state(pThis, x_0 + 1 as libc::c_int);
-                    current_block = 18377268871191777778;
-                }
-                4 => {
-                    re_add_state(pThis, x_0 + *((*pRe).aArg).offset(x_0 as isize));
-                    re_add_state(pThis, x_0 + 1 as libc::c_int);
-                    current_block = 18377268871191777778;
-                }
-                5 => {
-                    re_add_state(pThis, x_0 + *((*pRe).aArg).offset(x_0 as isize));
-                    current_block = 18377268871191777778;
-                }
-                6 => {
-                    rc = 1 as libc::c_int;
-                    current_block = 4159726692890947844;
-                    break 's_132;
-                }
-                8 => {
-                    if c == 0 as libc::c_int {
-                        current_block = 18377268871191777778;
-                    } else {
-                        current_block = 17239133558811367971;
-                    }
-                }
-                7 => {
-                    current_block = 17239133558811367971;
-                }
-                _ => {
-                    current_block = 18377268871191777778;
-                }
-            }
-            match current_block {
-                17239133558811367971 => {
-                    let mut j: libc::c_int = 1 as libc::c_int;
-                    let mut n: libc::c_int = *((*pRe).aArg).offset(x_0 as isize);
-                    let mut hit: libc::c_int = 0 as libc::c_int;
-                    j = 1 as libc::c_int;
-                    while j > 0 as libc::c_int && j < n {
-                        if *((*pRe).aOp).offset((x_0 + j) as isize) as libc::c_int
-                            == 9 as libc::c_int
-                        {
-                            if *((*pRe).aArg).offset((x_0 + j) as isize) == c {
-                                hit = 1 as libc::c_int;
-                                j = -(1 as libc::c_int);
-                            }
-                        } else if *((*pRe).aArg).offset((x_0 + j) as isize) <= c
-                                && *((*pRe).aArg)
-                                    .offset((x_0 + j + 1 as libc::c_int) as isize) >= c
-                            {
-                            hit = 1 as libc::c_int;
-                            j = -(1 as libc::c_int);
-                        } else {
-                            j += 1;
-                        }
-                        j += 1;
-                    }
-                    if *((*pRe).aOp).offset(x_0 as isize) as libc::c_int
-                        == 8 as libc::c_int
-                    {
-                        hit = (hit == 0) as libc::c_int;
-                    }
-                    if hit != 0 {
-                        re_add_state(pNext, x_0 + n);
-                    }
-                }
-                _ => {}
-            }
-            i = i.wrapping_add(1);
-        }
-    }
-    match current_block {
-        14865402277128115059 => {
-            i = 0 as libc::c_int as libc::c_uint;
-            while i < (*pNext).nState {
-                if *((*pRe).aOp).offset(*((*pNext).aState).offset(i as isize) as isize)
-                    as libc::c_int == 6 as libc::c_int
-                {
-                    rc = 1 as libc::c_int;
-                    break;
-                } else {
-                    i = i.wrapping_add(1);
-                }
-            }
-        }
-        _ => {}
-    }
-    sqlite3_free(pToFree as *mut libc::c_void);
-    return rc;
-}
-unsafe extern "C" fn re_resize(
-    mut p: *mut ReCompiled,
-    mut N: libc::c_int,
-) -> libc::c_int {
-    let mut aOp: *mut libc::c_char = 0 as *mut libc::c_char;
-    let mut aArg: *mut libc::c_int = 0 as *mut libc::c_int;
-    aOp = sqlite3_realloc64(
-        (*p).aOp as *mut libc::c_void,
-        (N as libc::c_ulong)
-            .wrapping_mul(::std::mem::size_of::<libc::c_char>() as libc::c_ulong)
-            as sqlite3_uint64,
-    ) as *mut libc::c_char;
-    if aOp.is_null() {
-        return 1 as libc::c_int;
-    }
-    let ref mut fresh81 = (*p).aOp;
-    *fresh81 = aOp;
-    aArg = sqlite3_realloc64(
-        (*p).aArg as *mut libc::c_void,
-        (N as libc::c_ulong)
-            .wrapping_mul(::std::mem::size_of::<libc::c_int>() as libc::c_ulong)
-            as sqlite3_uint64,
-    ) as *mut libc::c_int;
-    if aArg.is_null() {
-        return 1 as libc::c_int;
-    }
-    let ref mut fresh82 = (*p).aArg;
-    *fresh82 = aArg;
-    (*p).nAlloc = N as libc::c_uint;
-    return 0 as libc::c_int;
-}
-unsafe extern "C" fn re_insert(
-    mut p: *mut ReCompiled,
-    mut iBefore: libc::c_int,
-    mut op: libc::c_int,
-    mut arg: libc::c_int,
-) -> libc::c_int {
-    let mut i: libc::c_int = 0;
-    if (*p).nAlloc <= (*p).nState
-        && re_resize(
-            p,
-            ((*p).nAlloc).wrapping_mul(2 as libc::c_int as libc::c_uint) as libc::c_int,
-        ) != 0
-    {
-        return 0 as libc::c_int;
-    }
-    i = (*p).nState as libc::c_int;
-    while i > iBefore {
-        *((*p).aOp)
-            .offset(i as isize) = *((*p).aOp).offset((i - 1 as libc::c_int) as isize);
-        *((*p).aArg)
-            .offset(i as isize) = *((*p).aArg).offset((i - 1 as libc::c_int) as isize);
-        i -= 1;
-    }
-    let ref mut fresh83 = (*p).nState;
-    *fresh83 = (*fresh83).wrapping_add(1);
-    *((*p).aOp).offset(iBefore as isize) = op as libc::c_char;
-    *((*p).aArg).offset(iBefore as isize) = arg;
-    return iBefore;
-}
-unsafe extern "C" fn re_append(
-    mut p: *mut ReCompiled,
-    mut op: libc::c_int,
-    mut arg: libc::c_int,
-) -> libc::c_int {
-    return re_insert(p, (*p).nState as libc::c_int, op, arg);
-}
-unsafe extern "C" fn re_copy(
-    mut p: *mut ReCompiled,
-    mut iStart: libc::c_int,
-    mut N: libc::c_int,
-) {
-    if ((*p).nState).wrapping_add(N as libc::c_uint) >= (*p).nAlloc
-        && re_resize(
-            p,
-            ((*p).nAlloc)
-                .wrapping_mul(2 as libc::c_int as libc::c_uint)
-                .wrapping_add(N as libc::c_uint) as libc::c_int,
-        ) != 0
-    {
-        return;
-    }
-    memcpy(
-        &mut *((*p).aOp).offset((*p).nState as isize) as *mut libc::c_char
-            as *mut libc::c_void,
-        &mut *((*p).aOp).offset(iStart as isize) as *mut libc::c_char
-            as *const libc::c_void,
-        (N as libc::c_ulong)
-            .wrapping_mul(::std::mem::size_of::<libc::c_char>() as libc::c_ulong),
-    );
-    memcpy(
-        &mut *((*p).aArg).offset((*p).nState as isize) as *mut libc::c_int
-            as *mut libc::c_void,
-        &mut *((*p).aArg).offset(iStart as isize) as *mut libc::c_int
-            as *const libc::c_void,
-        (N as libc::c_ulong)
-            .wrapping_mul(::std::mem::size_of::<libc::c_int>() as libc::c_ulong),
-    );
-    let ref mut fresh84 = (*p).nState;
-    *fresh84 = (*fresh84).wrapping_add(N as libc::c_uint);
-}
-unsafe extern "C" fn re_hex(
-    mut c: libc::c_int,
-    mut pV: *mut libc::c_int,
-) -> libc::c_int {
-    if c >= '0' as i32 && c <= '9' as i32 {
-        c -= '0' as i32;
-    } else if c >= 'a' as i32 && c <= 'f' as i32 {
-        c -= 'a' as i32 - 10 as libc::c_int;
-    } else if c >= 'A' as i32 && c <= 'F' as i32 {
-        c -= 'A' as i32 - 10 as libc::c_int;
-    } else {
-        return 0 as libc::c_int
-    }
-    *pV = *pV * 16 as libc::c_int + (c & 0xff as libc::c_int);
-    return 1 as libc::c_int;
-}
-unsafe extern "C" fn re_esc_char(mut p: *mut ReCompiled) -> libc::c_uint {
-    static mut zEsc: [libc::c_char; 21] = unsafe {
-        *::std::mem::transmute::<
-            &[u8; 21],
-            &[libc::c_char; 21],
-        >(b"afnrtv\\()*.+?[$^{|}]\0")
-    };
-    static mut zTrans: [libc::c_char; 7] = unsafe {
-        *::std::mem::transmute::<&[u8; 7], &[libc::c_char; 7]>(b"\x07\x0C\n\r\t\x0B\0")
-    };
-    let mut i: libc::c_int = 0;
-    let mut v: libc::c_int = 0 as libc::c_int;
-    let mut c: libc::c_char = 0;
-    if (*p).sIn.i >= (*p).sIn.mx {
-        return 0 as libc::c_int as libc::c_uint;
-    }
-    c = *((*p).sIn.z).offset((*p).sIn.i as isize) as libc::c_char;
-    if c as libc::c_int == 'u' as i32 && ((*p).sIn.i + 4 as libc::c_int) < (*p).sIn.mx {
-        let mut zIn: *const libc::c_uchar = ((*p).sIn.z).offset((*p).sIn.i as isize);
-        if re_hex(*zIn.offset(1 as libc::c_int as isize) as libc::c_int, &mut v) != 0
-            && re_hex(*zIn.offset(2 as libc::c_int as isize) as libc::c_int, &mut v) != 0
-            && re_hex(*zIn.offset(3 as libc::c_int as isize) as libc::c_int, &mut v) != 0
-            && re_hex(*zIn.offset(4 as libc::c_int as isize) as libc::c_int, &mut v) != 0
-        {
-            (*p).sIn.i += 5 as libc::c_int;
-            return v as libc::c_uint;
-        }
-    }
-    if c as libc::c_int == 'x' as i32 && ((*p).sIn.i + 2 as libc::c_int) < (*p).sIn.mx {
-        let mut zIn_0: *const libc::c_uchar = ((*p).sIn.z).offset((*p).sIn.i as isize);
-        if re_hex(*zIn_0.offset(1 as libc::c_int as isize) as libc::c_int, &mut v) != 0
-            && re_hex(*zIn_0.offset(2 as libc::c_int as isize) as libc::c_int, &mut v)
-                != 0
-        {
-            (*p).sIn.i += 3 as libc::c_int;
-            return v as libc::c_uint;
-        }
-    }
-    i = 0 as libc::c_int;
-    while zEsc[i as usize] as libc::c_int != 0
-        && zEsc[i as usize] as libc::c_int != c as libc::c_int
-    {
-        i += 1;
-    }
-    if zEsc[i as usize] != 0 {
-        if i < 6 as libc::c_int {
-            c = zTrans[i as usize];
-        }
-        let ref mut fresh85 = (*p).sIn.i;
-        *fresh85 += 1;
-    } else {
-        let ref mut fresh86 = (*p).zErr;
-        *fresh86 = b"unknown \\ escape\0" as *const u8 as *const libc::c_char;
-    }
-    return c as libc::c_uint;
-}
-unsafe extern "C" fn rePeek(mut p: *mut ReCompiled) -> libc::c_uchar {
-    return (if (*p).sIn.i < (*p).sIn.mx {
-        *((*p).sIn.z).offset((*p).sIn.i as isize) as libc::c_int
-    } else {
-        0 as libc::c_int
-    }) as libc::c_uchar;
-}
-unsafe extern "C" fn re_subcompile_re(mut p: *mut ReCompiled) -> *const libc::c_char {
-    let mut zErr: *const libc::c_char = 0 as *const libc::c_char;
-    let mut iStart: libc::c_int = 0;
-    let mut iEnd: libc::c_int = 0;
-    let mut iGoto: libc::c_int = 0;
-    iStart = (*p).nState as libc::c_int;
-    zErr = re_subcompile_string(p);
-    if !zErr.is_null() {
-        return zErr;
-    }
-    while rePeek(p) as libc::c_int == '|' as i32 {
-        iEnd = (*p).nState as libc::c_int;
-        re_insert(p, iStart, 4 as libc::c_int, iEnd + 2 as libc::c_int - iStart);
-        iGoto = re_append(p, 5 as libc::c_int, 0 as libc::c_int);
-        let ref mut fresh87 = (*p).sIn.i;
-        *fresh87 += 1;
-        zErr = re_subcompile_string(p);
-        if !zErr.is_null() {
-            return zErr;
-        }
-        *((*p).aArg)
-            .offset(
-                iGoto as isize,
-            ) = ((*p).nState).wrapping_sub(iGoto as libc::c_uint) as libc::c_int;
-    }
-    return 0 as *const libc::c_char;
-}
-unsafe extern "C" fn re_subcompile_string(
-    mut p: *mut ReCompiled,
-) -> *const libc::c_char {
-    let mut iPrev: libc::c_int = -(1 as libc::c_int);
-    let mut iStart: libc::c_int = 0;
-    let mut c: libc::c_uint = 0;
-    let mut zErr: *const libc::c_char = 0 as *const libc::c_char;
-    loop {
-        c = ((*p).xNextChar).expect("non-null function pointer")(&mut (*p).sIn);
-        if !(c != 0 as libc::c_int as libc::c_uint) {
-            break;
-        }
-        iStart = (*p).nState as libc::c_int;
-        match c {
-            124 | 36 | 41 => {
-                let ref mut fresh88 = (*p).sIn.i;
-                *fresh88 -= 1;
-                return 0 as *const libc::c_char;
-            }
-            40 => {
-                zErr = re_subcompile_re(p);
-                if !zErr.is_null() {
-                    return zErr;
-                }
-                if rePeek(p) as libc::c_int != ')' as i32 {
-                    return b"unmatched '('\0" as *const u8 as *const libc::c_char;
-                }
-                let ref mut fresh89 = (*p).sIn.i;
-                *fresh89 += 1;
-            }
-            46 => {
-                if rePeek(p) as libc::c_int == '*' as i32 {
-                    re_append(p, 3 as libc::c_int, 0 as libc::c_int);
-                    let ref mut fresh90 = (*p).sIn.i;
-                    *fresh90 += 1;
-                } else {
-                    re_append(p, 2 as libc::c_int, 0 as libc::c_int);
-                }
-            }
-            42 => {
-                if iPrev < 0 as libc::c_int {
-                    return b"'*' without operand\0" as *const u8 as *const libc::c_char;
-                }
-                re_insert(
-                    p,
-                    iPrev,
-                    5 as libc::c_int,
-                    ((*p).nState)
-                        .wrapping_sub(iPrev as libc::c_uint)
-                        .wrapping_add(1 as libc::c_int as libc::c_uint) as libc::c_int,
-                );
-                re_append(
-                    p,
-                    4 as libc::c_int,
-                    (iPrev as libc::c_uint)
-                        .wrapping_sub((*p).nState)
-                        .wrapping_add(1 as libc::c_int as libc::c_uint) as libc::c_int,
-                );
-            }
-            43 => {
-                if iPrev < 0 as libc::c_int {
-                    return b"'+' without operand\0" as *const u8 as *const libc::c_char;
-                }
-                re_append(
-                    p,
-                    4 as libc::c_int,
-                    (iPrev as libc::c_uint).wrapping_sub((*p).nState) as libc::c_int,
-                );
-            }
-            63 => {
-                if iPrev < 0 as libc::c_int {
-                    return b"'?' without operand\0" as *const u8 as *const libc::c_char;
-                }
-                re_insert(
-                    p,
-                    iPrev,
-                    4 as libc::c_int,
-                    ((*p).nState)
-                        .wrapping_sub(iPrev as libc::c_uint)
-                        .wrapping_add(1 as libc::c_int as libc::c_uint) as libc::c_int,
-                );
-            }
-            123 => {
-                let mut m: libc::c_int = 0 as libc::c_int;
-                let mut n: libc::c_int = 0 as libc::c_int;
-                let mut sz: libc::c_int = 0;
-                let mut j: libc::c_int = 0;
-                if iPrev < 0 as libc::c_int {
-                    return b"'{m,n}' without operand\0" as *const u8
-                        as *const libc::c_char;
-                }
-                loop {
-                    c = rePeek(p) as libc::c_uint;
-                    if !(c >= '0' as i32 as libc::c_uint
-                        && c <= '9' as i32 as libc::c_uint)
-                    {
-                        break;
-                    }
-                    m = ((m * 10 as libc::c_int) as libc::c_uint)
-                        .wrapping_add(c)
-                        .wrapping_sub('0' as i32 as libc::c_uint) as libc::c_int;
-                    let ref mut fresh91 = (*p).sIn.i;
-                    *fresh91 += 1;
-                }
-                n = m;
-                if c == ',' as i32 as libc::c_uint {
-                    let ref mut fresh92 = (*p).sIn.i;
-                    *fresh92 += 1;
-                    n = 0 as libc::c_int;
-                    loop {
-                        c = rePeek(p) as libc::c_uint;
-                        if !(c >= '0' as i32 as libc::c_uint
-                            && c <= '9' as i32 as libc::c_uint)
-                        {
-                            break;
-                        }
-                        n = ((n * 10 as libc::c_int) as libc::c_uint)
-                            .wrapping_add(c)
-                            .wrapping_sub('0' as i32 as libc::c_uint) as libc::c_int;
-                        let ref mut fresh93 = (*p).sIn.i;
-                        *fresh93 += 1;
-                    }
-                }
-                if c != '}' as i32 as libc::c_uint {
-                    return b"unmatched '{'\0" as *const u8 as *const libc::c_char;
-                }
-                if n > 0 as libc::c_int && n < m {
-                    return b"n less than m in '{m,n}'\0" as *const u8
-                        as *const libc::c_char;
-                }
-                let ref mut fresh94 = (*p).sIn.i;
-                *fresh94 += 1;
-                sz = ((*p).nState).wrapping_sub(iPrev as libc::c_uint) as libc::c_int;
-                if m == 0 as libc::c_int {
-                    if n == 0 as libc::c_int {
-                        return b"both m and n are zero in '{m,n}'\0" as *const u8
-                            as *const libc::c_char;
-                    }
-                    re_insert(p, iPrev, 4 as libc::c_int, sz + 1 as libc::c_int);
-                    n -= 1;
-                } else {
-                    j = 1 as libc::c_int;
-                    while j < m {
-                        re_copy(p, iPrev, sz);
-                        j += 1;
-                    }
-                }
-                j = m;
-                while j < n {
-                    re_append(p, 4 as libc::c_int, sz + 1 as libc::c_int);
-                    re_copy(p, iPrev, sz);
-                    j += 1;
-                }
-                if n == 0 as libc::c_int && m > 0 as libc::c_int {
-                    re_append(p, 4 as libc::c_int, -sz);
-                }
-            }
-            91 => {
-                let mut iFirst: libc::c_int = (*p).nState as libc::c_int;
-                if rePeek(p) as libc::c_int == '^' as i32 {
-                    re_append(p, 8 as libc::c_int, 0 as libc::c_int);
-                    let ref mut fresh95 = (*p).sIn.i;
-                    *fresh95 += 1;
-                } else {
-                    re_append(p, 7 as libc::c_int, 0 as libc::c_int);
-                }
-                loop {
-                    c = ((*p).xNextChar)
-                        .expect("non-null function pointer")(&mut (*p).sIn);
-                    if !(c != 0 as libc::c_int as libc::c_uint) {
-                        break;
-                    }
-                    if c == '[' as i32 as libc::c_uint
-                        && rePeek(p) as libc::c_int == ':' as i32
-                    {
-                        return b"POSIX character classes not supported\0" as *const u8
-                            as *const libc::c_char;
-                    }
-                    if c == '\\' as i32 as libc::c_uint {
-                        c = re_esc_char(p);
-                    }
-                    if rePeek(p) as libc::c_int == '-' as i32 {
-                        re_append(p, 10 as libc::c_int, c as libc::c_int);
-                        let ref mut fresh96 = (*p).sIn.i;
-                        *fresh96 += 1;
-                        c = ((*p).xNextChar)
-                            .expect("non-null function pointer")(&mut (*p).sIn);
-                        if c == '\\' as i32 as libc::c_uint {
-                            c = re_esc_char(p);
-                        }
-                        re_append(p, 10 as libc::c_int, c as libc::c_int);
-                    } else {
-                        re_append(p, 9 as libc::c_int, c as libc::c_int);
-                    }
-                    if !(rePeek(p) as libc::c_int == ']' as i32) {
-                        continue;
-                    }
-                    let ref mut fresh97 = (*p).sIn.i;
-                    *fresh97 += 1;
-                    break;
-                }
-                if c == 0 as libc::c_int as libc::c_uint {
-                    return b"unclosed '['\0" as *const u8 as *const libc::c_char;
-                }
-                *((*p).aArg)
-                    .offset(
-                        iFirst as isize,
-                    ) = ((*p).nState).wrapping_sub(iFirst as libc::c_uint)
-                    as libc::c_int;
-            }
-            92 => {
-                let mut specialOp: libc::c_int = 0 as libc::c_int;
-                match rePeek(p) as libc::c_int {
-                    98 => {
-                        specialOp = 17 as libc::c_int;
-                    }
-                    100 => {
-                        specialOp = 13 as libc::c_int;
-                    }
-                    68 => {
-                        specialOp = 14 as libc::c_int;
-                    }
-                    115 => {
-                        specialOp = 15 as libc::c_int;
-                    }
-                    83 => {
-                        specialOp = 16 as libc::c_int;
-                    }
-                    119 => {
-                        specialOp = 11 as libc::c_int;
-                    }
-                    87 => {
-                        specialOp = 12 as libc::c_int;
-                    }
-                    _ => {}
-                }
-                if specialOp != 0 {
-                    let ref mut fresh98 = (*p).sIn.i;
-                    *fresh98 += 1;
-                    re_append(p, specialOp, 0 as libc::c_int);
-                } else {
-                    c = re_esc_char(p);
-                    re_append(p, 1 as libc::c_int, c as libc::c_int);
-                }
-            }
-            _ => {
-                re_append(p, 1 as libc::c_int, c as libc::c_int);
-            }
-        }
-        iPrev = iStart;
-    }
-    return 0 as *const libc::c_char;
-}
-unsafe extern "C" fn sqlite3re_free(mut pRe: *mut ReCompiled) {
-    if !pRe.is_null() {
-        sqlite3_free((*pRe).aOp as *mut libc::c_void);
-        sqlite3_free((*pRe).aArg as *mut libc::c_void);
-        sqlite3_free(pRe as *mut libc::c_void);
-    }
-}
-unsafe extern "C" fn sqlite3re_compile(
-    mut ppRe: *mut *mut ReCompiled,
-    mut zIn: *const libc::c_char,
-    mut noCase: libc::c_int,
-) -> *const libc::c_char {
-    let mut pRe: *mut ReCompiled = 0 as *mut ReCompiled;
-    let mut zErr: *const libc::c_char = 0 as *const libc::c_char;
-    let mut i: libc::c_int = 0;
-    let mut j: libc::c_int = 0;
-    *ppRe = 0 as *mut ReCompiled;
-    pRe = sqlite3_malloc(
-        ::std::mem::size_of::<ReCompiled>() as libc::c_ulong as libc::c_int,
-    ) as *mut ReCompiled;
-    if pRe.is_null() {
-        return b"out of memory\0" as *const u8 as *const libc::c_char;
-    }
-    memset(
-        pRe as *mut libc::c_void,
-        0 as libc::c_int,
-        ::std::mem::size_of::<ReCompiled>() as libc::c_ulong,
-    );
-    let ref mut fresh99 = (*pRe).xNextChar;
-    *fresh99 = if noCase != 0 {
-        Some(re_next_char_nocase as unsafe extern "C" fn(*mut ReInput) -> libc::c_uint)
-    } else {
-        Some(re_next_char as unsafe extern "C" fn(*mut ReInput) -> libc::c_uint)
-    };
-    if re_resize(pRe, 30 as libc::c_int) != 0 {
-        sqlite3re_free(pRe);
-        return b"out of memory\0" as *const u8 as *const libc::c_char;
-    }
-    if *zIn.offset(0 as libc::c_int as isize) as libc::c_int == '^' as i32 {
-        zIn = zIn.offset(1);
-    } else {
-        re_append(pRe, 3 as libc::c_int, 0 as libc::c_int);
-    }
-    let ref mut fresh100 = (*pRe).sIn.z;
-    *fresh100 = zIn as *mut libc::c_uchar;
-    (*pRe).sIn.i = 0 as libc::c_int;
-    (*pRe).sIn.mx = strlen(zIn) as libc::c_int;
-    zErr = re_subcompile_re(pRe);
-    if !zErr.is_null() {
-        sqlite3re_free(pRe);
-        return zErr;
-    }
-    if rePeek(pRe) as libc::c_int == '$' as i32
-        && (*pRe).sIn.i + 1 as libc::c_int >= (*pRe).sIn.mx
-    {
-        re_append(pRe, 1 as libc::c_int, 0 as libc::c_int);
-        re_append(pRe, 6 as libc::c_int, 0 as libc::c_int);
-        *ppRe = pRe;
-    } else if (*pRe).sIn.i >= (*pRe).sIn.mx {
-        re_append(pRe, 6 as libc::c_int, 0 as libc::c_int);
-        *ppRe = pRe;
-    } else {
-        sqlite3re_free(pRe);
-        return b"unrecognized character\0" as *const u8 as *const libc::c_char;
-    }
-    if *((*pRe).aOp).offset(0 as libc::c_int as isize) as libc::c_int == 3 as libc::c_int
-        && noCase == 0
-    {
-        j = 0 as libc::c_int;
-        i = 1 as libc::c_int;
-        while j
-            < ::std::mem::size_of::<[libc::c_uchar; 12]>() as libc::c_ulong
-                as libc::c_int - 2 as libc::c_int
-            && *((*pRe).aOp).offset(i as isize) as libc::c_int == 1 as libc::c_int
-        {
-            let mut x: libc::c_uint = *((*pRe).aArg).offset(i as isize) as libc::c_uint;
-            if x <= 127 as libc::c_int as libc::c_uint {
-                let fresh101 = j;
-                j = j + 1;
-                (*pRe).zInit[fresh101 as usize] = x as libc::c_uchar;
-            } else if x <= 0xfff as libc::c_int as libc::c_uint {
-                let fresh102 = j;
-                j = j + 1;
-                (*pRe)
-                    .zInit[fresh102
-                    as usize] = (0xc0 as libc::c_int as libc::c_uint
-                    | x >> 6 as libc::c_int) as libc::c_uchar;
-                let fresh103 = j;
-                j = j + 1;
-                (*pRe)
-                    .zInit[fresh103
-                    as usize] = (0x80 as libc::c_int as libc::c_uint
-                    | x & 0x3f as libc::c_int as libc::c_uint) as libc::c_uchar;
-            } else {
-                if !(x <= 0xffff as libc::c_int as libc::c_uint) {
-                    break;
-                }
-                let fresh104 = j;
-                j = j + 1;
-                (*pRe)
-                    .zInit[fresh104
-                    as usize] = (0xd0 as libc::c_int as libc::c_uint
-                    | x >> 12 as libc::c_int) as libc::c_uchar;
-                let fresh105 = j;
-                j = j + 1;
-                (*pRe)
-                    .zInit[fresh105
-                    as usize] = (0x80 as libc::c_int as libc::c_uint
-                    | x >> 6 as libc::c_int & 0x3f as libc::c_int as libc::c_uint)
-                    as libc::c_uchar;
-                let fresh106 = j;
-                j = j + 1;
-                (*pRe)
-                    .zInit[fresh106
-                    as usize] = (0x80 as libc::c_int as libc::c_uint
-                    | x & 0x3f as libc::c_int as libc::c_uint) as libc::c_uchar;
-            }
-            i += 1;
-        }
-        if j > 0 as libc::c_int
-            && (*pRe).zInit[(j - 1 as libc::c_int) as usize] as libc::c_int
-                == 0 as libc::c_int
-        {
-            j -= 1;
-        }
-        (*pRe).nInit = j;
-    }
-    return (*pRe).zErr;
-}
-unsafe extern "C" fn re_sql_func(
-    mut context: *mut sqlite3_context,
-    mut argc: libc::c_int,
-    mut argv: *mut *mut sqlite3_value,
-) {
-    let mut pRe: *mut ReCompiled = 0 as *mut ReCompiled;
-    let mut zPattern: *const libc::c_char = 0 as *const libc::c_char;
-    let mut zStr: *const libc::c_uchar = 0 as *const libc::c_uchar;
-    let mut zErr: *const libc::c_char = 0 as *const libc::c_char;
-    let mut setAux: libc::c_int = 0 as libc::c_int;
-    pRe = sqlite3_get_auxdata(context, 0 as libc::c_int) as *mut ReCompiled;
-    if pRe.is_null() {
-        zPattern = sqlite3_value_text(*argv.offset(0 as libc::c_int as isize))
-            as *const libc::c_char;
-        if zPattern.is_null() {
-            return;
-        }
-        zErr = sqlite3re_compile(
-            &mut pRe,
-            zPattern,
-            (sqlite3_user_data(context) != 0 as *mut libc::c_void) as libc::c_int,
-        );
-        if !zErr.is_null() {
-            sqlite3re_free(pRe);
-            sqlite3_result_error(context, zErr, -(1 as libc::c_int));
-            return;
-        }
-        if pRe.is_null() {
-            sqlite3_result_error_nomem(context);
-            return;
-        }
-        setAux = 1 as libc::c_int;
-    }
-    zStr = sqlite3_value_text(*argv.offset(1 as libc::c_int as isize));
-    if !zStr.is_null() {
-        sqlite3_result_int(context, sqlite3re_match(pRe, zStr, -(1 as libc::c_int)));
-    }
-    if setAux != 0 {
-        sqlite3_set_auxdata(
-            context,
-            0 as libc::c_int,
-            pRe as *mut libc::c_void,
-            ::std::mem::transmute::<
-                Option::<unsafe extern "C" fn(*mut ReCompiled) -> ()>,
-                Option::<unsafe extern "C" fn(*mut libc::c_void) -> ()>,
-            >(Some(sqlite3re_free as unsafe extern "C" fn(*mut ReCompiled) -> ())),
-        );
-    }
-}
-#[no_mangle]
-pub unsafe extern "C" fn sqlite3_regexp_init(
-    mut db: *mut sqlite3,
-    mut pzErrMsg: *mut *mut libc::c_char,
-    mut pApi: *const sqlite3_api_routines,
-) -> libc::c_int {
-    let mut rc: libc::c_int = 0 as libc::c_int;
-    rc = sqlite3_create_function(
-        db,
-        b"regexp\0" as *const u8 as *const libc::c_char,
-        2 as libc::c_int,
-        1 as libc::c_int | 0x200000 as libc::c_int | 0x800 as libc::c_int,
-        0 as *mut libc::c_void,
-        Some(
-            re_sql_func
-                as unsafe extern "C" fn(
-                    *mut sqlite3_context,
-                    libc::c_int,
-                    *mut *mut sqlite3_value,
-                ) -> (),
-        ),
-        None,
-        None,
-    );
-    if rc == 0 as libc::c_int {
-        rc = sqlite3_create_function(
-            db,
-            b"regexpi\0" as *const u8 as *const libc::c_char,
-            2 as libc::c_int,
-            1 as libc::c_int | 0x200000 as libc::c_int | 0x800 as libc::c_int,
-            db as *mut libc::c_void,
-            Some(
-                re_sql_func
-                    as unsafe extern "C" fn(
-                        *mut sqlite3_context,
-                        libc::c_int,
-                        *mut *mut sqlite3_value,
-                    ) -> (),
-            ),
-            None,
-            None,
-        );
-    }
-    return rc;
-}
 unsafe extern "C" fn idxMalloc(
     mut pRc: *mut libc::c_int,
     mut nByte: libc::c_int,
@@ -8651,7 +8639,7 @@ unsafe extern "C" fn idxMalloc(
         __assert_fail(
             b"*pRc==SQLITE_OK\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            9389 as libc::c_int as libc::c_uint,
+            9406 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 28],
                 &[libc::c_char; 28],
@@ -8663,7 +8651,7 @@ unsafe extern "C" fn idxMalloc(
         __assert_fail(
             b"nByte>0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            9390 as libc::c_int as libc::c_uint,
+            9407 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 28],
                 &[libc::c_char; 28],
@@ -8742,7 +8730,7 @@ unsafe extern "C" fn idxHashAdd(
         __assert_fail(
             b"iHash>=0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            9452 as libc::c_int as libc::c_uint,
+            9469 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 61],
                 &[libc::c_char; 61],
@@ -8817,7 +8805,7 @@ unsafe extern "C" fn idxHashFind(
         __assert_fail(
             b"iHash>=0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            9484 as libc::c_int as libc::c_uint,
+            9501 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 56],
                 &[libc::c_char; 56],
@@ -8862,7 +8850,7 @@ unsafe extern "C" fn idxNewConstraint(
         __assert_fail(
             b"*pRc==SQLITE_OK\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            9513 as libc::c_int as libc::c_uint,
+            9530 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 53],
                 &[libc::c_char; 53],
@@ -8943,7 +8931,7 @@ unsafe extern "C" fn expertDequote(mut zIn: *const libc::c_char) -> *mut libc::c
         __assert_fail(
             b"zIn[0]=='\\''\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            9596 as libc::c_int as libc::c_uint,
+            9613 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 34],
                 &[libc::c_char; 34],
@@ -8956,7 +8944,7 @@ unsafe extern "C" fn expertDequote(mut zIn: *const libc::c_char) -> *mut libc::c
         __assert_fail(
             b"zIn[n-1]=='\\''\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            9597 as libc::c_int as libc::c_uint,
+            9614 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 34],
                 &[libc::c_char; 34],
@@ -8976,7 +8964,7 @@ unsafe extern "C" fn expertDequote(mut zIn: *const libc::c_char) -> *mut libc::c
                     __assert_fail(
                         b"zIn[iIn+1]=='\\''\0" as *const u8 as *const libc::c_char,
                         b"shell.c\0" as *const u8 as *const libc::c_char,
-                        9604 as libc::c_int as libc::c_uint,
+                        9621 as libc::c_int as libc::c_uint,
                         (*::std::mem::transmute::<
                             &[u8; 34],
                             &[libc::c_char; 34],
@@ -9037,7 +9025,7 @@ unsafe extern "C" fn expertConnect(
                         b"sqlite3_stricmp(p->pTab->zName, argv[2])==0\0" as *const u8
                             as *const libc::c_char,
                         b"shell.c\0" as *const u8 as *const libc::c_char,
-                        9648 as libc::c_int as libc::c_uint,
+                        9665 as libc::c_int as libc::c_uint,
                         (*::std::mem::transmute::<
                             &[u8; 89],
                             &[libc::c_char; 89],
@@ -9183,7 +9171,7 @@ unsafe extern "C" fn expertNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_in
         __assert_fail(
             b"pCsr->pData\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            9786 as libc::c_int as libc::c_uint,
+            9803 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 38],
                 &[libc::c_char; 38],
@@ -9513,7 +9501,7 @@ unsafe extern "C" fn idxGetTableInfo(
             __assert_fail(
                 b"0\0" as *const u8 as *const libc::c_char,
                 b"shell.c\0" as *const u8 as *const libc::c_char,
-                9983 as libc::c_int as libc::c_uint,
+                10000 as libc::c_int as libc::c_uint,
                 (*::std::mem::transmute::<
                     &[u8; 67],
                     &[libc::c_char; 67],
@@ -9533,7 +9521,7 @@ unsafe extern "C" fn idxGetTableInfo(
             __assert_fail(
                 b"0\0" as *const u8 as *const libc::c_char,
                 b"shell.c\0" as *const u8 as *const libc::c_char,
-                9985 as libc::c_int as libc::c_uint,
+                10002 as libc::c_int as libc::c_uint,
                 (*::std::mem::transmute::<
                     &[u8; 67],
                     &[libc::c_char; 67],
@@ -9856,7 +9844,7 @@ unsafe extern "C" fn idxCreateFromCons(
                     __assert_fail(
                         b"rc==SQLITE_OK\0" as *const u8 as *const libc::c_char,
                         b"shell.c\0" as *const u8 as *const libc::c_char,
-                        10214 as libc::c_int as libc::c_uint,
+                        10231 as libc::c_int as libc::c_uint,
                         (*::std::mem::transmute::<
                             &[u8; 84],
                             &[libc::c_char; 84],
@@ -9953,7 +9941,7 @@ unsafe extern "C" fn idxCreateFromWhere(
                 __assert_fail(
                     b"pCon->pLink==0\0" as *const u8 as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
-                    10291 as libc::c_int as libc::c_uint,
+                    10308 as libc::c_int as libc::c_uint,
                     (*::std::mem::transmute::<
                         &[u8; 68],
                         &[libc::c_char; 68],
@@ -10311,7 +10299,7 @@ unsafe extern "C" fn idxProcessOneTrigger(
                 __assert_fail(
                     b"pWrite->eOp==SQLITE_DELETE\0" as *const u8 as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
-                    10560 as libc::c_int as libc::c_uint,
+                    10577 as libc::c_int as libc::c_uint,
                     (*::std::mem::transmute::<
                         &[u8; 63],
                         &[libc::c_char; 63],
@@ -10485,7 +10473,7 @@ unsafe extern "C" fn idxSampleFunc(
         __assert_fail(
             b"argc==0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            10680 as libc::c_int as libc::c_uint,
+            10697 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 61],
                 &[libc::c_char; 61],
@@ -10523,7 +10511,7 @@ unsafe extern "C" fn idxRemFunc(
         __assert_fail(
             b"argc==2\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            10720 as libc::c_int as libc::c_uint,
+            10737 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 58],
                 &[libc::c_char; 58],
@@ -10536,7 +10524,7 @@ unsafe extern "C" fn idxRemFunc(
         __assert_fail(
             b"iSlot<=p->nSlot\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            10723 as libc::c_int as libc::c_uint,
+            10740 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 58],
                 &[libc::c_char; 58],
@@ -10659,7 +10647,7 @@ unsafe extern "C" fn idxPopulateOneStat1(
         __assert_fail(
             b"p->iSample>0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            10825 as libc::c_int as libc::c_uint,
+            10842 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 110],
                 &[libc::c_char; 110],
@@ -10812,7 +10800,7 @@ unsafe extern "C" fn idxPopulateOneStat1(
                 __assert_fail(
                     b"pEntry->zVal2==0\0" as *const u8 as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
-                    10896 as libc::c_int as libc::c_uint,
+                    10913 as libc::c_int as libc::c_uint,
                     (*::std::mem::transmute::<
                         &[u8; 110],
                         &[libc::c_char; 110],
@@ -12840,7 +12828,7 @@ unsafe extern "C" fn shell_callback(
                 __assert_fail(
                     b"nArg==1\0" as *const u8 as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
-                    13225 as libc::c_int as libc::c_uint,
+                    13256 as libc::c_int as libc::c_uint,
                     (*::std::mem::transmute::<
                         &[u8; 57],
                         &[libc::c_char; 57],
@@ -14397,12 +14385,13 @@ unsafe extern "C" fn explain_data_prepare(
     let mut abYield: *mut libc::c_int = 0 as *mut libc::c_int;
     let mut nAlloc: libc::c_int = 0 as libc::c_int;
     let mut iOp: libc::c_int = 0;
-    let mut azNext: [*const libc::c_char; 6] = [
+    let mut azNext: [*const libc::c_char; 7] = [
         b"Next\0" as *const u8 as *const libc::c_char,
         b"Prev\0" as *const u8 as *const libc::c_char,
         b"VPrev\0" as *const u8 as *const libc::c_char,
         b"VNext\0" as *const u8 as *const libc::c_char,
         b"SorterNext\0" as *const u8 as *const libc::c_char,
+        b"Return\0" as *const u8 as *const libc::c_char,
         0 as *const libc::c_char,
     ];
     let mut azYield: [*const libc::c_char; 6] = [
@@ -14500,7 +14489,7 @@ unsafe extern "C" fn explain_data_prepare(
         *abYield.offset(iOp as isize) = str_in_array(zOp, azYield.as_mut_ptr());
         *((*p).aiIndent).offset(iOp as isize) = 0 as libc::c_int;
         (*p).nIndent = iOp + 1 as libc::c_int;
-        if str_in_array(zOp, azNext.as_mut_ptr()) != 0 {
+        if str_in_array(zOp, azNext.as_mut_ptr()) != 0 && p2op > 0 as libc::c_int {
             i = p2op;
             while i < iOp {
                 *((*p).aiIndent).offset(i as isize) += 2 as libc::c_int;
@@ -15334,7 +15323,7 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
                     }
                     j = -(1 as libc::c_int);
                     if seenInterrupt != 0 {
-                        current_block = 3475906965431124488;
+                        current_block = 15446435856783543776;
                         break;
                     }
                 } else {
@@ -15348,7 +15337,7 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
                 j += 1;
             }
             match current_block {
-                3475906965431124488 => {}
+                15446435856783543776 => {}
                 _ => {
                     if (*p).cMode == 15 as libc::c_int {
                         print_row_separator(
@@ -15432,7 +15421,7 @@ unsafe extern "C" fn exec_prepared_stmt(
                     b"sizeof(int) <= sizeof(char *)\0" as *const u8
                         as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
-                    14669 as libc::c_int as libc::c_uint,
+                    14704 as libc::c_int as libc::c_uint,
                     (*::std::mem::transmute::<
                         &[u8; 54],
                         &[libc::c_char; 54],
@@ -15521,7 +15510,7 @@ unsafe extern "C" fn expertHandleSQL(
         __assert_fail(
             b"pState->expert.pExpert\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            14732 as libc::c_int as libc::c_uint,
+            14767 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 57],
                 &[libc::c_char; 57],
@@ -15533,7 +15522,7 @@ unsafe extern "C" fn expertHandleSQL(
         __assert_fail(
             b"pzErr==0 || *pzErr==0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            14733 as libc::c_int as libc::c_uint,
+            14768 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 57],
                 &[libc::c_char; 57],
@@ -15554,7 +15543,7 @@ unsafe extern "C" fn expertFinish(
         __assert_fail(
             b"p\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            14754 as libc::c_int as libc::c_uint,
+            14789 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 45],
                 &[libc::c_char; 45],
@@ -15566,7 +15555,7 @@ unsafe extern "C" fn expertFinish(
         __assert_fail(
             b"bCancel || pzErr==0 || *pzErr==0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            14755 as libc::c_int as libc::c_uint,
+            14790 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 45],
                 &[libc::c_char; 45],
@@ -15647,7 +15636,7 @@ unsafe extern "C" fn expertDotCommand(
         __assert_fail(
             b"pState->expert.pExpert==0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            14802 as libc::c_int as libc::c_uint,
+            14837 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 49],
                 &[libc::c_char; 49],
@@ -15805,16 +15794,6 @@ unsafe extern "C" fn shell_exec(
                 let ref mut fresh206 = (*pArg).pStmt;
                 *fresh206 = pStmt;
                 (*pArg).cnt = 0 as libc::c_int;
-            }
-            if !pArg.is_null()
-                && (*pArg).shellFlgs & 0x40 as libc::c_int as libc::c_uint
-                    != 0 as libc::c_int as libc::c_uint
-            {
-                fprintf(
-                    (*pArg).out,
-                    b"%s\n\0" as *const u8 as *const libc::c_char,
-                    if !zStmtSql.is_null() { zStmtSql } else { zSql },
-                );
             }
             if !pArg.is_null() && (*pArg).autoEQP as libc::c_int != 0
                 && sqlite3_stmt_isexplain(pStmt) == 0 as libc::c_int
@@ -16443,7 +16422,7 @@ unsafe extern "C" fn run_schema_dump_query(
     }
     return rc;
 }
-static mut azHelp: [*const libc::c_char; 176] = [
+static mut azHelp: [*const libc::c_char; 175] = [
     b".auth ON|OFF             Show authorizer callbacks\0" as *const u8
         as *const libc::c_char,
     b".backup ?DB? FILE        Backup DB (default \"main\") to FILE\0" as *const u8
@@ -16470,8 +16449,6 @@ static mut azHelp: [*const libc::c_char; 176] = [
     b".databases               List names and files of attached databases\0" as *const u8
         as *const libc::c_char,
     b".dbconfig ?op? ?val?     List or change sqlite3_db_config() options\0" as *const u8
-        as *const libc::c_char,
-    b".dbinfo ?DB?             Show status information about the database\0" as *const u8
         as *const libc::c_char,
     b".dump ?OBJECTS?          Render database content as SQL\0" as *const u8
         as *const libc::c_char,
@@ -16787,7 +16764,7 @@ unsafe extern "C" fn showHelp(
         }
         i = 0 as libc::c_int;
         while i
-            < (::std::mem::size_of::<[*const libc::c_char; 176]>() as libc::c_ulong)
+            < (::std::mem::size_of::<[*const libc::c_char; 175]>() as libc::c_ulong)
                 .wrapping_div(
                     ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
                 ) as libc::c_int
@@ -16810,7 +16787,7 @@ unsafe extern "C" fn showHelp(
         shell_check_oom(zPat as *mut libc::c_void);
         i = 0 as libc::c_int;
         while i
-            < (::std::mem::size_of::<[*const libc::c_char; 176]>() as libc::c_ulong)
+            < (::std::mem::size_of::<[*const libc::c_char; 175]>() as libc::c_ulong)
                 .wrapping_div(
                     ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
                 ) as libc::c_int
@@ -16830,7 +16807,7 @@ unsafe extern "C" fn showHelp(
         if n != 0 {
             if n == 1 as libc::c_int {
                 while j
-                    < (::std::mem::size_of::<[*const libc::c_char; 176]>()
+                    < (::std::mem::size_of::<[*const libc::c_char; 175]>()
                         as libc::c_ulong)
                         .wrapping_div(
                             ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
@@ -16855,7 +16832,7 @@ unsafe extern "C" fn showHelp(
         shell_check_oom(zPat as *mut libc::c_void);
         i = 0 as libc::c_int;
         while i
-            < (::std::mem::size_of::<[*const libc::c_char; 176]>() as libc::c_ulong)
+            < (::std::mem::size_of::<[*const libc::c_char; 175]>() as libc::c_ulong)
                 .wrapping_div(
                     ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
                 ) as libc::c_int
@@ -16877,7 +16854,7 @@ unsafe extern "C" fn showHelp(
                     azHelp[j as usize],
                 );
                 while j
-                    < (::std::mem::size_of::<[*const libc::c_char; 176]>()
+                    < (::std::mem::size_of::<[*const libc::c_char; 175]>()
                         as libc::c_ulong)
                         .wrapping_div(
                             ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
@@ -17507,17 +17484,7 @@ unsafe extern "C" fn open_db(mut p: *mut ShellState, mut openFlags: libc::c_int)
             exit(1 as libc::c_int);
         }
         sqlite3_enable_load_extension((*p).db, 1 as libc::c_int);
-        sqlite3_fileio_init(
-            (*p).db,
-            0 as *mut *mut libc::c_char,
-            0 as *const sqlite3_api_routines,
-        );
         sqlite3_shathree_init(
-            (*p).db,
-            0 as *mut *mut libc::c_char,
-            0 as *const sqlite3_api_routines,
-        );
-        sqlite3_completion_init(
             (*p).db,
             0 as *mut *mut libc::c_char,
             0 as *const sqlite3_api_routines,
@@ -17543,6 +17510,16 @@ unsafe extern "C" fn open_db(mut p: *mut ShellState, mut openFlags: libc::c_int)
             0 as *const sqlite3_api_routines,
         );
         sqlite3_series_init(
+            (*p).db,
+            0 as *mut *mut libc::c_char,
+            0 as *const sqlite3_api_routines,
+        );
+        sqlite3_fileio_init(
+            (*p).db,
+            0 as *mut *mut libc::c_char,
+            0 as *const sqlite3_api_routines,
+        );
+        sqlite3_completion_init(
             (*p).db,
             0 as *mut *mut libc::c_char,
             0 as *const sqlite3_api_routines,
@@ -18639,316 +18616,6 @@ unsafe extern "C" fn db_int(
     sqlite3_finalize(pStmt);
     return res;
 }
-unsafe extern "C" fn get2byteInt(mut a: *mut libc::c_uchar) -> libc::c_uint {
-    return (((*a.offset(0 as libc::c_int as isize) as libc::c_int) << 8 as libc::c_int)
-        + *a.offset(1 as libc::c_int as isize) as libc::c_int) as libc::c_uint;
-}
-unsafe extern "C" fn get4byteInt(mut a: *mut libc::c_uchar) -> libc::c_uint {
-    return (((*a.offset(0 as libc::c_int as isize) as libc::c_int) << 24 as libc::c_int)
-        + ((*a.offset(1 as libc::c_int as isize) as libc::c_int) << 16 as libc::c_int)
-        + ((*a.offset(2 as libc::c_int as isize) as libc::c_int) << 8 as libc::c_int)
-        + *a.offset(3 as libc::c_int as isize) as libc::c_int) as libc::c_uint;
-}
-unsafe extern "C" fn shell_dbinfo_command(
-    mut p: *mut ShellState,
-    mut nArg: libc::c_int,
-    mut azArg: *mut *mut libc::c_char,
-) -> libc::c_int {
-    static mut aField: [C2RustUnnamed_23; 12] = [
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"file change counter:\0" as *const u8 as *const libc::c_char,
-                ofst: 24 as libc::c_int,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"database page count:\0" as *const u8 as *const libc::c_char,
-                ofst: 28 as libc::c_int,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"freelist page count:\0" as *const u8 as *const libc::c_char,
-                ofst: 36 as libc::c_int,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"schema cookie:\0" as *const u8 as *const libc::c_char,
-                ofst: 40 as libc::c_int,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"schema format:\0" as *const u8 as *const libc::c_char,
-                ofst: 44 as libc::c_int,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"default cache size:\0" as *const u8 as *const libc::c_char,
-                ofst: 48 as libc::c_int,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"autovacuum top root:\0" as *const u8 as *const libc::c_char,
-                ofst: 52 as libc::c_int,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"incremental vacuum:\0" as *const u8 as *const libc::c_char,
-                ofst: 64 as libc::c_int,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"text encoding:\0" as *const u8 as *const libc::c_char,
-                ofst: 56 as libc::c_int,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"user version:\0" as *const u8 as *const libc::c_char,
-                ofst: 60 as libc::c_int,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"application id:\0" as *const u8 as *const libc::c_char,
-                ofst: 68 as libc::c_int,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_23 {
-                zName: b"software version:\0" as *const u8 as *const libc::c_char,
-                ofst: 96 as libc::c_int,
-            };
-            init
-        },
-    ];
-    static mut aQuery: [C2RustUnnamed_22; 5] = [
-        {
-            let mut init = C2RustUnnamed_22 {
-                zName: b"number of tables:\0" as *const u8 as *const libc::c_char,
-                zSql: b"SELECT count(*) FROM %s WHERE type='table'\0" as *const u8
-                    as *const libc::c_char,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_22 {
-                zName: b"number of indexes:\0" as *const u8 as *const libc::c_char,
-                zSql: b"SELECT count(*) FROM %s WHERE type='index'\0" as *const u8
-                    as *const libc::c_char,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_22 {
-                zName: b"number of triggers:\0" as *const u8 as *const libc::c_char,
-                zSql: b"SELECT count(*) FROM %s WHERE type='trigger'\0" as *const u8
-                    as *const libc::c_char,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_22 {
-                zName: b"number of views:\0" as *const u8 as *const libc::c_char,
-                zSql: b"SELECT count(*) FROM %s WHERE type='view'\0" as *const u8
-                    as *const libc::c_char,
-            };
-            init
-        },
-        {
-            let mut init = C2RustUnnamed_22 {
-                zName: b"schema size:\0" as *const u8 as *const libc::c_char,
-                zSql: b"SELECT total(length(sql)) FROM %s\0" as *const u8
-                    as *const libc::c_char,
-            };
-            init
-        },
-    ];
-    let mut i: libc::c_int = 0;
-    let mut rc: libc::c_int = 0;
-    let mut iDataVersion: libc::c_uint = 0;
-    let mut zSchemaTab: *mut libc::c_char = 0 as *mut libc::c_char;
-    let mut zDb: *mut libc::c_char = (if nArg >= 2 as libc::c_int {
-        *azArg.offset(1 as libc::c_int as isize) as *const libc::c_char
-    } else {
-        b"main\0" as *const u8 as *const libc::c_char
-    }) as *mut libc::c_char;
-    let mut pStmt: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
-    let mut aHdr: [libc::c_uchar; 100] = [0; 100];
-    open_db(p, 0 as libc::c_int);
-    if ((*p).db).is_null() {
-        return 1 as libc::c_int;
-    }
-    rc = sqlite3_prepare_v2(
-        (*p).db,
-        b"SELECT data FROM sqlite_dbpage(?1) WHERE pgno=1\0" as *const u8
-            as *const libc::c_char,
-        -(1 as libc::c_int),
-        &mut pStmt,
-        0 as *mut *const libc::c_char,
-    );
-    if rc != 0 {
-        fprintf(
-            stderr,
-            b"error: %s\n\0" as *const u8 as *const libc::c_char,
-            sqlite3_errmsg((*p).db),
-        );
-        sqlite3_finalize(pStmt);
-        return 1 as libc::c_int;
-    }
-    sqlite3_bind_text(pStmt, 1 as libc::c_int, zDb, -(1 as libc::c_int), None);
-    if sqlite3_step(pStmt) == 100 as libc::c_int
-        && sqlite3_column_bytes(pStmt, 0 as libc::c_int) > 100 as libc::c_int
-    {
-        memcpy(
-            aHdr.as_mut_ptr() as *mut libc::c_void,
-            sqlite3_column_blob(pStmt, 0 as libc::c_int),
-            100 as libc::c_int as libc::c_ulong,
-        );
-        sqlite3_finalize(pStmt);
-    } else {
-        fprintf(
-            stderr,
-            b"unable to read database header\n\0" as *const u8 as *const libc::c_char,
-        );
-        sqlite3_finalize(pStmt);
-        return 1 as libc::c_int;
-    }
-    i = get2byteInt(aHdr.as_mut_ptr().offset(16 as libc::c_int as isize)) as libc::c_int;
-    if i == 1 as libc::c_int {
-        i = 65536 as libc::c_int;
-    }
-    fprintf(
-        (*p).out,
-        b"%-20s %d\n\0" as *const u8 as *const libc::c_char,
-        b"database page size:\0" as *const u8 as *const libc::c_char,
-        i,
-    );
-    fprintf(
-        (*p).out,
-        b"%-20s %d\n\0" as *const u8 as *const libc::c_char,
-        b"write format:\0" as *const u8 as *const libc::c_char,
-        aHdr[18 as libc::c_int as usize] as libc::c_int,
-    );
-    fprintf(
-        (*p).out,
-        b"%-20s %d\n\0" as *const u8 as *const libc::c_char,
-        b"read format:\0" as *const u8 as *const libc::c_char,
-        aHdr[19 as libc::c_int as usize] as libc::c_int,
-    );
-    fprintf(
-        (*p).out,
-        b"%-20s %d\n\0" as *const u8 as *const libc::c_char,
-        b"reserved bytes:\0" as *const u8 as *const libc::c_char,
-        aHdr[20 as libc::c_int as usize] as libc::c_int,
-    );
-    i = 0 as libc::c_int;
-    while i
-        < (::std::mem::size_of::<[C2RustUnnamed_23; 12]>() as libc::c_ulong)
-            .wrapping_div(::std::mem::size_of::<C2RustUnnamed_23>() as libc::c_ulong)
-            as libc::c_int
-    {
-        let mut ofst: libc::c_int = aField[i as usize].ofst;
-        let mut val: libc::c_uint = get4byteInt(aHdr.as_mut_ptr().offset(ofst as isize));
-        fprintf(
-            (*p).out,
-            b"%-20s %u\0" as *const u8 as *const libc::c_char,
-            aField[i as usize].zName,
-            val,
-        );
-        match ofst {
-            56 => {
-                if val == 1 as libc::c_int as libc::c_uint {
-                    fprintf((*p).out, b" (utf8)\0" as *const u8 as *const libc::c_char);
-                }
-                if val == 2 as libc::c_int as libc::c_uint {
-                    fprintf(
-                        (*p).out,
-                        b" (utf16le)\0" as *const u8 as *const libc::c_char,
-                    );
-                }
-                if val == 3 as libc::c_int as libc::c_uint {
-                    fprintf(
-                        (*p).out,
-                        b" (utf16be)\0" as *const u8 as *const libc::c_char,
-                    );
-                }
-            }
-            _ => {}
-        }
-        fprintf((*p).out, b"\n\0" as *const u8 as *const libc::c_char);
-        i += 1;
-    }
-    if zDb.is_null() {
-        zSchemaTab = sqlite3_mprintf(
-            b"main.sqlite_schema\0" as *const u8 as *const libc::c_char,
-        );
-    } else if strcmp(zDb, b"temp\0" as *const u8 as *const libc::c_char)
-            == 0 as libc::c_int
-        {
-        zSchemaTab = sqlite3_mprintf(
-            b"%s\0" as *const u8 as *const libc::c_char,
-            b"sqlite_temp_schema\0" as *const u8 as *const libc::c_char,
-        );
-    } else {
-        zSchemaTab = sqlite3_mprintf(
-            b"\"%w\".sqlite_schema\0" as *const u8 as *const libc::c_char,
-            zDb,
-        );
-    }
-    i = 0 as libc::c_int;
-    while i
-        < (::std::mem::size_of::<[C2RustUnnamed_22; 5]>() as libc::c_ulong)
-            .wrapping_div(::std::mem::size_of::<C2RustUnnamed_22>() as libc::c_ulong)
-            as libc::c_int
-    {
-        let mut zSql: *mut libc::c_char = sqlite3_mprintf(
-            aQuery[i as usize].zSql,
-            zSchemaTab,
-        );
-        let mut val_0: libc::c_int = db_int((*p).db, zSql);
-        sqlite3_free(zSql as *mut libc::c_void);
-        fprintf(
-            (*p).out,
-            b"%-20s %d\n\0" as *const u8 as *const libc::c_char,
-            aQuery[i as usize].zName,
-            val_0,
-        );
-        i += 1;
-    }
-    sqlite3_free(zSchemaTab as *mut libc::c_void);
-    sqlite3_file_control(
-        (*p).db,
-        zDb,
-        35 as libc::c_int,
-        &mut iDataVersion as *mut libc::c_uint as *mut libc::c_void,
-    );
-    fprintf(
-        (*p).out,
-        b"%-20s %u\n\0" as *const u8 as *const libc::c_char,
-        b"data version\0" as *const u8 as *const libc::c_char,
-        iDataVersion,
-    );
-    return 0 as libc::c_int;
-}
 unsafe extern "C" fn shellDatabaseError(mut db: *mut sqlite3) -> libc::c_int {
     let mut zErr: *const libc::c_char = sqlite3_errmsg(db);
     fprintf(stderr, b"Error: %s\n\0" as *const u8 as *const libc::c_char, zErr);
@@ -19249,7 +18916,7 @@ unsafe extern "C" fn shellFkeyCollateClause(
         __assert_fail(
             b"nVal==4\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            17176 as libc::c_int as libc::c_uint,
+            17245 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 70],
                 &[libc::c_char; 70],
@@ -19647,7 +19314,7 @@ unsafe extern "C" fn rc_err_oom_die(mut rc: libc::c_int) {
         __assert_fail(
             b"rc==SQLITE_OK||rc==SQLITE_DONE\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            18942 as libc::c_int as libc::c_uint,
+            19011 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 25],
                 &[libc::c_char; 25],
@@ -19671,6 +19338,8 @@ unsafe extern "C" fn zAutoColumn(
         as *const u8 as *const libc::c_char;
     static mut zSetReps: *const libc::c_char = b"UPDATE ColNames AS t SET reps=(SELECT count(*) FROM ColNames d  WHERE substring(t.name,1,t.nlen-t.chop)=substring(d.name,1,d.nlen-d.chop) COLLATE NOCASE)\0"
         as *const u8 as *const libc::c_char;
+    static mut zColDigits: *const libc::c_char = b"SELECT CASE WHEN (nc < 10) THEN 1 WHEN (nc < 100) THEN 2  WHEN (nc < 1000) THEN 3 WHEN (nc < 10000) THEN 4  ELSE 5 FROM (SELECT count(*) AS nc FROM ColNames) \0"
+        as *const u8 as *const libc::c_char;
     static mut zRenameRank: *const libc::c_char = b"WITH Lzn(nlz) AS (  SELECT 0 AS nlz  UNION  SELECT nlz+1 AS nlz FROM Lzn  WHERE EXISTS(   SELECT 1   FROM ColNames t, ColNames o   WHERE    iif(t.name IN (SELECT * FROM RepeatedNames),     printf('%s_%s',      t.name, substring(printf('%.*c%0.*d',nlz+1,'0',$1,t.cpos),2)),     t.name    )    =    iif(o.name IN (SELECT * FROM RepeatedNames),     printf('%s_%s',      o.name, substring(printf('%.*c%0.*d',nlz+1,'0',$1,o.cpos),2)),     o.name    )    COLLATE NOCASE    AND o.cpos<>t.cpos   GROUP BY t.cpos  )) UPDATE Colnames AS t SET chop = 0, suff = iif(name IN (SELECT * FROM RepeatedNames),  printf('_%s', substring(   printf('%.*c%0.*d',(SELECT max(nlz) FROM Lzn)+1,'0',1,t.cpos),2)),  '' )\0"
         as *const u8 as *const libc::c_char;
     static mut zCollectVar: *const libc::c_char = b"SELECT '('||x'0a' || group_concat(  cname||' TEXT',  ','||iif((cpos-1)%4>0, ' ', x'0a'||' ')) ||')' AS ColsSpec FROM ( SELECT cpos, printf('\"%w\"',printf('%!.*s%s', nlen-chop,name,suff)) AS cname  FROM ColNames ORDER BY cpos)\0"
@@ -19683,7 +19352,7 @@ unsafe extern "C" fn zAutoColumn(
         __assert_fail(
             b"pDb!=0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            19061 as libc::c_int as libc::c_uint,
+            19137 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 53],
                 &[libc::c_char; 53],
@@ -19709,7 +19378,7 @@ unsafe extern "C" fn zAutoColumn(
             __assert_fail(
                 b"*pDb!=0\0" as *const u8 as *const libc::c_char,
                 b"shell.c\0" as *const u8 as *const libc::c_char,
-                19074 as libc::c_int as libc::c_uint,
+                19150 as libc::c_int as libc::c_uint,
                 (*::std::mem::transmute::<
                     &[u8; 53],
                     &[libc::c_char; 53],
@@ -19742,6 +19411,11 @@ unsafe extern "C" fn zAutoColumn(
     } else {
         let mut zColsSpec: *mut libc::c_char = 0 as *mut libc::c_char;
         let mut hasDupes: libc::c_int = db_int(*pDb, zHasDupes);
+        let mut nDigits: libc::c_int = if hasDupes != 0 {
+            db_int(*pDb, zColDigits)
+        } else {
+            0 as libc::c_int
+        };
         if hasDupes != 0 {
             rc = sqlite3_exec(
                 *pDb,
@@ -19759,14 +19433,14 @@ unsafe extern "C" fn zAutoColumn(
                 0 as *mut *const libc::c_char,
             );
             rc_err_oom_die(rc);
-            sqlite3_bind_int(pStmt, 1 as libc::c_int, 2 as libc::c_int);
+            sqlite3_bind_int(pStmt, 1 as libc::c_int, nDigits);
             rc = sqlite3_step(pStmt);
             sqlite3_finalize(pStmt);
             if rc == 101 as libc::c_int {} else {
                 __assert_fail(
                     b"rc==SQLITE_DONE\0" as *const u8 as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
-                    19106 as libc::c_int as libc::c_uint,
+                    19178 as libc::c_int as libc::c_uint,
                     (*::std::mem::transmute::<
                         &[u8; 53],
                         &[libc::c_char; 53],
@@ -19779,7 +19453,7 @@ unsafe extern "C" fn zAutoColumn(
             __assert_fail(
                 b"db_int(*pDb, zHasDupes)==0\0" as *const u8 as *const libc::c_char,
                 b"shell.c\0" as *const u8 as *const libc::c_char,
-                19108 as libc::c_int as libc::c_uint,
+                19180 as libc::c_int as libc::c_uint,
                 (*::std::mem::transmute::<
                     &[u8; 53],
                     &[libc::c_char; 53],
@@ -20681,14 +20355,6 @@ unsafe extern "C" fn do_meta_command(
                     as *const libc::c_char,
             );
         }
-    } else if c == 'd' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"dbinfo\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
-        rc = shell_dbinfo_command(p, nArg, azArg.as_mut_ptr());
     } else if c == 'd' as i32
             && strncmp(
                 azArg[0 as libc::c_int as usize],
@@ -20707,7 +20373,7 @@ unsafe extern "C" fn do_meta_command(
         i_3 = 1 as libc::c_int;
         loop {
             if !(i_3 < nArg) {
-                current_block = 10708630372277746932;
+                current_block = 15737493854269785664;
                 break;
             }
             if *(azArg[i_3 as usize]).offset(0 as libc::c_int as isize) as libc::c_int
@@ -20743,7 +20409,7 @@ unsafe extern "C" fn do_meta_command(
                     );
                     rc = 1 as libc::c_int;
                     sqlite3_free(zLike as *mut libc::c_void);
-                    current_block = 9162774388675061015;
+                    current_block = 10784143920802550123;
                     break;
                 }
             } else {
@@ -20766,7 +20432,7 @@ unsafe extern "C" fn do_meta_command(
             i_3 += 1;
         }
         match current_block {
-            9162774388675061015 => {}
+            10784143920802550123 => {}
             _ => {
                 open_db(p, 0 as libc::c_int);
                 if (*p).shellFlgs & 0x100 as libc::c_int as libc::c_uint
@@ -21142,7 +20808,7 @@ unsafe extern "C" fn do_meta_command(
                             ::std::mem::size_of::<C2RustUnnamed_21>() as libc::c_ulong,
                         ) as libc::c_int)
                 {
-                    current_block = 15980792246487107818;
+                    current_block = 15849589987095405551;
                     break;
                 }
                 if strncmp(zCmd, aCtrl[i_4 as usize].zCtrlName, n2 as libc::c_ulong)
@@ -21159,14 +20825,14 @@ unsafe extern "C" fn do_meta_command(
                             zCmd,
                         );
                         rc = 1 as libc::c_int;
-                        current_block = 9162774388675061015;
+                        current_block = 10784143920802550123;
                         break;
                     }
                 }
                 i_4 += 1;
             }
             match current_block {
-                9162774388675061015 => {}
+                10784143920802550123 => {}
                 _ => {
                     if filectrl < 0 as libc::c_int {
                         fprintf(
@@ -21573,13 +21239,6 @@ unsafe extern "C" fn do_meta_command(
             0 as libc::c_int,
             ::std::mem::size_of::<ImportCtx>() as libc::c_ulong,
         );
-        sCtx
-            .z = sqlite3_malloc64(120 as libc::c_int as sqlite3_uint64)
-            as *mut libc::c_char;
-        if (sCtx.z).is_null() {
-            import_cleanup(&mut sCtx);
-            shell_out_of_memory();
-        }
         if (*p).mode == 10 as libc::c_int {
             xRead = Some(
                 ascii_read_one_field
@@ -21591,10 +21250,11 @@ unsafe extern "C" fn do_meta_command(
                     as unsafe extern "C" fn(*mut ImportCtx) -> *mut libc::c_char,
             );
         }
+        rc = 1 as libc::c_int;
         i_5 = 1 as libc::c_int;
         loop {
             if !(i_5 < nArg) {
-                current_block = 9136364834649731412;
+                current_block = 9847636477235348409;
                 break;
             }
             let mut z_3: *mut libc::c_char = azArg[i_5 as usize];
@@ -21616,8 +21276,7 @@ unsafe extern "C" fn do_meta_command(
                         z_3,
                     );
                     showHelp((*p).out, b"import\0" as *const u8 as *const libc::c_char);
-                    rc = 1 as libc::c_int;
-                    current_block = 9162774388675061015;
+                    current_block = 10784143920802550123;
                     break;
                 }
             } else if strcmp(z_3, b"-v\0" as *const u8 as *const libc::c_char)
@@ -21670,14 +21329,13 @@ unsafe extern "C" fn do_meta_command(
                     z_3,
                 );
                 showHelp((*p).out, b"import\0" as *const u8 as *const libc::c_char);
-                rc = 1 as libc::c_int;
-                current_block = 9162774388675061015;
+                current_block = 10784143920802550123;
                 break;
             }
             i_5 += 1;
         }
         match current_block {
-            9162774388675061015 => {}
+            10784143920802550123 => {}
             _ => {
                 if zTable.is_null() {
                     fprintf(
@@ -21691,7 +21349,6 @@ unsafe extern "C" fn do_meta_command(
                         },
                     );
                     showHelp((*p).out, b"import\0" as *const u8 as *const libc::c_char);
-                    rc = 1 as libc::c_int;
                 } else {
                     ::std::ptr::write_volatile(
                         &mut seenInterrupt as *mut libc::c_int,
@@ -21706,16 +21363,14 @@ unsafe extern "C" fn do_meta_command(
                                 b"Error: non-null column separator required for import\n\0"
                                     as *const u8 as *const libc::c_char,
                             );
-                            rc = 1 as libc::c_int;
-                            current_block = 9162774388675061015;
+                            current_block = 10784143920802550123;
                         } else if nSep > 1 as libc::c_int {
                             fprintf(
                                 stderr,
                                 b"Error: multi-character column separators not allowed for import\n\0"
                                     as *const u8 as *const libc::c_char,
                             );
-                            rc = 1 as libc::c_int;
-                            current_block = 9162774388675061015;
+                            current_block = 10784143920802550123;
                         } else {
                             nSep = strlen30(((*p).rowSeparator).as_mut_ptr());
                             if nSep == 0 as libc::c_int {
@@ -21724,8 +21379,7 @@ unsafe extern "C" fn do_meta_command(
                                     b"Error: non-null row separator required for import\n\0"
                                         as *const u8 as *const libc::c_char,
                                 );
-                                rc = 1 as libc::c_int;
-                                current_block = 9162774388675061015;
+                                current_block = 10784143920802550123;
                             } else {
                                 if nSep == 2 as libc::c_int && (*p).mode == 8 as libc::c_int
                                     && strcmp(
@@ -21747,8 +21401,7 @@ unsafe extern "C" fn do_meta_command(
                                         b"Error: multi-character row separators not allowed for import\n\0"
                                             as *const u8 as *const libc::c_char,
                                     );
-                                    rc = 1 as libc::c_int;
-                                    current_block = 9162774388675061015;
+                                    current_block = 10784143920802550123;
                                 } else {
                                     sCtx
                                         .cColSep = (*p).colSeparator[0 as libc::c_int as usize]
@@ -21756,15 +21409,15 @@ unsafe extern "C" fn do_meta_command(
                                     sCtx
                                         .cRowSep = (*p).rowSeparator[0 as libc::c_int as usize]
                                         as libc::c_int;
-                                    current_block = 12021670973791885667;
+                                    current_block = 369283622388157215;
                                 }
                             }
                         }
                     } else {
-                        current_block = 12021670973791885667;
+                        current_block = 369283622388157215;
                     }
                     match current_block {
-                        9162774388675061015 => {}
+                        10784143920802550123 => {}
                         _ => {
                             sCtx.zFile = zFile_1;
                             sCtx.nLine = 1 as libc::c_int;
@@ -21800,8 +21453,6 @@ unsafe extern "C" fn do_meta_command(
                                         as *const libc::c_char,
                                     zFile_1,
                                 );
-                                rc = 1 as libc::c_int;
-                                import_cleanup(&mut sCtx);
                             } else {
                                 if eVerbose >= 2 as libc::c_int
                                     || eVerbose >= 1 as libc::c_int && useOutputMode != 0
@@ -21827,6 +21478,13 @@ unsafe extern "C" fn do_meta_command(
                                         (*p).out,
                                         b"\n\0" as *const u8 as *const libc::c_char,
                                     );
+                                }
+                                sCtx
+                                    .z = sqlite3_malloc64(120 as libc::c_int as sqlite3_uint64)
+                                    as *mut libc::c_char;
+                                if (sCtx.z).is_null() {
+                                    import_cleanup(&mut sCtx);
+                                    shell_out_of_memory();
                                 }
                                 loop {
                                     let fresh259 = nSkip;
@@ -21917,7 +21575,7 @@ unsafe extern "C" fn do_meta_command(
                                         __assert_fail(
                                             b"dbCols==0\0" as *const u8 as *const libc::c_char,
                                             b"shell.c\0" as *const u8 as *const libc::c_char,
-                                            20103 as libc::c_int as libc::c_uint,
+                                            20178 as libc::c_int as libc::c_uint,
                                             (*::std::mem::transmute::<
                                                 &[u8; 42],
                                                 &[libc::c_char; 42],
@@ -21931,7 +21589,7 @@ unsafe extern "C" fn do_meta_command(
                                             b"%s: empty file\n\0" as *const u8 as *const libc::c_char,
                                             sCtx.zFile,
                                         );
-                                        current_block = 14717890797664248954;
+                                        current_block = 9580166445774441429;
                                     } else {
                                         zCreate = sqlite3_mprintf(
                                             b"%z%z\n\0" as *const u8 as *const libc::c_char,
@@ -21959,7 +21617,7 @@ unsafe extern "C" fn do_meta_command(
                                                 zCreate,
                                                 sqlite3_errmsg((*p).db),
                                             );
-                                            current_block = 14717890797664248954;
+                                            current_block = 9580166445774441429;
                                         } else {
                                             sqlite3_free(zCreate as *mut libc::c_void);
                                             zCreate = 0 as *mut libc::c_char;
@@ -21970,14 +21628,14 @@ unsafe extern "C" fn do_meta_command(
                                                 &mut pStmt_1,
                                                 0 as *mut *const libc::c_char,
                                             );
-                                            current_block = 18326906425971554252;
+                                            current_block = 11298318405609849625;
                                         }
                                     }
                                 } else {
-                                    current_block = 18326906425971554252;
+                                    current_block = 11298318405609849625;
                                 }
                                 match current_block {
-                                    18326906425971554252 => {
+                                    11298318405609849625 => {
                                         if rc != 0 {
                                             if !pStmt_1.is_null() {
                                                 sqlite3_finalize(pStmt_1);
@@ -21987,7 +21645,7 @@ unsafe extern "C" fn do_meta_command(
                                                 b"Error: %s\n\0" as *const u8 as *const libc::c_char,
                                                 sqlite3_errmsg((*p).db),
                                             );
-                                            current_block = 14717890797664248954;
+                                            current_block = 9580166445774441429;
                                         } else {
                                             sqlite3_free(zSql_0 as *mut libc::c_void);
                                             nCol = sqlite3_column_count(pStmt_1);
@@ -22053,7 +21711,7 @@ unsafe extern "C" fn do_meta_command(
                                                 if !pStmt_1.is_null() {
                                                     sqlite3_finalize(pStmt_1);
                                                 }
-                                                current_block = 14717890797664248954;
+                                                current_block = 9580166445774441429;
                                             } else {
                                                 sqlite3_free(zSql_0 as *mut libc::c_void);
                                                 sqlite3_free(zFullTabName as *mut libc::c_void);
@@ -22173,14 +21831,14 @@ unsafe extern "C" fn do_meta_command(
                                                         sCtx.nLine - 1 as libc::c_int,
                                                     );
                                                 }
-                                                current_block = 9162774388675061015;
+                                                current_block = 10784143920802550123;
                                             }
                                         }
                                     }
                                     _ => {}
                                 }
                                 match current_block {
-                                    9162774388675061015 => {}
+                                    10784143920802550123 => {}
                                     _ => {
                                         sqlite3_free(zCreate as *mut libc::c_void);
                                         sqlite3_free(zSql_0 as *mut libc::c_void);
@@ -22525,7 +22183,7 @@ unsafe extern "C" fn do_meta_command(
                             ::std::mem::size_of::<C2RustUnnamed_20>() as libc::c_ulong,
                         ) as libc::c_int)
                 {
-                    current_block = 2666761716454659200;
+                    current_block = 2153344065440256775;
                     break;
                 }
                 if sqlite3_strnicmp(
@@ -22544,14 +22202,14 @@ unsafe extern "C" fn do_meta_command(
                             azArg[1 as libc::c_int as usize],
                         );
                         rc = 1 as libc::c_int;
-                        current_block = 9162774388675061015;
+                        current_block = 10784143920802550123;
                         break;
                     }
                 }
                 i_7 += 1;
             }
             match current_block {
-                9162774388675061015 => {}
+                10784143920802550123 => {}
                 _ => {
                     if iLimit < 0 as libc::c_int {
                         fprintf(
@@ -22676,7 +22334,7 @@ unsafe extern "C" fn do_meta_command(
         i_8 = 1 as libc::c_int;
         loop {
             if !(i_8 < nArg) {
-                current_block = 10638200023537178844;
+                current_block = 18033822173290418659;
                 break;
             }
             let mut z_5: *const libc::c_char = azArg[i_8 as usize];
@@ -22732,7 +22390,7 @@ unsafe extern "C" fn do_meta_command(
                         as *const u8 as *const libc::c_char,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 9162774388675061015;
+                current_block = 10784143920802550123;
                 break;
             } else {
                 fprintf(
@@ -22741,13 +22399,13 @@ unsafe extern "C" fn do_meta_command(
                     z_5,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 9162774388675061015;
+                current_block = 10784143920802550123;
                 break;
             }
             i_8 += 1;
         }
         match current_block {
-            9162774388675061015 => {}
+            10784143920802550123 => {}
             _ => {
                 if zMode.is_null() {
                     if (*p).mode == 1 as libc::c_int
@@ -23068,7 +22726,7 @@ unsafe extern "C" fn do_meta_command(
         iName = 1 as libc::c_int;
         loop {
             if !(iName < nArg) {
-                current_block = 1283957829954624633;
+                current_block = 7376108633251332364;
                 break;
             }
             let mut z_6: *const libc::c_char = azArg[iName as usize];
@@ -23109,7 +22767,7 @@ unsafe extern "C" fn do_meta_command(
                     z_6,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 9162774388675061015;
+                current_block = 10784143920802550123;
                 break;
             } else if !zFN.is_null() {
                 fprintf(
@@ -23118,7 +22776,7 @@ unsafe extern "C" fn do_meta_command(
                     z_6,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 9162774388675061015;
+                current_block = 10784143920802550123;
                 break;
             } else {
                 zFN = z_6;
@@ -23126,7 +22784,7 @@ unsafe extern "C" fn do_meta_command(
             iName += 1;
         }
         match current_block {
-            9162774388675061015 => {}
+            10784143920802550123 => {}
             _ => {
                 close_db((*p).db);
                 let ref mut fresh264 = (*p).db;
@@ -23208,8 +22866,9 @@ unsafe extern "C" fn do_meta_command(
         let mut bTxtMode: libc::c_int = 0 as libc::c_int;
         let mut i_9: libc::c_int = 0;
         let mut eMode: libc::c_int = 0 as libc::c_int;
-        let mut bBOM: libc::c_int = 0 as libc::c_int;
         let mut bOnce: libc::c_int = 0 as libc::c_int;
+        let mut zBOM: [libc::c_uchar; 4] = [0; 4];
+        zBOM[0 as libc::c_int as usize] = 0 as libc::c_int as libc::c_uchar;
         failIfSafeMode(
             p,
             b"cannot run .%s in safe mode\0" as *const u8 as *const libc::c_char,
@@ -23229,7 +22888,7 @@ unsafe extern "C" fn do_meta_command(
         i_9 = 1 as libc::c_int;
         loop {
             if !(i_9 < nArg) {
-                current_block = 5927849873076033713;
+                current_block = 5124238684214664916;
                 break;
             }
             let mut z_7: *mut libc::c_char = azArg[i_9 as usize];
@@ -23240,7 +22899,13 @@ unsafe extern "C" fn do_meta_command(
                 if strcmp(z_7, b"-bom\0" as *const u8 as *const libc::c_char)
                     == 0 as libc::c_int
                 {
-                    bBOM = 1 as libc::c_int;
+                    zBOM[0 as libc::c_int
+                        as usize] = 0xef as libc::c_int as libc::c_uchar;
+                    zBOM[1 as libc::c_int
+                        as usize] = 0xbb as libc::c_int as libc::c_uchar;
+                    zBOM[2 as libc::c_int
+                        as usize] = 0xbf as libc::c_int as libc::c_uchar;
+                    zBOM[3 as libc::c_int as usize] = 0 as libc::c_int as libc::c_uchar;
                 } else if c != 'e' as i32
                         && strcmp(z_7, b"-x\0" as *const u8 as *const libc::c_char)
                             == 0 as libc::c_int
@@ -23260,7 +22925,7 @@ unsafe extern "C" fn do_meta_command(
                     );
                     showHelp((*p).out, azArg[0 as libc::c_int as usize]);
                     rc = 1 as libc::c_int;
-                    current_block = 9162774388675061015;
+                    current_block = 10784143920802550123;
                     break;
                 }
             } else if zFile_4.is_null() && eMode != 'e' as i32 && eMode != 'x' as i32 {
@@ -23280,7 +22945,7 @@ unsafe extern "C" fn do_meta_command(
                             azArg[i_9 as usize],
                         );
                     }
-                    current_block = 5927849873076033713;
+                    current_block = 5124238684214664916;
                     break;
                 }
             } else {
@@ -23293,13 +22958,13 @@ unsafe extern "C" fn do_meta_command(
                 showHelp((*p).out, azArg[0 as libc::c_int as usize]);
                 rc = 1 as libc::c_int;
                 sqlite3_free(zFile_4 as *mut libc::c_void);
-                current_block = 9162774388675061015;
+                current_block = 10784143920802550123;
                 break;
             }
             i_9 += 1;
         }
         match current_block {
-            9162774388675061015 => {}
+            10784143920802550123 => {}
             _ => {
                 if zFile_4.is_null() {
                     zFile_4 = sqlite3_mprintf(
@@ -23361,10 +23026,12 @@ unsafe extern "C" fn do_meta_command(
                         *fresh271 = stdout;
                         rc = 1 as libc::c_int;
                     } else {
-                        if bBOM != 0 {
-                            fprintf(
+                        if zBOM[0 as libc::c_int as usize] != 0 {
+                            fwrite(
+                                zBOM.as_mut_ptr() as *const libc::c_void,
+                                1 as libc::c_int as libc::c_ulong,
+                                3 as libc::c_int as libc::c_ulong,
                                 (*p).out,
-                                b"\xEF\xBB\xBF\0" as *const u8 as *const libc::c_char,
                             );
                         }
                         sqlite3_snprintf(
@@ -23393,10 +23060,12 @@ unsafe extern "C" fn do_meta_command(
                         *fresh273 = stdout;
                         rc = 1 as libc::c_int;
                     } else {
-                        if bBOM != 0 {
-                            fprintf(
+                        if zBOM[0 as libc::c_int as usize] != 0 {
+                            fwrite(
+                                zBOM.as_mut_ptr() as *const libc::c_void,
+                                1 as libc::c_int as libc::c_ulong,
+                                3 as libc::c_int as libc::c_ulong,
                                 (*p).out,
-                                b"\xEF\xBB\xBF\0" as *const u8 as *const libc::c_char,
                             );
                         }
                         sqlite3_snprintf(
@@ -23418,10 +23087,10 @@ unsafe extern "C" fn do_meta_command(
                 n as libc::c_ulong,
             ) == 0 as libc::c_int
         {
-        let mut current_block_1085: u64;
+        let mut current_block_1079: u64;
         open_db(p, 0 as libc::c_int);
         if nArg <= 1 as libc::c_int {
-            current_block_1085 = 17412988639250878215;
+            current_block_1079 = 16731566415202341427;
         } else if nArg == 2 as libc::c_int
                 && strcmp(
                     azArg[1 as libc::c_int as usize],
@@ -23436,7 +23105,7 @@ unsafe extern "C" fn do_meta_command(
                 0 as *mut libc::c_void,
                 0 as *mut *mut libc::c_char,
             );
-            current_block_1085 = 15220371415214976295;
+            current_block_1079 = 10756506701594629759;
         } else if nArg == 2 as libc::c_int
                 && strcmp(
                     azArg[1 as libc::c_int as usize],
@@ -23484,7 +23153,7 @@ unsafe extern "C" fn do_meta_command(
                 }
                 sqlite3_finalize(pStmt_3);
             }
-            current_block_1085 = 15220371415214976295;
+            current_block_1079 = 10756506701594629759;
         } else if nArg == 2 as libc::c_int
                 && strcmp(
                     azArg[1 as libc::c_int as usize],
@@ -23492,7 +23161,7 @@ unsafe extern "C" fn do_meta_command(
                 ) == 0 as libc::c_int
             {
             bind_table_init(p);
-            current_block_1085 = 15220371415214976295;
+            current_block_1079 = 10756506701594629759;
         } else if nArg == 4 as libc::c_int
                 && strcmp(
                     azArg[1 as libc::c_int as usize],
@@ -23552,7 +23221,7 @@ unsafe extern "C" fn do_meta_command(
             }
             sqlite3_step(pStmt_4);
             sqlite3_finalize(pStmt_4);
-            current_block_1085 = 15220371415214976295;
+            current_block_1079 = 10756506701594629759;
         } else if nArg == 3 as libc::c_int
                 && strcmp(
                     azArg[1 as libc::c_int as usize],
@@ -23573,12 +23242,12 @@ unsafe extern "C" fn do_meta_command(
                 0 as *mut *mut libc::c_char,
             );
             sqlite3_free(zSql_3 as *mut libc::c_void);
-            current_block_1085 = 15220371415214976295;
+            current_block_1079 = 10756506701594629759;
         } else {
-            current_block_1085 = 17412988639250878215;
+            current_block_1079 = 16731566415202341427;
         }
-        match current_block_1085 {
-            17412988639250878215 => {
+        match current_block_1079 {
+            16731566415202341427 => {
                 showHelp((*p).out, b"parameter\0" as *const u8 as *const libc::c_char);
             }
             _ => {}
@@ -23619,7 +23288,7 @@ unsafe extern "C" fn do_meta_command(
         i_11 = 1 as libc::c_int;
         loop {
             if !(i_11 < nArg) {
-                current_block = 6290104865646537334;
+                current_block = 14838460950600253724;
                 break;
             }
             let mut z_8: *const libc::c_char = azArg[i_11 as usize];
@@ -23652,7 +23321,7 @@ unsafe extern "C" fn do_meta_command(
                                 as *const libc::c_char,
                         );
                         rc = 1 as libc::c_int;
-                        current_block = 9162774388675061015;
+                        current_block = 10784143920802550123;
                         break;
                     } else {
                         i_11 += 1;
@@ -23668,7 +23337,7 @@ unsafe extern "C" fn do_meta_command(
                         azArg[i_11 as usize],
                     );
                     rc = 1 as libc::c_int;
-                    current_block = 9162774388675061015;
+                    current_block = 10784143920802550123;
                     break;
                 }
             } else {
@@ -23677,7 +23346,7 @@ unsafe extern "C" fn do_meta_command(
             i_11 += 1;
         }
         match current_block {
-            9162774388675061015 => {}
+            10784143920802550123 => {}
             _ => {
                 open_db(p, 0 as libc::c_int);
                 sqlite3_progress_handler(
@@ -23803,21 +23472,21 @@ unsafe extern "C" fn do_meta_command(
         if nArg == 2 as libc::c_int {
             zSrcFile = azArg[1 as libc::c_int as usize];
             zDb_0 = b"main\0" as *const u8 as *const libc::c_char;
-            current_block = 4969147764413747518;
+            current_block = 17977243304706214701;
         } else if nArg == 3 as libc::c_int {
             zSrcFile = azArg[2 as libc::c_int as usize];
             zDb_0 = azArg[1 as libc::c_int as usize];
-            current_block = 4969147764413747518;
+            current_block = 17977243304706214701;
         } else {
             fprintf(
                 stderr,
                 b"Usage: .restore ?DB? FILE\n\0" as *const u8 as *const libc::c_char,
             );
             rc = 1 as libc::c_int;
-            current_block = 9162774388675061015;
+            current_block = 10784143920802550123;
         }
         match current_block {
-            9162774388675061015 => {}
+            10784143920802550123 => {}
             _ => {
                 rc = sqlite3_open(zSrcFile, &mut pSrc);
                 if rc != 0 as libc::c_int {
@@ -24011,7 +23680,7 @@ unsafe extern "C" fn do_meta_command(
         ii_0 = 1 as libc::c_int;
         loop {
             if !(ii_0 < nArg) {
-                current_block = 3693791830142539021;
+                current_block = 14973791933760508592;
                 break;
             }
             if optionMatch(
@@ -24042,7 +23711,7 @@ unsafe extern "C" fn do_meta_command(
                     azArg[ii_0 as usize],
                 );
                 rc = 1 as libc::c_int;
-                current_block = 9162774388675061015;
+                current_block = 10784143920802550123;
                 break;
             } else if zName.is_null() {
                 zName = azArg[ii_0 as usize];
@@ -24053,13 +23722,13 @@ unsafe extern "C" fn do_meta_command(
                         as *const u8 as *const libc::c_char,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 9162774388675061015;
+                current_block = 10784143920802550123;
                 break;
             }
             ii_0 += 1;
         }
         match current_block {
-            9162774388675061015 => {}
+            10784143920802550123 => {}
             _ => {
                 if !zName.is_null() {
                     let mut isSchema: libc::c_int = (sqlite3_strlike(
@@ -24130,7 +23799,7 @@ unsafe extern "C" fn do_meta_command(
                         );
                         sqlite3_finalize(pStmt_5);
                         rc = 1 as libc::c_int;
-                        current_block = 9162774388675061015;
+                        current_block = 10784143920802550123;
                     } else {
                         appendText(
                             &mut sSelect,
@@ -24314,13 +23983,13 @@ unsafe extern "C" fn do_meta_command(
                             );
                         }
                         freeText(&mut sSelect);
-                        current_block = 5383037180947288043;
+                        current_block = 14120497301439965229;
                     }
                 } else {
-                    current_block = 5383037180947288043;
+                    current_block = 14120497301439965229;
                 }
                 match current_block {
-                    9162774388675061015 => {}
+                    10784143920802550123 => {}
                     _ => {
                         if !zErrMsg_0.is_null() {
                             fprintf(
@@ -24350,6 +24019,12 @@ unsafe extern "C" fn do_meta_command(
                 b"selecttrace\0" as *const u8 as *const libc::c_char,
                 n as libc::c_ulong,
             ) == 0 as libc::c_int
+            || c == 't' as i32 && n == 9 as libc::c_int
+                && strncmp(
+                    azArg[0 as libc::c_int as usize],
+                    b"treetrace\0" as *const u8 as *const libc::c_char,
+                    n as libc::c_ulong,
+                ) == 0 as libc::c_int
         {
         let mut x_3: libc::c_uint = if nArg >= 2 as libc::c_int {
             integerValue(azArg[1 as libc::c_int as usize]) as libc::c_uint
@@ -24385,7 +24060,7 @@ unsafe extern "C" fn do_meta_command(
         i_12 = 1 as libc::c_int;
         loop {
             if !(i_12 < nArg) {
-                current_block = 14817762954649800463;
+                current_block = 16374705988211805206;
                 break;
             }
             let mut z_9: *const libc::c_char = azArg[i_12 as usize];
@@ -24416,13 +24091,13 @@ unsafe extern "C" fn do_meta_command(
                         as *const libc::c_char,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 9162774388675061015;
+                current_block = 10784143920802550123;
                 break;
             }
             i_12 += 1;
         }
         match current_block {
-            9162774388675061015 => {}
+            10784143920802550123 => {}
             _ => {
                 if sqlite3_table_column_metadata(
                     (*p).db,
@@ -24453,7 +24128,7 @@ unsafe extern "C" fn do_meta_command(
                 k = bSelftestExists;
                 loop {
                     if !(k >= 0 as libc::c_int) {
-                        current_block = 2092360901065321694;
+                        current_block = 8916766783087548254;
                         break;
                     }
                     if k == 1 as libc::c_int {
@@ -24483,7 +24158,7 @@ unsafe extern "C" fn do_meta_command(
                         );
                         rc = 1 as libc::c_int;
                         sqlite3_finalize(pStmt_6);
-                        current_block = 9162774388675061015;
+                        current_block = 10784143920802550123;
                         break;
                     } else {
                         i_12 = 1 as libc::c_int;
@@ -24612,7 +24287,7 @@ unsafe extern "C" fn do_meta_command(
                     }
                 }
                 match current_block {
-                    9162774388675061015 => {}
+                    10784143920802550123 => {}
                     _ => {
                         freeText(&mut str);
                         fprintf(
@@ -24694,7 +24369,7 @@ unsafe extern "C" fn do_meta_command(
         i_13 = 1 as libc::c_int;
         loop {
             if !(i_13 < nArg) {
-                current_block = 5196731419236581923;
+                current_block = 16608208809591729229;
                 break;
             }
             let mut z_10: *const libc::c_char = azArg[i_13 as usize];
@@ -24737,7 +24412,7 @@ unsafe extern "C" fn do_meta_command(
                     );
                     showHelp((*p).out, azArg[0 as libc::c_int as usize]);
                     rc = 1 as libc::c_int;
-                    current_block = 9162774388675061015;
+                    current_block = 10784143920802550123;
                     break;
                 }
             } else if !zLike_0.is_null() {
@@ -24747,7 +24422,7 @@ unsafe extern "C" fn do_meta_command(
                         as *const libc::c_char,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 9162774388675061015;
+                current_block = 10784143920802550123;
                 break;
             } else {
                 zLike_0 = z_10;
@@ -24764,7 +24439,7 @@ unsafe extern "C" fn do_meta_command(
             i_13 += 1;
         }
         match current_block {
-            9162774388675061015 => {}
+            10784143920802550123 => {}
             _ => {
                 if bSchema != 0 {
                     zSql_5 = b"SELECT lower(name) FROM sqlite_schema WHERE type='table' AND coalesce(rootpage,0)>1 UNION ALL SELECT 'sqlite_schema' ORDER BY 1 collate nocase\0"
@@ -25646,7 +25321,7 @@ unsafe extern "C" fn do_meta_command(
                             ::std::mem::size_of::<C2RustUnnamed_19>() as libc::c_ulong,
                         ) as libc::c_int)
                 {
-                    current_block = 1972539695984962544;
+                    current_block = 1486434739292432794;
                     break;
                 }
                 if strncmp(
@@ -25666,14 +25341,14 @@ unsafe extern "C" fn do_meta_command(
                             zCmd_1,
                         );
                         rc = 1 as libc::c_int;
-                        current_block = 9162774388675061015;
+                        current_block = 10784143920802550123;
                         break;
                     }
                 }
                 i_17 += 1;
             }
             match current_block {
-                9162774388675061015 => {}
+                10784143920802550123 => {}
                 _ => {
                     if testctrl < 0 as libc::c_int {
                         fprintf(
@@ -25906,7 +25581,7 @@ unsafe extern "C" fn do_meta_command(
         jj = 1 as libc::c_int;
         loop {
             if !(jj < nArg) {
-                current_block = 12739636609551338739;
+                current_block = 607456330414161610;
                 break;
             }
             let mut z_11: *const libc::c_char = azArg[jj as usize];
@@ -25951,7 +25626,7 @@ unsafe extern "C" fn do_meta_command(
                         z_11,
                     );
                     rc = 1 as libc::c_int;
-                    current_block = 9162774388675061015;
+                    current_block = 10784143920802550123;
                     break;
                 }
             } else {
@@ -25965,7 +25640,7 @@ unsafe extern "C" fn do_meta_command(
             jj += 1;
         }
         match current_block {
-            9162774388675061015 => {}
+            10784143920802550123 => {}
             _ => {
                 if ((*p).traceOut).is_null() {
                     sqlite3_trace_v2(
@@ -26168,7 +25843,7 @@ unsafe extern "C" fn do_meta_command(
             __assert_fail(
                 b"nArg<=ArraySize(azArg)\0" as *const u8 as *const libc::c_char,
                 b"shell.c\0" as *const u8 as *const libc::c_char,
-                22343 as libc::c_int as libc::c_uint,
+                22446 as libc::c_int as libc::c_uint,
                 (*::std::mem::transmute::<
                     &[u8; 42],
                     &[libc::c_char; 42],
@@ -26227,18 +25902,18 @@ unsafe extern "C" fn quickscan(
     let mut cin: libc::c_char = 0;
     let mut cWait: libc::c_char = qss as libc::c_char;
     if cWait as libc::c_int == 0 as libc::c_int {
-        current_block = 16016083347208075581;
+        current_block = 14891565670110455566;
     } else {
         current_block = 16203760046146113240;
     }
-    'c_88596: loop {
+    'c_87884: loop {
         match current_block {
-            16016083347208075581 => {
+            14891565670110455566 => {
                 if cWait as libc::c_int == 0 as libc::c_int {} else {
                     __assert_fail(
                         b"cWait==0\0" as *const u8 as *const libc::c_char,
                         b"shell.c\0" as *const u8 as *const libc::c_char,
-                        22394 as libc::c_int as libc::c_uint,
+                        22497 as libc::c_int as libc::c_uint,
                         (*::std::mem::transmute::<
                             &[u8; 49],
                             &[libc::c_char; 49],
@@ -26251,7 +25926,7 @@ unsafe extern "C" fn quickscan(
                     zLine = zLine.offset(1);
                     cin = *fresh284;
                     if !(cin as libc::c_int != 0 as libc::c_int) {
-                        break 'c_88596;
+                        break 'c_87884;
                     }
                     if *(*__ctype_b_loc())
                         .offset(cin as libc::c_uchar as libc::c_int as isize)
@@ -26272,7 +25947,7 @@ unsafe extern "C" fn quickscan(
                                         break;
                                     }
                                     if cin as libc::c_int == '\n' as i32 {
-                                        current_block = 16016083347208075581;
+                                        current_block = 14891565670110455566;
                                         break 's_19;
                                     }
                                 }
@@ -26305,10 +25980,10 @@ unsafe extern "C" fn quickscan(
                         }
                         91 => {
                             cin = ']' as i32 as libc::c_char;
-                            current_block = 14767508466678152934;
+                            current_block = 4445374675186374489;
                         }
                         96 | 39 | 34 => {
-                            current_block = 14767508466678152934;
+                            current_block = 4445374675186374489;
                         }
                         _ => {
                             current_block = 1109700713171191020;
@@ -26354,7 +26029,7 @@ unsafe extern "C" fn quickscan(
                             | qss as libc::c_uint
                                 & QSS_ScanMask as libc::c_int as libc::c_uint)
                             as QuickScanState;
-                        current_block = 16016083347208075581;
+                        current_block = 14891565670110455566;
                         continue;
                     }
                     96 | 39 | 34 => {
@@ -26369,7 +26044,7 @@ unsafe extern "C" fn quickscan(
                         __assert_fail(
                             b"0\0" as *const u8 as *const libc::c_char,
                             b"shell.c\0" as *const u8 as *const libc::c_char,
-                            22451 as libc::c_int as libc::c_uint,
+                            22554 as libc::c_int as libc::c_uint,
                             (*::std::mem::transmute::<
                                 &[u8; 49],
                                 &[libc::c_char; 49],
@@ -26384,7 +26059,7 @@ unsafe extern "C" fn quickscan(
                 qss = (0 as libc::c_int as libc::c_uint
                     | qss as libc::c_uint & QSS_ScanMask as libc::c_int as libc::c_uint)
                     as QuickScanState;
-                current_block = 16016083347208075581;
+                current_block = 14891565670110455566;
             }
         }
     }
@@ -26530,6 +26205,16 @@ unsafe extern "C" fn runOneSqlLine(
     }
     return 0 as libc::c_int;
 }
+unsafe extern "C" fn echo_group_input(
+    mut p: *mut ShellState,
+    mut zDo: *const libc::c_char,
+) {
+    if (*p).shellFlgs & 0x40 as libc::c_int as libc::c_uint
+        != 0 as libc::c_int as libc::c_uint
+    {
+        fprintf((*p).out, b"%s\n\0" as *const u8 as *const libc::c_char, zDo);
+    }
+}
 unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
     let mut zLine: *mut libc::c_char = 0 as *mut libc::c_char;
     let mut zSql: *mut libc::c_char = 0 as *mut libc::c_char;
@@ -26594,11 +26279,7 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
             if qss as libc::c_uint & !(QSS_EndingSemi as libc::c_int) as libc::c_uint
                 == QSS_Start as libc::c_int as libc::c_uint && nSql == 0 as libc::c_int
             {
-                if (*p).shellFlgs & 0x40 as libc::c_int as libc::c_uint
-                    != 0 as libc::c_int as libc::c_uint
-                {
-                    printf(b"%s\n\0" as *const u8 as *const libc::c_char, zLine);
-                }
+                echo_group_input(p, zLine);
                 qss = QSS_Start;
             } else if !zLine.is_null()
                     && (*zLine.offset(0 as libc::c_int as isize) as libc::c_int
@@ -26606,11 +26287,7 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
                         || *zLine.offset(0 as libc::c_int as isize) as libc::c_int
                             == '#' as i32) && nSql == 0 as libc::c_int
                 {
-                if (*p).shellFlgs & 0x40 as libc::c_int as libc::c_uint
-                    != 0 as libc::c_int as libc::c_uint
-                {
-                    printf(b"%s\n\0" as *const u8 as *const libc::c_char, zLine);
-                }
+                echo_group_input(p, zLine);
                 if *zLine.offset(0 as libc::c_int as isize) as libc::c_int == '.' as i32
                 {
                     rc = do_meta_command(zLine, p);
@@ -26649,7 +26326,7 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
                         __assert_fail(
                             b"nAlloc>0 && zSql!=0\0" as *const u8 as *const libc::c_char,
                             b"shell.c\0" as *const u8 as *const libc::c_char,
-                            22628 as libc::c_int as libc::c_uint,
+                            22766 as libc::c_int as libc::c_uint,
                             (*::std::mem::transmute::<
                                 &[u8; 32],
                                 &[libc::c_char; 32],
@@ -26681,6 +26358,7 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
                         == QSS_EndingSemi as libc::c_int as libc::c_uint
                     && sqlite3_complete(zSql) != 0
                 {
+                    echo_group_input(p, zSql);
                     errCnt += runOneSqlLine(p, zSql, (*p).in_0, startline);
                     nSql = 0 as libc::c_int;
                     if (*p).outCount != 0 {
@@ -26696,11 +26374,7 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
                             & !(QSS_EndingSemi as libc::c_int) as libc::c_uint
                             == QSS_Start as libc::c_int as libc::c_uint
                     {
-                    if (*p).shellFlgs & 0x40 as libc::c_int as libc::c_uint
-                        != 0 as libc::c_int as libc::c_uint
-                    {
-                        printf(b"%s\n\0" as *const u8 as *const libc::c_char, zSql);
-                    }
+                    echo_group_input(p, zSql);
                     nSql = 0 as libc::c_int;
                     qss = QSS_Start;
                 }
@@ -26708,6 +26382,7 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
         }
     }
     if nSql != 0 {
+        echo_group_input(p, zSql);
         errCnt += runOneSqlLine(p, zSql, (*p).in_0, startline);
     }
     free(zSql as *mut libc::c_void);
@@ -26805,12 +26480,12 @@ unsafe extern "C" fn process_sqliterc(
     (*p).lineno = savedLineno;
     sqlite3_free(zBuf as *mut libc::c_void);
 }
-static mut zOptions: [libc::c_char; 2045] = unsafe {
+static mut zOptions: [libc::c_char; 2043] = unsafe {
     *::std::mem::transmute::<
-        &[u8; 2045],
-        &[libc::c_char; 2045],
+        &[u8; 2043],
+        &[libc::c_char; 2043],
     >(
-        b"   -append              append the database to the end of the file\n   -ascii               set output mode to 'ascii'\n   -bail                stop after hitting an error\n   -batch               force batch I/O\n   -box                 set output mode to 'box'\n   -column              set output mode to 'column'\n   -cmd COMMAND         run \"COMMAND\" before reading stdin\n   -csv                 set output mode to 'csv'\n   -deserialize         open the database using sqlite3_deserialize()\n   -echo                print commands before execution\n   -init FILENAME       read/process named file\n   -[no]header          turn headers on or off\n   -help                show this message\n   -html                set output mode to HTML\n   -interactive         force interactive I/O\n   -json                set output mode to 'json'\n   -line                set output mode to 'line'\n   -list                set output mode to 'list'\n   -lookaside SIZE N    use N entries of SZ bytes for lookaside memory\n   -markdown            set output mode to 'markdown'\n   -maxsize N           maximum size for a --deserialize database\n   -memtrace            trace all memory allocations and deallocations\n   -mmap N              default mmap size set to N\n   -newline SEP         set output row separator. Default: '\\n'\n   -nofollow            refuse to open symbolic links to database files\n   -nonce STRING        set the safe-mode escape nonce\n   -nullvalue TEXT      set text string for NULL values. Default ''\n   -pagecache SIZE N    use N slots of SZ bytes each for page cache memory\n   -quote               set output mode to 'quote'\n   -readonly            open the database read-only\n   -safe                enable safe-mode\n   -separator SEP       set output column separator. Default: '|'\n   -stats               print memory stats before each finalize\n   -table               set output mode to 'table'\n   -tabs                set output mode to 'tabs'\n   -version             show SQLite version\n   -vfs NAME            use NAME as the default VFS\n\0",
+        b"   -append              append the database to the end of the file\n   -ascii               set output mode to 'ascii'\n   -bail                stop after hitting an error\n   -batch               force batch I/O\n   -box                 set output mode to 'box'\n   -column              set output mode to 'column'\n   -cmd COMMAND         run \"COMMAND\" before reading stdin\n   -csv                 set output mode to 'csv'\n   -deserialize         open the database using sqlite3_deserialize()\n   -echo                print inputs before execution\n   -init FILENAME       read/process named file\n   -[no]header          turn headers on or off\n   -help                show this message\n   -html                set output mode to HTML\n   -interactive         force interactive I/O\n   -json                set output mode to 'json'\n   -line                set output mode to 'line'\n   -list                set output mode to 'list'\n   -lookaside SIZE N    use N entries of SZ bytes for lookaside memory\n   -markdown            set output mode to 'markdown'\n   -maxsize N           maximum size for a --deserialize database\n   -memtrace            trace all memory allocations and deallocations\n   -mmap N              default mmap size set to N\n   -newline SEP         set output row separator. Default: '\\n'\n   -nofollow            refuse to open symbolic links to database files\n   -nonce STRING        set the safe-mode escape nonce\n   -nullvalue TEXT      set text string for NULL values. Default ''\n   -pagecache SIZE N    use N slots of SZ bytes each for page cache memory\n   -quote               set output mode to 'quote'\n   -readonly            open the database read-only\n   -safe                enable safe-mode\n   -separator SEP       set output column separator. Default: '|'\n   -stats               print memory stats before each finalize\n   -table               set output mode to 'table'\n   -tabs                set output mode to 'tabs'\n   -version             show SQLite version\n   -vfs NAME            use NAME as the default VFS\n\0",
     )
 };
 unsafe extern "C" fn usage(mut showDetail: libc::c_int) {
@@ -27028,7 +26703,7 @@ unsafe fn main_0(
     }
     if strncmp(
         sqlite3_sourceid(),
-        b"2022-05-06 15:25:27 78d9c993d404cdfaa7fdd2973fa1052e3da9f66215cff9c5540ebe55c407d9fe\0"
+        b"2022-09-05 11:02:23 4635f4a69c8c2a8df242b384a992aea71224e39a2ccab42d8c0b0602f1e826e8\0"
             as *const u8 as *const libc::c_char,
         60 as libc::c_int as libc::c_ulong,
     ) != 0 as libc::c_int
@@ -27038,7 +26713,7 @@ unsafe fn main_0(
             b"SQLite header and source version mismatch\n%s\n%s\n\0" as *const u8
                 as *const libc::c_char,
             sqlite3_sourceid(),
-            b"2022-05-06 15:25:27 78d9c993d404cdfaa7fdd2973fa1052e3da9f66215cff9c5540ebe55c407d9fe\0"
+            b"2022-09-05 11:02:23 4635f4a69c8c2a8df242b384a992aea71224e39a2ccab42d8c0b0602f1e826e8\0"
                 as *const u8 as *const libc::c_char,
         );
         exit(1 as libc::c_int);
@@ -27050,7 +26725,7 @@ unsafe fn main_0(
         __assert_fail(
             b"argc>=1 && argv && argv[0]\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
-            23012 as libc::c_int as libc::c_uint,
+            23168 as libc::c_int as libc::c_uint,
             (*::std::mem::transmute::<
                 &[u8; 23],
                 &[libc::c_char; 23],

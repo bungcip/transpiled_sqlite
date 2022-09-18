@@ -1,3 +1,4 @@
 target/
 __pycache__/
 rust-analyzer
+*.db
