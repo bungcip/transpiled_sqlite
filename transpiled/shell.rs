@@ -1,6 +1,5 @@
 #![allow(dead_code, mutable_transmutes, non_camel_case_types, non_snake_case, non_upper_case_globals, unused_assignments, unused_mut)]
-#![register_tool(c2rust)]
-#![feature(c_variadic, extern_types, label_break_value, register_tool)]
+#![feature(c_variadic, extern_types, label_break_value)]
 use ::c2rust_out::*;
 extern "C" {
     pub type _IO_wide_data;
@@ -141,7 +140,7 @@ extern "C" {
     fn sqlite3_mprintf(_: *const libc::c_char, _: ...) -> *mut libc::c_char;
     fn sqlite3_vmprintf(
         _: *const libc::c_char,
-        _: ::std::ffi::VaList,
+        _: ::core::ffi::VaList,
     ) -> *mut libc::c_char;
     fn sqlite3_snprintf(
         _: libc::c_int,
@@ -153,7 +152,7 @@ extern "C" {
         _: libc::c_int,
         _: *mut libc::c_char,
         _: *const libc::c_char,
-        _: ::std::ffi::VaList,
+        _: ::core::ffi::VaList,
     ) -> *mut libc::c_char;
     fn sqlite3_malloc(_: libc::c_int) -> *mut libc::c_void;
     fn sqlite3_malloc64(_: sqlite3_uint64) -> *mut libc::c_void;
@@ -2042,8 +2041,8 @@ unsafe extern "C" fn integerValue(mut zArg: *const libc::c_char) -> sqlite3_int6
     }
     i = 0 as libc::c_int;
     while i
-        < (::std::mem::size_of::<[C2RustUnnamed_14; 9]>() as libc::c_ulong)
-            .wrapping_div(::std::mem::size_of::<C2RustUnnamed_14>() as libc::c_ulong)
+        < (::core::mem::size_of::<[C2RustUnnamed_14; 9]>() as libc::c_ulong)
+            .wrapping_div(::core::mem::size_of::<C2RustUnnamed_14>() as libc::c_ulong)
             as libc::c_int
     {
         if sqlite3_stricmp(aMult[i as usize].zSuffix, zArg) == 0 as libc::c_int {
@@ -2059,7 +2058,7 @@ unsafe extern "C" fn initText(mut p: *mut ShellText) {
     memset(
         p as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<ShellText>() as libc::c_ulong,
+        ::core::mem::size_of::<ShellText>() as libc::c_ulong,
     );
 }
 unsafe extern "C" fn freeText(mut p: *mut ShellText) {
@@ -2087,31 +2086,31 @@ unsafe extern "C" fn appendText(
     }
     if ((*p).z).is_null() || (*p).n + len >= (*p).nAlloc {
         (*p).nAlloc = (*p).nAlloc * 2 as libc::c_int + len + 20 as libc::c_int;
-        let ref mut fresh1 = (*p).z;
-        *fresh1 = realloc((*p).z as *mut libc::c_void, (*p).nAlloc as libc::c_ulong)
+        (*p)
+            .z = realloc((*p).z as *mut libc::c_void, (*p).nAlloc as libc::c_ulong)
             as *mut libc::c_char;
         shell_check_oom((*p).z as *mut libc::c_void);
     }
     if quote != 0 {
         let mut zCsr: *mut libc::c_char = ((*p).z).offset((*p).n as isize);
-        let fresh2 = zCsr;
+        let fresh1 = zCsr;
         zCsr = zCsr.offset(1);
-        *fresh2 = quote;
+        *fresh1 = quote;
         i = 0 as libc::c_int;
         while i < nAppend {
-            let fresh3 = zCsr;
+            let fresh2 = zCsr;
             zCsr = zCsr.offset(1);
-            *fresh3 = *zAppend.offset(i as isize);
+            *fresh2 = *zAppend.offset(i as isize);
             if *zAppend.offset(i as isize) as libc::c_int == quote as libc::c_int {
-                let fresh4 = zCsr;
+                let fresh3 = zCsr;
                 zCsr = zCsr.offset(1);
-                *fresh4 = quote;
+                *fresh3 = quote;
             }
             i += 1;
         }
-        let fresh5 = zCsr;
+        let fresh4 = zCsr;
         zCsr = zCsr.offset(1);
-        *fresh5 = quote;
+        *fresh4 = quote;
         (*p).n = zCsr.offset_from((*p).z) as libc::c_long as libc::c_int;
         *zCsr = '\0' as i32 as libc::c_char;
     } else {
@@ -2285,9 +2284,9 @@ unsafe extern "C" fn shellAddSchemaName(
     {
         i = 0 as libc::c_int;
         while i
-            < (::std::mem::size_of::<[*const libc::c_char; 6]>() as libc::c_ulong)
+            < (::core::mem::size_of::<[*const libc::c_char; 6]>() as libc::c_ulong)
                 .wrapping_div(
-                    ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
+                    ::core::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
                 ) as libc::c_int
         {
             let mut n: libc::c_int = strlen30(aPrefix[i as usize]);
@@ -2494,7 +2493,7 @@ pub unsafe extern "C" fn sqlite3MemTraceDeactivate() -> libc::c_int {
             memset(
                 &mut memtraceBase as *mut sqlite3_mem_methods as *mut libc::c_void,
                 0 as libc::c_int,
-                ::std::mem::size_of::<sqlite3_mem_methods>() as libc::c_ulong,
+                ::core::mem::size_of::<sqlite3_mem_methods>() as libc::c_ulong,
             );
         }
     }
@@ -2580,8 +2579,7 @@ unsafe extern "C" fn KeccakF1600Step(mut p: *mut SHA3Context) {
             | ((*p).u.s[24 as libc::c_int as usize] ^ d4)
                 >> 64 as libc::c_int - 14 as libc::c_int;
         (*p).u.s[0 as libc::c_int as usize] = b0 ^ !b1 & b2;
-        let ref mut fresh6 = (*p).u.s[0 as libc::c_int as usize];
-        *fresh6 ^= RC[i as usize];
+        (*p).u.s[0 as libc::c_int as usize] ^= RC[i as usize];
         (*p).u.s[6 as libc::c_int as usize] = b1 ^ !b2 & b3;
         (*p).u.s[12 as libc::c_int as usize] = b2 ^ !b3 & b4;
         (*p).u.s[18 as libc::c_int as usize] = b3 ^ !b4 & b0;
@@ -2700,8 +2698,7 @@ unsafe extern "C" fn KeccakF1600Step(mut p: *mut SHA3Context) {
             | ((*p).u.s[14 as libc::c_int as usize] ^ d4)
                 >> 64 as libc::c_int - 14 as libc::c_int;
         (*p).u.s[0 as libc::c_int as usize] = b0 ^ !b1 & b2;
-        let ref mut fresh7 = (*p).u.s[0 as libc::c_int as usize];
-        *fresh7 ^= RC[(i + 1 as libc::c_int) as usize];
+        (*p).u.s[0 as libc::c_int as usize] ^= RC[(i + 1 as libc::c_int) as usize];
         (*p).u.s[16 as libc::c_int as usize] = b1 ^ !b2 & b3;
         (*p).u.s[7 as libc::c_int as usize] = b2 ^ !b3 & b4;
         (*p).u.s[23 as libc::c_int as usize] = b3 ^ !b4 & b0;
@@ -2820,8 +2817,7 @@ unsafe extern "C" fn KeccakF1600Step(mut p: *mut SHA3Context) {
             | ((*p).u.s[19 as libc::c_int as usize] ^ d4)
                 >> 64 as libc::c_int - 14 as libc::c_int;
         (*p).u.s[0 as libc::c_int as usize] = b0 ^ !b1 & b2;
-        let ref mut fresh8 = (*p).u.s[0 as libc::c_int as usize];
-        *fresh8 ^= RC[(i + 2 as libc::c_int) as usize];
+        (*p).u.s[0 as libc::c_int as usize] ^= RC[(i + 2 as libc::c_int) as usize];
         (*p).u.s[11 as libc::c_int as usize] = b1 ^ !b2 & b3;
         (*p).u.s[22 as libc::c_int as usize] = b2 ^ !b3 & b4;
         (*p).u.s[8 as libc::c_int as usize] = b3 ^ !b4 & b0;
@@ -2940,8 +2936,7 @@ unsafe extern "C" fn KeccakF1600Step(mut p: *mut SHA3Context) {
             | ((*p).u.s[4 as libc::c_int as usize] ^ d4)
                 >> 64 as libc::c_int - 14 as libc::c_int;
         (*p).u.s[0 as libc::c_int as usize] = b0 ^ !b1 & b2;
-        let ref mut fresh9 = (*p).u.s[0 as libc::c_int as usize];
-        *fresh9 ^= RC[(i + 3 as libc::c_int) as usize];
+        (*p).u.s[0 as libc::c_int as usize] ^= RC[(i + 3 as libc::c_int) as usize];
         (*p).u.s[1 as libc::c_int as usize] = b1 ^ !b2 & b3;
         (*p).u.s[2 as libc::c_int as usize] = b2 ^ !b3 & b4;
         (*p).u.s[3 as libc::c_int as usize] = b3 ^ !b4 & b0;
@@ -3033,7 +3028,7 @@ unsafe extern "C" fn SHA3Init(mut p: *mut SHA3Context, mut iSize: libc::c_int) {
     memset(
         p as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<SHA3Context>() as libc::c_ulong,
+        ::core::mem::size_of::<SHA3Context>() as libc::c_ulong,
     );
     if iSize >= 128 as libc::c_int && iSize <= 512 as libc::c_int {
         (*p)
@@ -3061,14 +3056,12 @@ unsafe extern "C" fn SHA3Update(
             & 7 as libc::c_int as libc::c_long == 0 as libc::c_int as libc::c_long
     {
         while i.wrapping_add(7 as libc::c_int as libc::c_uint) < nData {
-            let ref mut fresh10 = (*p)
+            (*p)
                 .u
                 .s[((*p).nLoaded).wrapping_div(8 as libc::c_int as libc::c_uint)
-                as usize];
-            *fresh10
+                as usize]
                 ^= *(&*aData.offset(i as isize) as *const libc::c_uchar as *mut u64_0);
-            let ref mut fresh11 = (*p).nLoaded;
-            *fresh11 = (*fresh11).wrapping_add(8 as libc::c_int as libc::c_uint);
+            (*p).nLoaded = ((*p).nLoaded).wrapping_add(8 as libc::c_int as libc::c_uint);
             if (*p).nLoaded >= (*p).nRate {
                 KeccakF1600Step(p);
                 (*p).nLoaded = 0 as libc::c_int as libc::c_uint;
@@ -3077,11 +3070,12 @@ unsafe extern "C" fn SHA3Update(
         }
     }
     while i < nData {
-        let ref mut fresh12 = (*p).u.x[(*p).nLoaded as usize];
-        *fresh12 = (*fresh12 as libc::c_int ^ *aData.offset(i as isize) as libc::c_int)
-            as libc::c_uchar;
-        let ref mut fresh13 = (*p).nLoaded;
-        *fresh13 = (*fresh13).wrapping_add(1);
+        (*p)
+            .u
+            .x[(*p).nLoaded
+            as usize] = ((*p).u.x[(*p).nLoaded as usize] as libc::c_int
+            ^ *aData.offset(i as isize) as libc::c_int) as libc::c_uchar;
+        (*p).nLoaded = ((*p).nLoaded).wrapping_add(1);
         if (*p).nLoaded == (*p).nRate {
             KeccakF1600Step(p);
             (*p).nLoaded = 0 as libc::c_int as libc::c_uint;
@@ -3168,7 +3162,7 @@ unsafe extern "C" fn sha3Func(
         context,
         SHA3Final(&mut cx) as *const libc::c_void,
         iSize / 8 as libc::c_int,
-        ::std::mem::transmute::<
+        ::core::mem::transmute::<
             libc::intptr_t,
             sqlite3_destructor_type,
         >(-(1 as libc::c_int) as libc::intptr_t),
@@ -3179,12 +3173,12 @@ unsafe extern "C" fn hash_step_vformat(
     mut zFormat: *const libc::c_char,
     mut args: ...
 ) {
-    let mut ap: ::std::ffi::VaListImpl;
+    let mut ap: ::core::ffi::VaListImpl;
     let mut n: libc::c_int = 0;
     let mut zBuf: [libc::c_char; 50] = [0; 50];
     ap = args.clone();
     sqlite3_vsnprintf(
-        ::std::mem::size_of::<[libc::c_char; 50]>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<[libc::c_char; 50]>() as libc::c_ulong as libc::c_int,
         zBuf.as_mut_ptr(),
         zFormat,
         ap.as_va_list(),
@@ -3369,7 +3363,7 @@ unsafe extern "C" fn sha3QueryFunc(
         context,
         SHA3Final(&mut cx) as *const libc::c_void,
         iSize / 8 as libc::c_int,
-        ::std::mem::transmute::<
+        ::core::mem::transmute::<
             libc::intptr_t,
             sqlite3_destructor_type,
         >(-(1 as libc::c_int) as libc::intptr_t),
@@ -3585,7 +3579,7 @@ unsafe extern "C" fn decimal_new(
     let mut i: libc::c_int = 0;
     let mut zIn: *const libc::c_uchar = 0 as *const libc::c_uchar;
     let mut iExp: libc::c_int = 0 as libc::c_int;
-    p = sqlite3_malloc(::std::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int)
+    p = sqlite3_malloc(::core::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int)
         as *mut Decimal;
     if !p.is_null() {
         (*p).sign = 0 as libc::c_int as libc::c_char;
@@ -3599,16 +3593,15 @@ unsafe extern "C" fn decimal_new(
             zIn = zAlt;
         } else {
             if sqlite3_value_type(pIn) == 5 as libc::c_int {
-                let ref mut fresh14 = (*p).a;
-                *fresh14 = 0 as *mut libc::c_schar;
+                (*p).a = 0 as *mut libc::c_schar;
                 (*p).isNull = 1 as libc::c_int as libc::c_char;
                 return p;
             }
             n = sqlite3_value_bytes(pIn);
             zIn = sqlite3_value_text(pIn);
         }
-        let ref mut fresh15 = (*p).a;
-        *fresh15 = sqlite3_malloc64((n + 1 as libc::c_int) as sqlite3_uint64)
+        (*p)
+            .a = sqlite3_malloc64((n + 1 as libc::c_int) as sqlite3_uint64)
             as *mut libc::c_schar;
         if !((*p).a).is_null() {
             i = 0 as libc::c_int;
@@ -3630,18 +3623,17 @@ unsafe extern "C" fn decimal_new(
             while i < n {
                 let mut c: libc::c_char = *zIn.offset(i as isize) as libc::c_char;
                 if c as libc::c_int >= '0' as i32 && c as libc::c_int <= '9' as i32 {
-                    let ref mut fresh16 = (*p).nDigit;
-                    let fresh17 = *fresh16;
-                    *fresh16 = *fresh16 + 1;
+                    let fresh5 = (*p).nDigit;
+                    (*p).nDigit = (*p).nDigit + 1;
                     *((*p).a)
                         .offset(
-                            fresh17 as isize,
+                            fresh5 as isize,
                         ) = (c as libc::c_int - '0' as i32) as libc::c_schar;
                 } else if c as libc::c_int == '.' as i32 {
                     (*p).nFrac = (*p).nDigit + 1 as libc::c_int;
                 } else if c as libc::c_int == 'e' as i32
-                        || c as libc::c_int == 'E' as i32
-                    {
+                    || c as libc::c_int == 'E' as i32
+                {
                     let mut j: libc::c_int = i + 1 as libc::c_int;
                     let mut neg: libc::c_int = 0 as libc::c_int;
                     if j >= n {
@@ -3683,13 +3675,13 @@ unsafe extern "C" fn decimal_new(
                     }
                 }
                 if iExp > 0 as libc::c_int {
-                    let ref mut fresh18 = (*p).a;
-                    *fresh18 = sqlite3_realloc64(
+                    (*p)
+                        .a = sqlite3_realloc64(
                         (*p).a as *mut libc::c_void,
                         ((*p).nDigit + iExp + 1 as libc::c_int) as sqlite3_uint64,
                     ) as *mut libc::c_schar;
                     if ((*p).a).is_null() {
-                        current_block = 10748642442239761528;
+                        current_block = 10537003136019651358;
                     } else {
                         memset(
                             ((*p).a).offset((*p).nDigit as isize) as *mut libc::c_void,
@@ -3697,10 +3689,10 @@ unsafe extern "C" fn decimal_new(
                             iExp as libc::c_ulong,
                         );
                         (*p).nDigit += iExp;
-                        current_block = 17995254032144898061;
+                        current_block = 16231175055492490595;
                     }
                 } else {
-                    current_block = 17995254032144898061;
+                    current_block = 16231175055492490595;
                 }
             } else if iExp < 0 as libc::c_int {
                 let mut nExtra: libc::c_int = 0;
@@ -3716,13 +3708,13 @@ unsafe extern "C" fn decimal_new(
                     }
                 }
                 if iExp > 0 as libc::c_int {
-                    let ref mut fresh19 = (*p).a;
-                    *fresh19 = sqlite3_realloc64(
+                    (*p)
+                        .a = sqlite3_realloc64(
                         (*p).a as *mut libc::c_void,
                         ((*p).nDigit + iExp + 1 as libc::c_int) as sqlite3_uint64,
                     ) as *mut libc::c_schar;
                     if ((*p).a).is_null() {
-                        current_block = 10748642442239761528;
+                        current_block = 10537003136019651358;
                     } else {
                         memmove(
                             ((*p).a).offset(iExp as isize) as *mut libc::c_void,
@@ -3736,16 +3728,16 @@ unsafe extern "C" fn decimal_new(
                         );
                         (*p).nDigit += iExp;
                         (*p).nFrac += iExp;
-                        current_block = 17995254032144898061;
+                        current_block = 16231175055492490595;
                     }
                 } else {
-                    current_block = 17995254032144898061;
+                    current_block = 16231175055492490595;
                 }
             } else {
-                current_block = 17995254032144898061;
+                current_block = 16231175055492490595;
             }
             match current_block {
-                10748642442239761528 => {}
+                10537003136019651358 => {}
                 _ => return p,
             }
         }
@@ -3791,9 +3783,9 @@ unsafe extern "C" fn decimal_result(
     }
     n = (*p).nDigit - (*p).nFrac;
     if n <= 0 as libc::c_int {
-        let fresh20 = i;
+        let fresh6 = i;
         i = i + 1;
-        *z.offset(fresh20 as isize) = '0' as i32 as libc::c_char;
+        *z.offset(fresh6 as isize) = '0' as i32 as libc::c_char;
     }
     j = 0 as libc::c_int;
     while n > 1 as libc::c_int
@@ -3803,26 +3795,26 @@ unsafe extern "C" fn decimal_result(
         n -= 1;
     }
     while n > 0 as libc::c_int {
-        let fresh21 = i;
+        let fresh7 = i;
         i = i + 1;
         *z
             .offset(
-                fresh21 as isize,
+                fresh7 as isize,
             ) = (*((*p).a).offset(j as isize) as libc::c_int + '0' as i32)
             as libc::c_char;
         j += 1;
         n -= 1;
     }
     if (*p).nFrac != 0 {
-        let fresh22 = i;
+        let fresh8 = i;
         i = i + 1;
-        *z.offset(fresh22 as isize) = '.' as i32 as libc::c_char;
+        *z.offset(fresh8 as isize) = '.' as i32 as libc::c_char;
         loop {
-            let fresh23 = i;
+            let fresh9 = i;
             i = i + 1;
             *z
                 .offset(
-                    fresh23 as isize,
+                    fresh9 as isize,
                 ) = (*((*p).a).offset(j as isize) as libc::c_int + '0' as i32)
                 as libc::c_char;
             j += 1;
@@ -3941,8 +3933,8 @@ unsafe extern "C" fn decimal_expand(
     if nAddFrac == 0 as libc::c_int && nAddSig == 0 as libc::c_int {
         return;
     }
-    let ref mut fresh24 = (*p).a;
-    *fresh24 = sqlite3_realloc64(
+    (*p)
+        .a = sqlite3_realloc64(
         (*p).a as *mut libc::c_void,
         (nDigit + 1 as libc::c_int) as sqlite3_uint64,
     ) as *mut libc::c_schar;
@@ -4140,15 +4132,14 @@ unsafe extern "C" fn decimalSumStep(
     let mut pArg: *mut Decimal = 0 as *mut Decimal;
     p = sqlite3_aggregate_context(
         context,
-        ::std::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int,
     ) as *mut Decimal;
     if p.is_null() {
         return;
     }
     if (*p).isInit == 0 {
         (*p).isInit = 1 as libc::c_int as libc::c_char;
-        let ref mut fresh25 = (*p).a;
-        *fresh25 = sqlite3_malloc(2 as libc::c_int) as *mut libc::c_schar;
+        (*p).a = sqlite3_malloc(2 as libc::c_int) as *mut libc::c_schar;
         if ((*p).a).is_null() {
             (*p).oom = 1 as libc::c_int as libc::c_char;
         } else {
@@ -4179,7 +4170,7 @@ unsafe extern "C" fn decimalSumInverse(
     let mut pArg: *mut Decimal = 0 as *mut Decimal;
     p = sqlite3_aggregate_context(
         context,
-        ::std::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<Decimal>() as libc::c_ulong as libc::c_int,
     ) as *mut Decimal;
     if p.is_null() {
         return;
@@ -4275,28 +4266,25 @@ unsafe extern "C" fn decimalMulFunc(
                 }
                 x = *acc.offset(k as isize) as libc::c_int + carry;
                 *acc.offset(k as isize) = (x % 10 as libc::c_int) as libc::c_schar;
-                let ref mut fresh26 = *acc.offset((k - 1 as libc::c_int) as isize);
-                *fresh26 = (*fresh26 as libc::c_int + x / 10 as libc::c_int)
+                let ref mut fresh10 = *acc.offset((k - 1 as libc::c_int) as isize);
+                *fresh10 = (*fresh10 as libc::c_int + x / 10 as libc::c_int)
                     as libc::c_schar;
                 i -= 1;
             }
             sqlite3_free((*pA).a as *mut libc::c_void);
-            let ref mut fresh27 = (*pA).a;
-            *fresh27 = acc;
+            (*pA).a = acc;
             acc = 0 as *mut libc::c_schar;
             (*pA).nDigit += (*pB).nDigit + 2 as libc::c_int;
             (*pA).nFrac += (*pB).nFrac;
-            let ref mut fresh28 = (*pA).sign;
-            *fresh28 = (*fresh28 as libc::c_int ^ (*pB).sign as libc::c_int)
+            (*pA)
+                .sign = ((*pA).sign as libc::c_int ^ (*pB).sign as libc::c_int)
                 as libc::c_char;
             while (*pA).nFrac > minFrac
                 && *((*pA).a).offset(((*pA).nDigit - 1 as libc::c_int) as isize)
                     as libc::c_int == 0 as libc::c_int
             {
-                let ref mut fresh29 = (*pA).nFrac;
-                *fresh29 -= 1;
-                let ref mut fresh30 = (*pA).nDigit;
-                *fresh30 -= 1;
+                (*pA).nFrac -= 1;
+                (*pA).nDigit -= 1;
             }
             decimal_result(context, pA);
         }
@@ -4394,8 +4382,8 @@ pub unsafe extern "C" fn sqlite3_decimal_init(
     let mut i: libc::c_uint = 0;
     i = 0 as libc::c_int as libc::c_uint;
     while (i as libc::c_ulong)
-        < (::std::mem::size_of::<[C2RustUnnamed_16; 5]>() as libc::c_ulong)
-            .wrapping_div(::std::mem::size_of::<C2RustUnnamed_16>() as libc::c_ulong)
+        < (::core::mem::size_of::<[C2RustUnnamed_16; 5]>() as libc::c_ulong)
+            .wrapping_div(::core::mem::size_of::<C2RustUnnamed_16>() as libc::c_ulong)
         && rc == 0 as libc::c_int
     {
         rc = sqlite3_create_function(
@@ -4470,14 +4458,14 @@ unsafe extern "C" fn ieee754func(
         let mut e: libc::c_int = 0;
         let mut isNeg: libc::c_int = 0;
         let mut zResult: [libc::c_char; 100] = [0; 100];
-        if ::std::mem::size_of::<sqlite3_int64>() as libc::c_ulong
-            == ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+        if ::core::mem::size_of::<sqlite3_int64>() as libc::c_ulong
+            == ::core::mem::size_of::<libc::c_double>() as libc::c_ulong
         {} else {
             __assert_fail(
                 b"sizeof(m)==sizeof(r)\0" as *const u8 as *const libc::c_char,
                 b"shell.c\0" as *const u8 as *const libc::c_char,
                 3079 as libc::c_int as libc::c_uint,
-                (*::std::mem::transmute::<
+                (*::core::mem::transmute::<
                     &[u8; 59],
                     &[libc::c_char; 59],
                 >(b"void ieee754func(sqlite3_context *, int, sqlite3_value **)\0"))
@@ -4488,7 +4476,7 @@ unsafe extern "C" fn ieee754func(
             == 4 as libc::c_int
             && sqlite3_value_bytes(*argv.offset(0 as libc::c_int as isize))
                 as libc::c_ulong
-                == ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+                == ::core::mem::size_of::<libc::c_double>() as libc::c_ulong
         {
             let mut x: *const libc::c_uchar = sqlite3_value_blob(
                 *argv.offset(0 as libc::c_int as isize),
@@ -4497,7 +4485,7 @@ unsafe extern "C" fn ieee754func(
             let mut v: sqlite3_uint64 = 0 as libc::c_int as sqlite3_uint64;
             i = 0 as libc::c_int as libc::c_uint;
             while (i as libc::c_ulong)
-                < ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+                < ::core::mem::size_of::<libc::c_double>() as libc::c_ulong
             {
                 v = v << 8 as libc::c_int | *x.offset(i as isize) as libc::c_ulonglong;
                 i = i.wrapping_add(1);
@@ -4505,7 +4493,7 @@ unsafe extern "C" fn ieee754func(
             memcpy(
                 &mut r as *mut libc::c_double as *mut libc::c_void,
                 &mut v as *mut sqlite3_uint64 as *const libc::c_void,
-                ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
+                ::core::mem::size_of::<libc::c_double>() as libc::c_ulong,
             );
         } else {
             r = sqlite3_value_double(*argv.offset(0 as libc::c_int as isize));
@@ -4519,7 +4507,7 @@ unsafe extern "C" fn ieee754func(
         memcpy(
             &mut a as *mut sqlite3_int64 as *mut libc::c_void,
             &mut r as *mut libc::c_double as *const libc::c_void,
-            ::std::mem::size_of::<sqlite3_int64>() as libc::c_ulong,
+            ::core::mem::size_of::<sqlite3_int64>() as libc::c_ulong,
         );
         if a == 0 as libc::c_int as libc::c_longlong {
             e = 0 as libc::c_int;
@@ -4548,7 +4536,7 @@ unsafe extern "C" fn ieee754func(
         match *(sqlite3_user_data(context) as *mut libc::c_int) {
             0 => {
                 sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
+                    ::core::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
                         as libc::c_int,
                     zResult.as_mut_ptr(),
                     b"ieee754(%lld,%d)\0" as *const u8 as *const libc::c_char,
@@ -4559,7 +4547,7 @@ unsafe extern "C" fn ieee754func(
                     context,
                     zResult.as_mut_ptr(),
                     -(1 as libc::c_int),
-                    ::std::mem::transmute::<
+                    ::core::mem::transmute::<
                         libc::intptr_t,
                         sqlite3_destructor_type,
                     >(-(1 as libc::c_int) as libc::intptr_t),
@@ -4593,9 +4581,9 @@ unsafe extern "C" fn ieee754func(
                 return;
             }
         } else if m_0 == 0 as libc::c_int as libc::c_longlong
-                && e_0 > -(1000 as libc::c_int) as libc::c_longlong
-                && e_0 < 1000 as libc::c_int as libc::c_longlong
-            {
+            && e_0 > -(1000 as libc::c_int) as libc::c_longlong
+            && e_0 < 1000 as libc::c_int as libc::c_longlong
+        {
             sqlite3_result_double(context, 0.0f64);
             return;
         }
@@ -4637,7 +4625,7 @@ unsafe extern "C" fn ieee754func(
         memcpy(
             &mut r_0 as *mut libc::c_double as *mut libc::c_void,
             &mut a_0 as *mut sqlite3_int64 as *const libc::c_void,
-            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
+            ::core::mem::size_of::<libc::c_double>() as libc::c_ulong,
         );
         sqlite3_result_double(context, r_0);
     };
@@ -4649,7 +4637,7 @@ unsafe extern "C" fn ieee754func_from_blob(
 ) {
     if sqlite3_value_type(*argv.offset(0 as libc::c_int as isize)) == 4 as libc::c_int
         && sqlite3_value_bytes(*argv.offset(0 as libc::c_int as isize)) as libc::c_ulong
-            == ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+            == ::core::mem::size_of::<libc::c_double>() as libc::c_ulong
     {
         let mut r: libc::c_double = 0.;
         let mut x: *const libc::c_uchar = sqlite3_value_blob(
@@ -4659,7 +4647,7 @@ unsafe extern "C" fn ieee754func_from_blob(
         let mut v: sqlite3_uint64 = 0 as libc::c_int as sqlite3_uint64;
         i = 0 as libc::c_int as libc::c_uint;
         while (i as libc::c_ulong)
-            < ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+            < ::core::mem::size_of::<libc::c_double>() as libc::c_ulong
         {
             v = v << 8 as libc::c_int | *x.offset(i as isize) as libc::c_ulonglong;
             i = i.wrapping_add(1);
@@ -4667,7 +4655,7 @@ unsafe extern "C" fn ieee754func_from_blob(
         memcpy(
             &mut r as *mut libc::c_double as *mut libc::c_void,
             &mut v as *mut sqlite3_uint64 as *const libc::c_void,
-            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
+            ::core::mem::size_of::<libc::c_double>() as libc::c_ulong,
         );
         sqlite3_result_double(context, r);
     }
@@ -4690,13 +4678,13 @@ unsafe extern "C" fn ieee754func_to_blob(
         memcpy(
             &mut v as *mut sqlite3_uint64 as *mut libc::c_void,
             &mut r as *mut libc::c_double as *const libc::c_void,
-            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
+            ::core::mem::size_of::<libc::c_double>() as libc::c_ulong,
         );
         i = 1 as libc::c_int as libc::c_uint;
         while i as libc::c_ulong
-            <= ::std::mem::size_of::<libc::c_double>() as libc::c_ulong
+            <= ::core::mem::size_of::<libc::c_double>() as libc::c_ulong
         {
-            a[(::std::mem::size_of::<libc::c_double>() as libc::c_ulong)
+            a[(::core::mem::size_of::<libc::c_double>() as libc::c_ulong)
                 .wrapping_sub(i as libc::c_ulong)
                 as usize] = (v & 0xff as libc::c_int as libc::c_ulonglong)
                 as libc::c_uchar;
@@ -4706,8 +4694,8 @@ unsafe extern "C" fn ieee754func_to_blob(
         sqlite3_result_blob(
             context,
             a.as_mut_ptr() as *const libc::c_void,
-            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong as libc::c_int,
-            ::std::mem::transmute::<
+            ::core::mem::size_of::<libc::c_double>() as libc::c_ulong as libc::c_int,
+            ::core::mem::transmute::<
                 libc::intptr_t,
                 sqlite3_destructor_type,
             >(-(1 as libc::c_int) as libc::intptr_t),
@@ -4830,8 +4818,8 @@ pub unsafe extern "C" fn sqlite3_ieee_init(
     let mut rc: libc::c_int = 0 as libc::c_int;
     i = 0 as libc::c_int as libc::c_uint;
     while (i as libc::c_ulong)
-        < (::std::mem::size_of::<[C2RustUnnamed_17; 6]>() as libc::c_ulong)
-            .wrapping_div(::std::mem::size_of::<C2RustUnnamed_17>() as libc::c_ulong)
+        < (::core::mem::size_of::<[C2RustUnnamed_17; 6]>() as libc::c_ulong)
+            .wrapping_div(::core::mem::size_of::<C2RustUnnamed_17>() as libc::c_ulong)
         && rc == 0 as libc::c_int
     {
         rc = sqlite3_create_function(
@@ -4866,7 +4854,7 @@ unsafe extern "C" fn seriesConnect(
     );
     if rc == 0 as libc::c_int {
         *ppVtab = sqlite3_malloc(
-            ::std::mem::size_of::<sqlite3_vtab>() as libc::c_ulong as libc::c_int,
+            ::core::mem::size_of::<sqlite3_vtab>() as libc::c_ulong as libc::c_int,
         ) as *mut sqlite3_vtab;
         pNew = *ppVtab;
         if pNew.is_null() {
@@ -4875,7 +4863,7 @@ unsafe extern "C" fn seriesConnect(
         memset(
             pNew as *mut libc::c_void,
             0 as libc::c_int,
-            ::std::mem::size_of::<sqlite3_vtab>() as libc::c_ulong,
+            ::core::mem::size_of::<sqlite3_vtab>() as libc::c_ulong,
         );
         sqlite3_vtab_config(db, 2 as libc::c_int);
     }
@@ -4891,7 +4879,7 @@ unsafe extern "C" fn seriesOpen(
 ) -> libc::c_int {
     let mut pCur: *mut series_cursor = 0 as *mut series_cursor;
     pCur = sqlite3_malloc(
-        ::std::mem::size_of::<series_cursor>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<series_cursor>() as libc::c_ulong as libc::c_int,
     ) as *mut series_cursor;
     if pCur.is_null() {
         return 7 as libc::c_int;
@@ -4899,7 +4887,7 @@ unsafe extern "C" fn seriesOpen(
     memset(
         pCur as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<series_cursor>() as libc::c_ulong,
+        ::core::mem::size_of::<series_cursor>() as libc::c_ulong,
     );
     *ppCursor = &mut (*pCur).base;
     return 0 as libc::c_int;
@@ -4911,14 +4899,11 @@ unsafe extern "C" fn seriesClose(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_i
 unsafe extern "C" fn seriesNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int {
     let mut pCur: *mut series_cursor = cur as *mut series_cursor;
     if (*pCur).isDesc != 0 {
-        let ref mut fresh31 = (*pCur).iValue;
-        *fresh31 -= (*pCur).iStep;
+        (*pCur).iValue -= (*pCur).iStep;
     } else {
-        let ref mut fresh32 = (*pCur).iValue;
-        *fresh32 += (*pCur).iStep;
+        (*pCur).iValue += (*pCur).iStep;
     }
-    let ref mut fresh33 = (*pCur).iRowid;
-    *fresh33 += 1;
+    (*pCur).iRowid += 1;
     return 0 as libc::c_int;
 }
 unsafe extern "C" fn seriesColumn(
@@ -4971,23 +4956,23 @@ unsafe extern "C" fn seriesFilter(
     let mut pCur: *mut series_cursor = pVtabCursor as *mut series_cursor;
     let mut i: libc::c_int = 0 as libc::c_int;
     if idxNum & 1 as libc::c_int != 0 {
-        let fresh34 = i;
+        let fresh11 = i;
         i = i + 1;
-        (*pCur).mnValue = sqlite3_value_int64(*argv.offset(fresh34 as isize));
+        (*pCur).mnValue = sqlite3_value_int64(*argv.offset(fresh11 as isize));
     } else {
         (*pCur).mnValue = 0 as libc::c_int as sqlite3_int64;
     }
     if idxNum & 2 as libc::c_int != 0 {
-        let fresh35 = i;
+        let fresh12 = i;
         i = i + 1;
-        (*pCur).mxValue = sqlite3_value_int64(*argv.offset(fresh35 as isize));
+        (*pCur).mxValue = sqlite3_value_int64(*argv.offset(fresh12 as isize));
     } else {
         (*pCur).mxValue = 0xffffffff as libc::c_uint as sqlite3_int64;
     }
     if idxNum & 4 as libc::c_int != 0 {
-        let fresh36 = i;
+        let fresh13 = i;
         i = i + 1;
-        (*pCur).iStep = sqlite3_value_int64(*argv.offset(fresh36 as isize));
+        (*pCur).iStep = sqlite3_value_int64(*argv.offset(fresh13 as isize));
         if (*pCur).iStep == 0 as libc::c_int as libc::c_longlong {
             (*pCur).iStep = 1 as libc::c_int as sqlite3_int64;
         } else if (*pCur).iStep < 0 as libc::c_int as libc::c_longlong {
@@ -5013,8 +4998,7 @@ unsafe extern "C" fn seriesFilter(
         (*pCur).isDesc = 1 as libc::c_int;
         (*pCur).iValue = (*pCur).mxValue;
         if (*pCur).iStep > 0 as libc::c_int as libc::c_longlong {
-            let ref mut fresh37 = (*pCur).iValue;
-            *fresh37 -= ((*pCur).mxValue - (*pCur).mnValue) % (*pCur).iStep;
+            (*pCur).iValue -= ((*pCur).mxValue - (*pCur).mnValue) % (*pCur).iStep;
         }
     } else {
         (*pCur).isDesc = 0 as libc::c_int;
@@ -5042,7 +5026,7 @@ unsafe extern "C" fn seriesBestIndex(
                 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             3601 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 58],
                 &[libc::c_char; 58],
             >(b"int seriesBestIndex(sqlite3_vtab *, sqlite3_index_info *)\0"))
@@ -5055,7 +5039,7 @@ unsafe extern "C" fn seriesBestIndex(
                 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             3602 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 58],
                 &[libc::c_char; 58],
             >(b"int seriesBestIndex(sqlite3_vtab *, sqlite3_index_info *)\0"))
@@ -5077,7 +5061,7 @@ unsafe extern "C" fn seriesBestIndex(
                     b"iCol>=0 && iCol<=2\0" as *const u8 as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
                     3611 as libc::c_int as libc::c_uint,
-                    (*::std::mem::transmute::<
+                    (*::core::mem::transmute::<
                         &[u8; 58],
                         &[libc::c_char; 58],
                     >(b"int seriesBestIndex(sqlite3_vtab *, sqlite3_index_info *)\0"))
@@ -5111,8 +5095,8 @@ unsafe extern "C" fn seriesBestIndex(
     }
     if bStartSeen == 0 {
         sqlite3_free((*pVTab).zErrMsg as *mut libc::c_void);
-        let ref mut fresh38 = (*pVTab).zErrMsg;
-        *fresh38 = sqlite3_mprintf(
+        (*pVTab)
+            .zErrMsg = sqlite3_mprintf(
             b"first argument to \"generate_series()\" missing or unusable\0" as *const u8
                 as *const libc::c_char,
         );
@@ -5262,43 +5246,40 @@ unsafe extern "C" fn re_add_state(mut pSet: *mut ReStateSet, mut newState: libc:
         }
         i = i.wrapping_add(1);
     }
-    let ref mut fresh39 = (*pSet).nState;
-    let fresh40 = *fresh39;
-    *fresh39 = (*fresh39).wrapping_add(1);
-    *((*pSet).aState).offset(fresh40 as isize) = newState as ReStateNumber;
+    let fresh14 = (*pSet).nState;
+    (*pSet).nState = ((*pSet).nState).wrapping_add(1);
+    *((*pSet).aState).offset(fresh14 as isize) = newState as ReStateNumber;
 }
 unsafe extern "C" fn re_next_char(mut p: *mut ReInput) -> libc::c_uint {
     let mut c: libc::c_uint = 0;
     if (*p).i >= (*p).mx {
         return 0 as libc::c_int as libc::c_uint;
     }
-    let ref mut fresh41 = (*p).i;
-    let fresh42 = *fresh41;
-    *fresh41 = *fresh41 + 1;
-    c = *((*p).z).offset(fresh42 as isize) as libc::c_uint;
+    let fresh15 = (*p).i;
+    (*p).i = (*p).i + 1;
+    c = *((*p).z).offset(fresh15 as isize) as libc::c_uint;
     if c >= 0x80 as libc::c_int as libc::c_uint {
         if c & 0xe0 as libc::c_int as libc::c_uint == 0xc0 as libc::c_int as libc::c_uint
             && (*p).i < (*p).mx
             && *((*p).z).offset((*p).i as isize) as libc::c_int & 0xc0 as libc::c_int
                 == 0x80 as libc::c_int
         {
-            let ref mut fresh43 = (*p).i;
-            let fresh44 = *fresh43;
-            *fresh43 = *fresh43 + 1;
+            let fresh16 = (*p).i;
+            (*p).i = (*p).i + 1;
             c = (c & 0x1f as libc::c_int as libc::c_uint) << 6 as libc::c_int
-                | (*((*p).z).offset(fresh44 as isize) as libc::c_int
+                | (*((*p).z).offset(fresh16 as isize) as libc::c_int
                     & 0x3f as libc::c_int) as libc::c_uint;
             if c < 0x80 as libc::c_int as libc::c_uint {
                 c = 0xfffd as libc::c_int as libc::c_uint;
             }
         } else if c & 0xf0 as libc::c_int as libc::c_uint
-                == 0xe0 as libc::c_int as libc::c_uint
-                && ((*p).i + 1 as libc::c_int) < (*p).mx
-                && *((*p).z).offset((*p).i as isize) as libc::c_int & 0xc0 as libc::c_int
-                    == 0x80 as libc::c_int
-                && *((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
-                    & 0xc0 as libc::c_int == 0x80 as libc::c_int
-            {
+            == 0xe0 as libc::c_int as libc::c_uint
+            && ((*p).i + 1 as libc::c_int) < (*p).mx
+            && *((*p).z).offset((*p).i as isize) as libc::c_int & 0xc0 as libc::c_int
+                == 0x80 as libc::c_int
+            && *((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
+                & 0xc0 as libc::c_int == 0x80 as libc::c_int
+        {
             c = (c & 0xf as libc::c_int as libc::c_uint) << 12 as libc::c_int
                 | ((*((*p).z).offset((*p).i as isize) as libc::c_int
                     & 0x3f as libc::c_int) << 6 as libc::c_int) as libc::c_uint
@@ -5312,15 +5293,15 @@ unsafe extern "C" fn re_next_char(mut p: *mut ReInput) -> libc::c_uint {
                 c = 0xfffd as libc::c_int as libc::c_uint;
             }
         } else if c & 0xf8 as libc::c_int as libc::c_uint
-                == 0xf0 as libc::c_int as libc::c_uint
-                && ((*p).i + 3 as libc::c_int) < (*p).mx
-                && *((*p).z).offset((*p).i as isize) as libc::c_int & 0xc0 as libc::c_int
-                    == 0x80 as libc::c_int
-                && *((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
-                    & 0xc0 as libc::c_int == 0x80 as libc::c_int
-                && *((*p).z).offset(((*p).i + 2 as libc::c_int) as isize) as libc::c_int
-                    & 0xc0 as libc::c_int == 0x80 as libc::c_int
-            {
+            == 0xf0 as libc::c_int as libc::c_uint
+            && ((*p).i + 3 as libc::c_int) < (*p).mx
+            && *((*p).z).offset((*p).i as isize) as libc::c_int & 0xc0 as libc::c_int
+                == 0x80 as libc::c_int
+            && *((*p).z).offset(((*p).i + 1 as libc::c_int) as isize) as libc::c_int
+                & 0xc0 as libc::c_int == 0x80 as libc::c_int
+            && *((*p).z).offset(((*p).i + 2 as libc::c_int) as isize) as libc::c_int
+                & 0xc0 as libc::c_int == 0x80 as libc::c_int
+        {
             c = (c & 0x7 as libc::c_int as libc::c_uint) << 18 as libc::c_int
                 | ((*((*p).z).offset((*p).i as isize) as libc::c_int
                     & 0x3f as libc::c_int) << 12 as libc::c_int) as libc::c_uint
@@ -5407,9 +5388,9 @@ unsafe extern "C" fn sqlite3re_match(
         }
     }
     if (*pRe).nState as libc::c_ulong
-        <= (::std::mem::size_of::<[ReStateNumber; 100]>() as libc::c_ulong)
+        <= (::core::mem::size_of::<[ReStateNumber; 100]>() as libc::c_ulong)
             .wrapping_div(
-                (::std::mem::size_of::<ReStateNumber>() as libc::c_ulong)
+                (::core::mem::size_of::<ReStateNumber>() as libc::c_ulong)
                     .wrapping_mul(2 as libc::c_int as libc::c_ulong),
             )
     {
@@ -5417,7 +5398,7 @@ unsafe extern "C" fn sqlite3re_match(
         aStateSet[0 as libc::c_int as usize].aState = aSpace.as_mut_ptr();
     } else {
         pToFree = sqlite3_malloc64(
-            (::std::mem::size_of::<ReStateNumber>() as libc::c_ulong)
+            (::core::mem::size_of::<ReStateNumber>() as libc::c_ulong)
                 .wrapping_mul(2 as libc::c_int as libc::c_ulong)
                 .wrapping_mul((*pRe).nState as libc::c_ulong) as sqlite3_uint64,
         ) as *mut ReStateNumber;
@@ -5434,10 +5415,10 @@ unsafe extern "C" fn sqlite3re_match(
         as *mut ReStateSet;
     (*pNext).nState = 0 as libc::c_int as libc::c_uint;
     re_add_state(pNext, 0 as libc::c_int);
-    's_132: loop {
+    's_104: loop {
         if !(c != 0 as libc::c_int && (*pNext).nState > 0 as libc::c_int as libc::c_uint)
         {
-            current_block = 14865402277128115059;
+            current_block = 576355610076403033;
             break;
         }
         cPrev = c;
@@ -5456,91 +5437,91 @@ unsafe extern "C" fn sqlite3re_match(
                     if *((*pRe).aArg).offset(x_0 as isize) == c {
                         re_add_state(pNext, x_0 + 1 as libc::c_int);
                     }
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 2 => {
                     if c != 0 as libc::c_int {
                         re_add_state(pNext, x_0 + 1 as libc::c_int);
                     }
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 11 => {
                     if re_word_char(c) != 0 {
                         re_add_state(pNext, x_0 + 1 as libc::c_int);
                     }
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 12 => {
                     if re_word_char(c) == 0 && c != 0 as libc::c_int {
                         re_add_state(pNext, x_0 + 1 as libc::c_int);
                     }
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 13 => {
                     if re_digit_char(c) != 0 {
                         re_add_state(pNext, x_0 + 1 as libc::c_int);
                     }
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 14 => {
                     if re_digit_char(c) == 0 && c != 0 as libc::c_int {
                         re_add_state(pNext, x_0 + 1 as libc::c_int);
                     }
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 15 => {
                     if re_space_char(c) != 0 {
                         re_add_state(pNext, x_0 + 1 as libc::c_int);
                     }
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 16 => {
                     if re_space_char(c) == 0 && c != 0 as libc::c_int {
                         re_add_state(pNext, x_0 + 1 as libc::c_int);
                     }
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 17 => {
                     if re_word_char(c) != re_word_char(cPrev) {
                         re_add_state(pThis, x_0 + 1 as libc::c_int);
                     }
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 3 => {
                     re_add_state(pNext, x_0);
                     re_add_state(pThis, x_0 + 1 as libc::c_int);
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 4 => {
                     re_add_state(pThis, x_0 + *((*pRe).aArg).offset(x_0 as isize));
                     re_add_state(pThis, x_0 + 1 as libc::c_int);
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 5 => {
                     re_add_state(pThis, x_0 + *((*pRe).aArg).offset(x_0 as isize));
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
                 6 => {
                     rc = 1 as libc::c_int;
-                    current_block = 4308184267787558803;
-                    break 's_132;
+                    current_block = 5931832752456304075;
+                    break 's_104;
                 }
                 8 => {
                     if c == 0 as libc::c_int {
-                        current_block = 18377268871191777778;
+                        current_block = 7172762164747879670;
                     } else {
-                        current_block = 17239133558811367971;
+                        current_block = 8835654301469918283;
                     }
                 }
                 7 => {
-                    current_block = 17239133558811367971;
+                    current_block = 8835654301469918283;
                 }
                 _ => {
-                    current_block = 18377268871191777778;
+                    current_block = 7172762164747879670;
                 }
             }
             match current_block {
-                17239133558811367971 => {
+                8835654301469918283 => {
                     let mut j: libc::c_int = 1 as libc::c_int;
                     let mut n: libc::c_int = *((*pRe).aArg).offset(x_0 as isize);
                     let mut hit: libc::c_int = 0 as libc::c_int;
@@ -5554,9 +5535,9 @@ unsafe extern "C" fn sqlite3re_match(
                                 j = -(1 as libc::c_int);
                             }
                         } else if *((*pRe).aArg).offset((x_0 + j) as isize) <= c
-                                && *((*pRe).aArg)
-                                    .offset((x_0 + j + 1 as libc::c_int) as isize) >= c
-                            {
+                            && *((*pRe).aArg)
+                                .offset((x_0 + j + 1 as libc::c_int) as isize) >= c
+                        {
                             hit = 1 as libc::c_int;
                             j = -(1 as libc::c_int);
                         } else {
@@ -5579,7 +5560,7 @@ unsafe extern "C" fn sqlite3re_match(
         }
     }
     match current_block {
-        14865402277128115059 => {
+        576355610076403033 => {
             i = 0 as libc::c_int as libc::c_uint;
             while i < (*pNext).nState {
                 if *((*pRe).aOp).offset(*((*pNext).aState).offset(i as isize) as isize)
@@ -5606,25 +5587,23 @@ unsafe extern "C" fn re_resize(
     aOp = sqlite3_realloc64(
         (*p).aOp as *mut libc::c_void,
         (N as libc::c_ulong)
-            .wrapping_mul(::std::mem::size_of::<libc::c_char>() as libc::c_ulong)
+            .wrapping_mul(::core::mem::size_of::<libc::c_char>() as libc::c_ulong)
             as sqlite3_uint64,
     ) as *mut libc::c_char;
     if aOp.is_null() {
         return 1 as libc::c_int;
     }
-    let ref mut fresh45 = (*p).aOp;
-    *fresh45 = aOp;
+    (*p).aOp = aOp;
     aArg = sqlite3_realloc64(
         (*p).aArg as *mut libc::c_void,
         (N as libc::c_ulong)
-            .wrapping_mul(::std::mem::size_of::<libc::c_int>() as libc::c_ulong)
+            .wrapping_mul(::core::mem::size_of::<libc::c_int>() as libc::c_ulong)
             as sqlite3_uint64,
     ) as *mut libc::c_int;
     if aArg.is_null() {
         return 1 as libc::c_int;
     }
-    let ref mut fresh46 = (*p).aArg;
-    *fresh46 = aArg;
+    (*p).aArg = aArg;
     (*p).nAlloc = N as libc::c_uint;
     return 0 as libc::c_int;
 }
@@ -5651,8 +5630,7 @@ unsafe extern "C" fn re_insert(
             .offset(i as isize) = *((*p).aArg).offset((i - 1 as libc::c_int) as isize);
         i -= 1;
     }
-    let ref mut fresh47 = (*p).nState;
-    *fresh47 = (*fresh47).wrapping_add(1);
+    (*p).nState = ((*p).nState).wrapping_add(1);
     *((*p).aOp).offset(iBefore as isize) = op as libc::c_char;
     *((*p).aArg).offset(iBefore as isize) = arg;
     return iBefore;
@@ -5685,7 +5663,7 @@ unsafe extern "C" fn re_copy(
         &mut *((*p).aOp).offset(iStart as isize) as *mut libc::c_char
             as *const libc::c_void,
         (N as libc::c_ulong)
-            .wrapping_mul(::std::mem::size_of::<libc::c_char>() as libc::c_ulong),
+            .wrapping_mul(::core::mem::size_of::<libc::c_char>() as libc::c_ulong),
     );
     memcpy(
         &mut *((*p).aArg).offset((*p).nState as isize) as *mut libc::c_int
@@ -5693,10 +5671,9 @@ unsafe extern "C" fn re_copy(
         &mut *((*p).aArg).offset(iStart as isize) as *mut libc::c_int
             as *const libc::c_void,
         (N as libc::c_ulong)
-            .wrapping_mul(::std::mem::size_of::<libc::c_int>() as libc::c_ulong),
+            .wrapping_mul(::core::mem::size_of::<libc::c_int>() as libc::c_ulong),
     );
-    let ref mut fresh48 = (*p).nState;
-    *fresh48 = (*fresh48).wrapping_add(N as libc::c_uint);
+    (*p).nState = ((*p).nState).wrapping_add(N as libc::c_uint);
 }
 unsafe extern "C" fn re_hex(
     mut c: libc::c_int,
@@ -5716,13 +5693,13 @@ unsafe extern "C" fn re_hex(
 }
 unsafe extern "C" fn re_esc_char(mut p: *mut ReCompiled) -> libc::c_uint {
     static mut zEsc: [libc::c_char; 21] = unsafe {
-        *::std::mem::transmute::<
+        *::core::mem::transmute::<
             &[u8; 21],
             &[libc::c_char; 21],
         >(b"afnrtv\\()*.+?[$^{|}]\0")
     };
     static mut zTrans: [libc::c_char; 7] = unsafe {
-        *::std::mem::transmute::<&[u8; 7], &[libc::c_char; 7]>(b"\x07\x0C\n\r\t\x0B\0")
+        *::core::mem::transmute::<&[u8; 7], &[libc::c_char; 7]>(b"\x07\x0C\n\r\t\x0B\0")
     };
     let mut i: libc::c_int = 0;
     let mut v: libc::c_int = 0 as libc::c_int;
@@ -5762,11 +5739,9 @@ unsafe extern "C" fn re_esc_char(mut p: *mut ReCompiled) -> libc::c_uint {
         if i < 6 as libc::c_int {
             c = zTrans[i as usize];
         }
-        let ref mut fresh49 = (*p).sIn.i;
-        *fresh49 += 1;
+        (*p).sIn.i += 1;
     } else {
-        let ref mut fresh50 = (*p).zErr;
-        *fresh50 = b"unknown \\ escape\0" as *const u8 as *const libc::c_char;
+        (*p).zErr = b"unknown \\ escape\0" as *const u8 as *const libc::c_char;
     }
     return c as libc::c_uint;
 }
@@ -5791,8 +5766,7 @@ unsafe extern "C" fn re_subcompile_re(mut p: *mut ReCompiled) -> *const libc::c_
         iEnd = (*p).nState as libc::c_int;
         re_insert(p, iStart, 4 as libc::c_int, iEnd + 2 as libc::c_int - iStart);
         iGoto = re_append(p, 5 as libc::c_int, 0 as libc::c_int);
-        let ref mut fresh51 = (*p).sIn.i;
-        *fresh51 += 1;
+        (*p).sIn.i += 1;
         zErr = re_subcompile_string(p);
         if !zErr.is_null() {
             return zErr;
@@ -5819,8 +5793,7 @@ unsafe extern "C" fn re_subcompile_string(
         iStart = (*p).nState as libc::c_int;
         match c {
             124 | 36 | 41 => {
-                let ref mut fresh52 = (*p).sIn.i;
-                *fresh52 -= 1;
+                (*p).sIn.i -= 1;
                 return 0 as *const libc::c_char;
             }
             40 => {
@@ -5831,14 +5804,12 @@ unsafe extern "C" fn re_subcompile_string(
                 if rePeek(p) as libc::c_int != ')' as i32 {
                     return b"unmatched '('\0" as *const u8 as *const libc::c_char;
                 }
-                let ref mut fresh53 = (*p).sIn.i;
-                *fresh53 += 1;
+                (*p).sIn.i += 1;
             }
             46 => {
                 if rePeek(p) as libc::c_int == '*' as i32 {
                     re_append(p, 3 as libc::c_int, 0 as libc::c_int);
-                    let ref mut fresh54 = (*p).sIn.i;
-                    *fresh54 += 1;
+                    (*p).sIn.i += 1;
                 } else {
                     re_append(p, 2 as libc::c_int, 0 as libc::c_int);
                 }
@@ -5905,13 +5876,11 @@ unsafe extern "C" fn re_subcompile_string(
                     m = ((m * 10 as libc::c_int) as libc::c_uint)
                         .wrapping_add(c)
                         .wrapping_sub('0' as i32 as libc::c_uint) as libc::c_int;
-                    let ref mut fresh55 = (*p).sIn.i;
-                    *fresh55 += 1;
+                    (*p).sIn.i += 1;
                 }
                 n = m;
                 if c == ',' as i32 as libc::c_uint {
-                    let ref mut fresh56 = (*p).sIn.i;
-                    *fresh56 += 1;
+                    (*p).sIn.i += 1;
                     n = 0 as libc::c_int;
                     loop {
                         c = rePeek(p) as libc::c_uint;
@@ -5923,8 +5892,7 @@ unsafe extern "C" fn re_subcompile_string(
                         n = ((n * 10 as libc::c_int) as libc::c_uint)
                             .wrapping_add(c)
                             .wrapping_sub('0' as i32 as libc::c_uint) as libc::c_int;
-                        let ref mut fresh57 = (*p).sIn.i;
-                        *fresh57 += 1;
+                        (*p).sIn.i += 1;
                     }
                 }
                 if c != '}' as i32 as libc::c_uint {
@@ -5934,8 +5902,7 @@ unsafe extern "C" fn re_subcompile_string(
                     return b"n less than m in '{m,n}'\0" as *const u8
                         as *const libc::c_char;
                 }
-                let ref mut fresh58 = (*p).sIn.i;
-                *fresh58 += 1;
+                (*p).sIn.i += 1;
                 sz = ((*p).nState).wrapping_sub(iPrev as libc::c_uint) as libc::c_int;
                 if m == 0 as libc::c_int {
                     if n == 0 as libc::c_int {
@@ -5965,8 +5932,7 @@ unsafe extern "C" fn re_subcompile_string(
                 let mut iFirst: libc::c_int = (*p).nState as libc::c_int;
                 if rePeek(p) as libc::c_int == '^' as i32 {
                     re_append(p, 8 as libc::c_int, 0 as libc::c_int);
-                    let ref mut fresh59 = (*p).sIn.i;
-                    *fresh59 += 1;
+                    (*p).sIn.i += 1;
                 } else {
                     re_append(p, 7 as libc::c_int, 0 as libc::c_int);
                 }
@@ -5987,8 +5953,7 @@ unsafe extern "C" fn re_subcompile_string(
                     }
                     if rePeek(p) as libc::c_int == '-' as i32 {
                         re_append(p, 10 as libc::c_int, c as libc::c_int);
-                        let ref mut fresh60 = (*p).sIn.i;
-                        *fresh60 += 1;
+                        (*p).sIn.i += 1;
                         c = ((*p).xNextChar)
                             .expect("non-null function pointer")(&mut (*p).sIn);
                         if c == '\\' as i32 as libc::c_uint {
@@ -6001,8 +5966,7 @@ unsafe extern "C" fn re_subcompile_string(
                     if !(rePeek(p) as libc::c_int == ']' as i32) {
                         continue;
                     }
-                    let ref mut fresh61 = (*p).sIn.i;
-                    *fresh61 += 1;
+                    (*p).sIn.i += 1;
                     break;
                 }
                 if c == 0 as libc::c_int as libc::c_uint {
@@ -6041,8 +6005,7 @@ unsafe extern "C" fn re_subcompile_string(
                     _ => {}
                 }
                 if specialOp != 0 {
-                    let ref mut fresh62 = (*p).sIn.i;
-                    *fresh62 += 1;
+                    (*p).sIn.i += 1;
                     re_append(p, specialOp, 0 as libc::c_int);
                 } else {
                     c = re_esc_char(p);
@@ -6075,7 +6038,7 @@ unsafe extern "C" fn sqlite3re_compile(
     let mut j: libc::c_int = 0;
     *ppRe = 0 as *mut ReCompiled;
     pRe = sqlite3_malloc(
-        ::std::mem::size_of::<ReCompiled>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<ReCompiled>() as libc::c_ulong as libc::c_int,
     ) as *mut ReCompiled;
     if pRe.is_null() {
         return b"out of memory\0" as *const u8 as *const libc::c_char;
@@ -6083,10 +6046,10 @@ unsafe extern "C" fn sqlite3re_compile(
     memset(
         pRe as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<ReCompiled>() as libc::c_ulong,
+        ::core::mem::size_of::<ReCompiled>() as libc::c_ulong,
     );
-    let ref mut fresh63 = (*pRe).xNextChar;
-    *fresh63 = if noCase != 0 {
+    (*pRe)
+        .xNextChar = if noCase != 0 {
         Some(re_next_char_nocase as unsafe extern "C" fn(*mut ReInput) -> libc::c_uint)
     } else {
         Some(re_next_char as unsafe extern "C" fn(*mut ReInput) -> libc::c_uint)
@@ -6100,8 +6063,7 @@ unsafe extern "C" fn sqlite3re_compile(
     } else {
         re_append(pRe, 3 as libc::c_int, 0 as libc::c_int);
     }
-    let ref mut fresh64 = (*pRe).sIn.z;
-    *fresh64 = zIn as *mut libc::c_uchar;
+    (*pRe).sIn.z = zIn as *mut libc::c_uchar;
     (*pRe).sIn.i = 0 as libc::c_int;
     (*pRe).sIn.mx = strlen(zIn) as libc::c_int;
     zErr = re_subcompile_re(pRe);
@@ -6128,49 +6090,49 @@ unsafe extern "C" fn sqlite3re_compile(
         j = 0 as libc::c_int;
         i = 1 as libc::c_int;
         while j
-            < ::std::mem::size_of::<[libc::c_uchar; 12]>() as libc::c_ulong
+            < ::core::mem::size_of::<[libc::c_uchar; 12]>() as libc::c_ulong
                 as libc::c_int - 2 as libc::c_int
             && *((*pRe).aOp).offset(i as isize) as libc::c_int == 1 as libc::c_int
         {
             let mut x: libc::c_uint = *((*pRe).aArg).offset(i as isize) as libc::c_uint;
             if x <= 127 as libc::c_int as libc::c_uint {
-                let fresh65 = j;
+                let fresh17 = j;
                 j = j + 1;
-                (*pRe).zInit[fresh65 as usize] = x as libc::c_uchar;
+                (*pRe).zInit[fresh17 as usize] = x as libc::c_uchar;
             } else if x <= 0xfff as libc::c_int as libc::c_uint {
-                let fresh66 = j;
+                let fresh18 = j;
                 j = j + 1;
                 (*pRe)
-                    .zInit[fresh66
+                    .zInit[fresh18
                     as usize] = (0xc0 as libc::c_int as libc::c_uint
                     | x >> 6 as libc::c_int) as libc::c_uchar;
-                let fresh67 = j;
+                let fresh19 = j;
                 j = j + 1;
                 (*pRe)
-                    .zInit[fresh67
+                    .zInit[fresh19
                     as usize] = (0x80 as libc::c_int as libc::c_uint
                     | x & 0x3f as libc::c_int as libc::c_uint) as libc::c_uchar;
             } else {
                 if !(x <= 0xffff as libc::c_int as libc::c_uint) {
                     break;
                 }
-                let fresh68 = j;
+                let fresh20 = j;
                 j = j + 1;
                 (*pRe)
-                    .zInit[fresh68
+                    .zInit[fresh20
                     as usize] = (0xe0 as libc::c_int as libc::c_uint
                     | x >> 12 as libc::c_int) as libc::c_uchar;
-                let fresh69 = j;
+                let fresh21 = j;
                 j = j + 1;
                 (*pRe)
-                    .zInit[fresh69
+                    .zInit[fresh21
                     as usize] = (0x80 as libc::c_int as libc::c_uint
                     | x >> 6 as libc::c_int & 0x3f as libc::c_int as libc::c_uint)
                     as libc::c_uchar;
-                let fresh70 = j;
+                let fresh22 = j;
                 j = j + 1;
                 (*pRe)
-                    .zInit[fresh70
+                    .zInit[fresh22
                     as usize] = (0x80 as libc::c_int as libc::c_uint
                     | x & 0x3f as libc::c_int as libc::c_uint) as libc::c_uchar;
             }
@@ -6228,7 +6190,7 @@ unsafe extern "C" fn re_sql_func(
             context,
             0 as libc::c_int,
             pRe as *mut libc::c_void,
-            ::std::mem::transmute::<
+            ::core::mem::transmute::<
                 Option::<unsafe extern "C" fn(*mut ReCompiled) -> ()>,
                 Option::<unsafe extern "C" fn(*mut libc::c_void) -> ()>,
             >(Some(sqlite3re_free as unsafe extern "C" fn(*mut ReCompiled) -> ())),
@@ -6347,7 +6309,7 @@ unsafe extern "C" fn ctxErrorMsg(
     mut args: ...
 ) {
     let mut zMsg: *mut libc::c_char = 0 as *mut libc::c_char;
-    let mut ap: ::std::ffi::VaListImpl;
+    let mut ap: ::core::ffi::VaListImpl;
     ap = args.clone();
     zMsg = sqlite3_vmprintf(zFmt, ap.as_va_list());
     sqlite3_result_error(ctx, zMsg, -(1 as libc::c_int));
@@ -6408,8 +6370,8 @@ unsafe extern "C" fn makeDirectory(mut zFile: *const libc::c_char) -> libc::c_in
                     rc = 1 as libc::c_int;
                 }
             } else if !(sStat.st_mode & 0o170000 as libc::c_int as libc::c_uint
-                    == 0o40000 as libc::c_int as libc::c_uint)
-                {
+                == 0o40000 as libc::c_int as libc::c_uint)
+            {
                 rc = 1 as libc::c_int;
             }
             *zCopy.offset(i as isize) = '/' as i32 as libc::c_char;
@@ -6438,8 +6400,8 @@ unsafe extern "C" fn writeFile(
             return 1 as libc::c_int;
         }
     } else if mode & 0o170000 as libc::c_int as libc::c_uint
-            == 0o40000 as libc::c_int as libc::c_uint
-        {
+        == 0o40000 as libc::c_int as libc::c_uint
+    {
         if mkdir(zFile, mode) != 0 {
             let mut sStat: stat = stat {
                 st_dev: 0,
@@ -6575,8 +6537,8 @@ unsafe extern "C" fn writefileFunc(
                 zFile,
             );
         } else if mode & 0o170000 as libc::c_int as libc::c_uint
-                == 0o40000 as libc::c_int as libc::c_uint
-            {
+            == 0o40000 as libc::c_int as libc::c_uint
+        {
             ctxErrorMsg(
                 context,
                 b"failed to create directory: %s\0" as *const u8 as *const libc::c_char,
@@ -6639,7 +6601,7 @@ unsafe extern "C" fn lsModeFunc(
         context,
         z.as_mut_ptr(),
         -(1 as libc::c_int),
-        ::std::mem::transmute::<
+        ::core::mem::transmute::<
             libc::intptr_t,
             sqlite3_destructor_type,
         >(-(1 as libc::c_int) as libc::intptr_t),
@@ -6662,7 +6624,7 @@ unsafe extern "C" fn fsdirConnect(
     );
     if rc == 0 as libc::c_int {
         pNew = sqlite3_malloc(
-            ::std::mem::size_of::<fsdir_tab>() as libc::c_ulong as libc::c_int,
+            ::core::mem::size_of::<fsdir_tab>() as libc::c_ulong as libc::c_int,
         ) as *mut fsdir_tab;
         if pNew.is_null() {
             return 7 as libc::c_int;
@@ -6670,7 +6632,7 @@ unsafe extern "C" fn fsdirConnect(
         memset(
             pNew as *mut libc::c_void,
             0 as libc::c_int,
-            ::std::mem::size_of::<fsdir_tab>() as libc::c_ulong,
+            ::core::mem::size_of::<fsdir_tab>() as libc::c_ulong,
         );
         sqlite3_vtab_config(db, 3 as libc::c_int);
     }
@@ -6687,7 +6649,7 @@ unsafe extern "C" fn fsdirOpen(
 ) -> libc::c_int {
     let mut pCur: *mut fsdir_cursor = 0 as *mut fsdir_cursor;
     pCur = sqlite3_malloc(
-        ::std::mem::size_of::<fsdir_cursor>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<fsdir_cursor>() as libc::c_ulong as libc::c_int,
     ) as *mut fsdir_cursor;
     if pCur.is_null() {
         return 7 as libc::c_int;
@@ -6695,7 +6657,7 @@ unsafe extern "C" fn fsdirOpen(
     memset(
         pCur as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<fsdir_cursor>() as libc::c_ulong,
+        ::core::mem::size_of::<fsdir_cursor>() as libc::c_ulong,
     );
     (*pCur).iLvl = -(1 as libc::c_int);
     *ppCursor = &mut (*pCur).base;
@@ -6715,12 +6677,9 @@ unsafe extern "C" fn fsdirResetCursor(mut pCur: *mut fsdir_cursor) {
     }
     sqlite3_free((*pCur).zPath as *mut libc::c_void);
     sqlite3_free((*pCur).aLvl as *mut libc::c_void);
-    let ref mut fresh71 = (*pCur).aLvl;
-    *fresh71 = 0 as *mut FsdirLevel;
-    let ref mut fresh72 = (*pCur).zPath;
-    *fresh72 = 0 as *mut libc::c_char;
-    let ref mut fresh73 = (*pCur).zBase;
-    *fresh73 = 0 as *const libc::c_char;
+    (*pCur).aLvl = 0 as *mut FsdirLevel;
+    (*pCur).zPath = 0 as *mut libc::c_char;
+    (*pCur).zBase = 0 as *const libc::c_char;
     (*pCur).nBase = 0 as libc::c_int;
     (*pCur).nLvl = 0 as libc::c_int;
     (*pCur).iLvl = -(1 as libc::c_int);
@@ -6737,16 +6696,14 @@ unsafe extern "C" fn fsdirSetErrmsg(
     mut zFmt: *const libc::c_char,
     mut args: ...
 ) {
-    let mut ap: ::std::ffi::VaListImpl;
+    let mut ap: ::core::ffi::VaListImpl;
     ap = args.clone();
-    let ref mut fresh74 = (*(*pCur).base.pVtab).zErrMsg;
-    *fresh74 = sqlite3_vmprintf(zFmt, ap.as_va_list());
+    (*(*pCur).base.pVtab).zErrMsg = sqlite3_vmprintf(zFmt, ap.as_va_list());
 }
 unsafe extern "C" fn fsdirNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int {
     let mut pCur: *mut fsdir_cursor = cur as *mut fsdir_cursor;
     let mut m: mode_t = (*pCur).sStat.st_mode;
-    let ref mut fresh75 = (*pCur).iRowid;
-    *fresh75 += 1;
+    (*pCur).iRowid += 1;
     if m & 0o170000 as libc::c_int as libc::c_uint
         == 0o40000 as libc::c_int as libc::c_uint
     {
@@ -6755,7 +6712,7 @@ unsafe extern "C" fn fsdirNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int
         if iNew >= (*pCur).nLvl {
             let mut nNew: libc::c_int = iNew + 1 as libc::c_int;
             let mut nByte: sqlite3_int64 = (nNew as libc::c_ulong)
-                .wrapping_mul(::std::mem::size_of::<FsdirLevel>() as libc::c_ulong)
+                .wrapping_mul(::core::mem::size_of::<FsdirLevel>() as libc::c_ulong)
                 as sqlite3_int64;
             let mut aNew: *mut FsdirLevel = sqlite3_realloc64(
                 (*pCur).aLvl as *mut libc::c_void,
@@ -6768,21 +6725,17 @@ unsafe extern "C" fn fsdirNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int
                 &mut *aNew.offset((*pCur).nLvl as isize) as *mut FsdirLevel
                     as *mut libc::c_void,
                 0 as libc::c_int,
-                (::std::mem::size_of::<FsdirLevel>() as libc::c_ulong)
+                (::core::mem::size_of::<FsdirLevel>() as libc::c_ulong)
                     .wrapping_mul((nNew - (*pCur).nLvl) as libc::c_ulong),
             );
-            let ref mut fresh76 = (*pCur).aLvl;
-            *fresh76 = aNew;
+            (*pCur).aLvl = aNew;
             (*pCur).nLvl = nNew;
         }
         (*pCur).iLvl = iNew;
         pLvl = &mut *((*pCur).aLvl).offset(iNew as isize) as *mut FsdirLevel;
-        let ref mut fresh77 = (*pLvl).zDir;
-        *fresh77 = (*pCur).zPath;
-        let ref mut fresh78 = (*pCur).zPath;
-        *fresh78 = 0 as *mut libc::c_char;
-        let ref mut fresh79 = (*pLvl).pDir;
-        *fresh79 = opendir((*pLvl).zDir);
+        (*pLvl).zDir = (*pCur).zPath;
+        (*pCur).zPath = 0 as *mut libc::c_char;
+        (*pLvl).pDir = opendir((*pLvl).zDir);
         if ((*pLvl).pDir).is_null() {
             fsdirSetErrmsg(
                 pCur,
@@ -6812,8 +6765,8 @@ unsafe extern "C" fn fsdirNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int
                 }
             }
             sqlite3_free((*pCur).zPath as *mut libc::c_void);
-            let ref mut fresh80 = (*pCur).zPath;
-            *fresh80 = sqlite3_mprintf(
+            (*pCur)
+                .zPath = sqlite3_mprintf(
                 b"%s/%s\0" as *const u8 as *const libc::c_char,
                 (*pLvl_0).zDir,
                 ((*pEntry).d_name).as_mut_ptr(),
@@ -6833,17 +6786,13 @@ unsafe extern "C" fn fsdirNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int
         } else {
             closedir((*pLvl_0).pDir);
             sqlite3_free((*pLvl_0).zDir as *mut libc::c_void);
-            let ref mut fresh81 = (*pLvl_0).pDir;
-            *fresh81 = 0 as *mut DIR;
-            let ref mut fresh82 = (*pLvl_0).zDir;
-            *fresh82 = 0 as *mut libc::c_char;
-            let ref mut fresh83 = (*pCur).iLvl;
-            *fresh83 -= 1;
+            (*pLvl_0).pDir = 0 as *mut DIR;
+            (*pLvl_0).zDir = 0 as *mut libc::c_char;
+            (*pCur).iLvl -= 1;
         }
     }
     sqlite3_free((*pCur).zPath as *mut libc::c_void);
-    let ref mut fresh84 = (*pCur).zPath;
-    *fresh84 = 0 as *mut libc::c_char;
+    (*pCur).zPath = 0 as *mut libc::c_char;
     return 0 as libc::c_int;
 }
 unsafe extern "C" fn fsdirColumn(
@@ -6858,7 +6807,7 @@ unsafe extern "C" fn fsdirColumn(
                 ctx,
                 &mut *((*pCur).zPath).offset((*pCur).nBase as isize),
                 -(1 as libc::c_int),
-                ::std::mem::transmute::<
+                ::core::mem::transmute::<
                     libc::intptr_t,
                     sqlite3_destructor_type,
                 >(-(1 as libc::c_int) as libc::intptr_t),
@@ -6877,8 +6826,8 @@ unsafe extern "C" fn fsdirColumn(
             {
                 sqlite3_result_null(ctx);
             } else if m & 0o170000 as libc::c_int as libc::c_uint
-                    == 0o120000 as libc::c_int as libc::c_uint
-                {
+                == 0o120000 as libc::c_int as libc::c_uint
+            {
                 let mut aStatic: [libc::c_char; 64] = [0; 64];
                 let mut aBuf: *mut libc::c_char = aStatic.as_mut_ptr();
                 let mut nBuf: sqlite3_int64 = 64 as libc::c_int as sqlite3_int64;
@@ -6902,7 +6851,7 @@ unsafe extern "C" fn fsdirColumn(
                     ctx,
                     aBuf,
                     n,
-                    ::std::mem::transmute::<
+                    ::core::mem::transmute::<
                         libc::intptr_t,
                         sqlite3_destructor_type,
                     >(-(1 as libc::c_int) as libc::intptr_t),
@@ -6954,7 +6903,7 @@ unsafe extern "C" fn fsdirFilter(
                 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             5354 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 81],
                 &[libc::c_char; 81],
             >(
@@ -6974,21 +6923,21 @@ unsafe extern "C" fn fsdirFilter(
         return 1 as libc::c_int;
     }
     if argc == 2 as libc::c_int {
-        let ref mut fresh85 = (*pCur).zBase;
-        *fresh85 = sqlite3_value_text(*argv.offset(1 as libc::c_int as isize))
+        (*pCur)
+            .zBase = sqlite3_value_text(*argv.offset(1 as libc::c_int as isize))
             as *const libc::c_char;
     }
     if !((*pCur).zBase).is_null() {
         (*pCur).nBase = strlen((*pCur).zBase) as libc::c_int + 1 as libc::c_int;
-        let ref mut fresh86 = (*pCur).zPath;
-        *fresh86 = sqlite3_mprintf(
+        (*pCur)
+            .zPath = sqlite3_mprintf(
             b"%s/%s\0" as *const u8 as *const libc::c_char,
             (*pCur).zBase,
             zDir,
         );
     } else {
-        let ref mut fresh87 = (*pCur).zPath;
-        *fresh87 = sqlite3_mprintf(b"%s\0" as *const u8 as *const libc::c_char, zDir);
+        (*pCur)
+            .zPath = sqlite3_mprintf(b"%s\0" as *const u8 as *const libc::c_char, zDir);
     }
     if ((*pCur).zPath).is_null() {
         return 7 as libc::c_int;
@@ -7247,7 +7196,7 @@ unsafe extern "C" fn completionConnect(
     );
     if rc == 0 as libc::c_int {
         pNew = sqlite3_malloc(
-            ::std::mem::size_of::<completion_vtab>() as libc::c_ulong as libc::c_int,
+            ::core::mem::size_of::<completion_vtab>() as libc::c_ulong as libc::c_int,
         ) as *mut completion_vtab;
         *ppVtab = pNew as *mut sqlite3_vtab;
         if pNew.is_null() {
@@ -7256,10 +7205,9 @@ unsafe extern "C" fn completionConnect(
         memset(
             pNew as *mut libc::c_void,
             0 as libc::c_int,
-            ::std::mem::size_of::<completion_vtab>() as libc::c_ulong,
+            ::core::mem::size_of::<completion_vtab>() as libc::c_ulong,
         );
-        let ref mut fresh88 = (*pNew).db;
-        *fresh88 = db;
+        (*pNew).db = db;
     }
     return rc;
 }
@@ -7273,7 +7221,7 @@ unsafe extern "C" fn completionOpen(
 ) -> libc::c_int {
     let mut pCur: *mut completion_cursor = 0 as *mut completion_cursor;
     pCur = sqlite3_malloc(
-        ::std::mem::size_of::<completion_cursor>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<completion_cursor>() as libc::c_ulong as libc::c_int,
     ) as *mut completion_cursor;
     if pCur.is_null() {
         return 7 as libc::c_int;
@@ -7281,25 +7229,21 @@ unsafe extern "C" fn completionOpen(
     memset(
         pCur as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<completion_cursor>() as libc::c_ulong,
+        ::core::mem::size_of::<completion_cursor>() as libc::c_ulong,
     );
-    let ref mut fresh89 = (*pCur).db;
-    *fresh89 = (*(p as *mut completion_vtab)).db;
+    (*pCur).db = (*(p as *mut completion_vtab)).db;
     *ppCursor = &mut (*pCur).base;
     return 0 as libc::c_int;
 }
 unsafe extern "C" fn completionCursorReset(mut pCur: *mut completion_cursor) {
     sqlite3_free((*pCur).zPrefix as *mut libc::c_void);
-    let ref mut fresh90 = (*pCur).zPrefix;
-    *fresh90 = 0 as *mut libc::c_char;
+    (*pCur).zPrefix = 0 as *mut libc::c_char;
     (*pCur).nPrefix = 0 as libc::c_int;
     sqlite3_free((*pCur).zLine as *mut libc::c_void);
-    let ref mut fresh91 = (*pCur).zLine;
-    *fresh91 = 0 as *mut libc::c_char;
+    (*pCur).zLine = 0 as *mut libc::c_char;
     (*pCur).nLine = 0 as libc::c_int;
     sqlite3_finalize((*pCur).pStmt);
-    let ref mut fresh92 = (*pCur).pStmt;
-    *fresh92 = 0 as *mut sqlite3_stmt;
+    (*pCur).pStmt = 0 as *mut sqlite3_stmt;
     (*pCur).j = 0 as libc::c_int;
 }
 unsafe extern "C" fn completionClose(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_int {
@@ -7311,21 +7255,18 @@ unsafe extern "C" fn completionNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::
     let mut pCur: *mut completion_cursor = cur as *mut completion_cursor;
     let mut eNextPhase: libc::c_int = 0 as libc::c_int;
     let mut iCol: libc::c_int = -(1 as libc::c_int);
-    let ref mut fresh93 = (*pCur).iRowid;
-    *fresh93 += 1;
+    (*pCur).iRowid += 1;
     while (*pCur).ePhase != 11 as libc::c_int {
         match (*pCur).ePhase {
             1 => {
                 if (*pCur).j >= sqlite3_keyword_count() {
-                    let ref mut fresh94 = (*pCur).zCurrentRow;
-                    *fresh94 = 0 as *const libc::c_char;
+                    (*pCur).zCurrentRow = 0 as *const libc::c_char;
                     (*pCur).ePhase = 7 as libc::c_int;
                 } else {
-                    let ref mut fresh95 = (*pCur).j;
-                    let fresh96 = *fresh95;
-                    *fresh95 = *fresh95 + 1;
+                    let fresh23 = (*pCur).j;
+                    (*pCur).j = (*pCur).j + 1;
                     sqlite3_keyword_name(
-                        fresh96,
+                        fresh23,
                         &mut (*pCur).zCurrentRow,
                         &mut (*pCur).szRow,
                     );
@@ -7439,13 +7380,13 @@ unsafe extern "C" fn completionNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::
                 continue;
             }
         } else if sqlite3_step((*pCur).pStmt) == 100 as libc::c_int {
-            let ref mut fresh97 = (*pCur).zCurrentRow;
-            *fresh97 = sqlite3_column_text((*pCur).pStmt, iCol) as *const libc::c_char;
+            (*pCur)
+                .zCurrentRow = sqlite3_column_text((*pCur).pStmt, iCol)
+                as *const libc::c_char;
             (*pCur).szRow = sqlite3_column_bytes((*pCur).pStmt, iCol);
         } else {
             sqlite3_finalize((*pCur).pStmt);
-            let ref mut fresh98 = (*pCur).pStmt;
-            *fresh98 = 0 as *mut sqlite3_stmt;
+            (*pCur).pStmt = 0 as *mut sqlite3_stmt;
             (*pCur).ePhase = eNextPhase;
             continue;
         }
@@ -7473,7 +7414,7 @@ unsafe extern "C" fn completionColumn(
                 ctx,
                 (*pCur).zCurrentRow,
                 (*pCur).szRow,
-                ::std::mem::transmute::<
+                ::core::mem::transmute::<
                     libc::intptr_t,
                     sqlite3_destructor_type,
                 >(-(1 as libc::c_int) as libc::intptr_t),
@@ -7484,7 +7425,7 @@ unsafe extern "C" fn completionColumn(
                 ctx,
                 (*pCur).zPrefix,
                 -(1 as libc::c_int),
-                ::std::mem::transmute::<
+                ::core::mem::transmute::<
                     libc::intptr_t,
                     sqlite3_destructor_type,
                 >(-(1 as libc::c_int) as libc::intptr_t),
@@ -7495,7 +7436,7 @@ unsafe extern "C" fn completionColumn(
                 ctx,
                 (*pCur).zLine,
                 -(1 as libc::c_int),
-                ::std::mem::transmute::<
+                ::core::mem::transmute::<
                     libc::intptr_t,
                     sqlite3_destructor_type,
                 >(-(1 as libc::c_int) as libc::intptr_t),
@@ -7533,8 +7474,8 @@ unsafe extern "C" fn completionFilter(
     if idxNum & 1 as libc::c_int != 0 {
         (*pCur).nPrefix = sqlite3_value_bytes(*argv.offset(iArg as isize));
         if (*pCur).nPrefix > 0 as libc::c_int {
-            let ref mut fresh99 = (*pCur).zPrefix;
-            *fresh99 = sqlite3_mprintf(
+            (*pCur)
+                .zPrefix = sqlite3_mprintf(
                 b"%s\0" as *const u8 as *const libc::c_char,
                 sqlite3_value_text(*argv.offset(iArg as isize)),
             );
@@ -7547,8 +7488,8 @@ unsafe extern "C" fn completionFilter(
     if idxNum & 2 as libc::c_int != 0 {
         (*pCur).nLine = sqlite3_value_bytes(*argv.offset(iArg as isize));
         if (*pCur).nLine > 0 as libc::c_int {
-            let ref mut fresh100 = (*pCur).zLine;
-            *fresh100 = sqlite3_mprintf(
+            (*pCur)
+                .zLine = sqlite3_mprintf(
                 b"%s\0" as *const u8 as *const libc::c_char,
                 sqlite3_value_text(*argv.offset(iArg as isize)),
             );
@@ -7573,8 +7514,8 @@ unsafe extern "C" fn completionFilter(
         }
         (*pCur).nPrefix = (*pCur).nLine - i;
         if (*pCur).nPrefix > 0 as libc::c_int {
-            let ref mut fresh101 = (*pCur).zPrefix;
-            *fresh101 = sqlite3_mprintf(
+            (*pCur)
+                .zPrefix = sqlite3_mprintf(
                 b"%.*s\0" as *const u8 as *const libc::c_char,
                 (*pCur).nPrefix,
                 ((*pCur).zLine).offset(i as isize),
@@ -8044,7 +7985,7 @@ unsafe extern "C" fn apndWriteMark(
             b"pFile == ORIGFILE(paf)\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             6298 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 60],
                 &[libc::c_char; 60],
             >(b"int apndWriteMark(ApndFile *, sqlite3_file *, sqlite_int64)\0"))
@@ -8182,14 +8123,14 @@ unsafe extern "C" fn apndFileControl(
     pFile = (pFile as *mut ApndFile).offset(1 as libc::c_int as isize)
         as *mut sqlite3_file;
     if op == 5 as libc::c_int {
-        let ref mut fresh102 = *(pArg as *mut sqlite3_int64);
-        *fresh102 += (*paf).iPgOne;
+        let ref mut fresh24 = *(pArg as *mut sqlite3_int64);
+        *fresh24 += (*paf).iPgOne;
     }
     rc = ((*(*pFile).pMethods).xFileControl)
         .expect("non-null function pointer")(pFile, op, pArg);
     if rc == 0 as libc::c_int && op == 12 as libc::c_int {
-        let ref mut fresh103 = *(pArg as *mut *mut libc::c_char);
-        *fresh103 = sqlite3_mprintf(
+        let ref mut fresh25 = *(pArg as *mut *mut libc::c_char);
+        *fresh25 = sqlite3_mprintf(
             b"apnd(%lld)/%z\0" as *const u8 as *const libc::c_char,
             (*paf).iPgOne,
             *(pArg as *mut *mut libc::c_char),
@@ -8330,7 +8271,7 @@ unsafe extern "C" fn apndReadMark(
     return iMark;
 }
 static mut apvfsSqliteHdr: [libc::c_char; 16] = unsafe {
-    *::std::mem::transmute::<&[u8; 16], &[libc::c_char; 16]>(b"SQLite format 3\0")
+    *::core::mem::transmute::<&[u8; 16], &[libc::c_char; 16]>(b"SQLite format 3\0")
 };
 unsafe extern "C" fn apndIsAppendvfsDatabase(
     mut sz: sqlite3_int64,
@@ -8346,14 +8287,14 @@ unsafe extern "C" fn apndIsAppendvfsDatabase(
             )(
             pFile,
             zHdr.as_mut_ptr() as *mut libc::c_void,
-            ::std::mem::size_of::<[libc::c_char; 16]>() as libc::c_ulong as libc::c_int,
+            ::core::mem::size_of::<[libc::c_char; 16]>() as libc::c_ulong as libc::c_int,
             iMark,
         );
         if 0 as libc::c_int == rc
             && memcmp(
                 zHdr.as_mut_ptr() as *const libc::c_void,
                 apvfsSqliteHdr.as_ptr() as *const libc::c_void,
-                ::std::mem::size_of::<[libc::c_char; 16]>() as libc::c_ulong,
+                ::core::mem::size_of::<[libc::c_char; 16]>() as libc::c_ulong,
             ) == 0 as libc::c_int
             && sz & 0x1ff as libc::c_int as libc::c_longlong
                 == (17 as libc::c_int + 8 as libc::c_int) as libc::c_longlong
@@ -8381,14 +8322,14 @@ unsafe extern "C" fn apndIsOrdinaryDatabaseFile(
                 )(
                 pFile,
                 zHdr.as_mut_ptr() as *mut libc::c_void,
-                ::std::mem::size_of::<[libc::c_char; 16]>() as libc::c_ulong
+                ::core::mem::size_of::<[libc::c_char; 16]>() as libc::c_ulong
                     as libc::c_int,
                 0 as libc::c_int as sqlite3_int64,
             )
         || memcmp(
             zHdr.as_mut_ptr() as *const libc::c_void,
             apvfsSqliteHdr.as_ptr() as *const libc::c_void,
-            ::std::mem::size_of::<[libc::c_char; 16]>() as libc::c_ulong,
+            ::core::mem::size_of::<[libc::c_char; 16]>() as libc::c_ulong,
         ) != 0 as libc::c_int
     {
         return 0 as libc::c_int
@@ -8418,10 +8359,9 @@ unsafe extern "C" fn apndOpen(
     memset(
         pApndFile as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<ApndFile>() as libc::c_ulong,
+        ::core::mem::size_of::<ApndFile>() as libc::c_ulong,
     );
-    let ref mut fresh104 = (*pFile).pMethods;
-    *fresh104 = &apnd_io_methods;
+    (*pFile).pMethods = &apnd_io_methods;
     (*pApndFile).iMark = -(1 as libc::c_int) as sqlite3_int64;
     rc = ((*pBaseVfs).xOpen)
         .expect(
@@ -8436,8 +8376,7 @@ unsafe extern "C" fn apndOpen(
         }
     }
     if rc != 0 {
-        let ref mut fresh105 = (*pFile).pMethods;
-        *fresh105 = 0 as *const sqlite3_io_methods;
+        (*pFile).pMethods = 0 as *const sqlite3_io_methods;
         return rc;
     }
     if apndIsOrdinaryDatabaseFile(sz, pBaseFile) != 0 {
@@ -8457,8 +8396,7 @@ unsafe extern "C" fn apndOpen(
     if flags & 0x4 as libc::c_int == 0 as libc::c_int {
         ((*(*pBaseFile).pMethods).xClose).expect("non-null function pointer")(pBaseFile);
         rc = 14 as libc::c_int;
-        let ref mut fresh106 = (*pFile).pMethods;
-        *fresh106 = 0 as *const sqlite3_io_methods;
+        (*pFile).pMethods = 0 as *const sqlite3_io_methods;
     } else {
         (*pApndFile)
             .iPgOne = sz + (4096 as libc::c_int - 1 as libc::c_int) as sqlite3_int64
@@ -8623,7 +8561,8 @@ pub unsafe extern "C" fn sqlite3_appendvfs_init(
     apnd_vfs.pAppData = pOrig as *mut libc::c_void;
     apnd_vfs
         .szOsFile = ((*pOrig).szOsFile as libc::c_ulong)
-        .wrapping_add(::std::mem::size_of::<ApndFile>() as libc::c_ulong) as libc::c_int;
+        .wrapping_add(::core::mem::size_of::<ApndFile>() as libc::c_ulong)
+        as libc::c_int;
     rc = sqlite3_vfs_register(&mut apnd_vfs, 0 as libc::c_int);
     if rc == 0 as libc::c_int {
         rc = 0 as libc::c_int | (1 as libc::c_int) << 8 as libc::c_int;
@@ -8640,7 +8579,7 @@ unsafe extern "C" fn idxMalloc(
             b"*pRc==SQLITE_OK\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             9406 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 28],
                 &[libc::c_char; 28],
             >(b"void *idxMalloc(int *, int)\0"))
@@ -8652,7 +8591,7 @@ unsafe extern "C" fn idxMalloc(
             b"nByte>0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             9407 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 28],
                 &[libc::c_char; 28],
             >(b"void *idxMalloc(int *, int)\0"))
@@ -8671,7 +8610,7 @@ unsafe extern "C" fn idxHashInit(mut pHash: *mut IdxHash) {
     memset(
         pHash as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<IdxHash>() as libc::c_ulong,
+        ::core::mem::size_of::<IdxHash>() as libc::c_ulong,
     );
 }
 unsafe extern "C" fn idxHashClear(mut pHash: *mut IdxHash) {
@@ -8692,7 +8631,7 @@ unsafe extern "C" fn idxHashClear(mut pHash: *mut IdxHash) {
     memset(
         pHash as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<IdxHash>() as libc::c_ulong,
+        ::core::mem::size_of::<IdxHash>() as libc::c_ulong,
     );
 }
 unsafe extern "C" fn idxHashString(
@@ -8731,7 +8670,7 @@ unsafe extern "C" fn idxHashAdd(
             b"iHash>=0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             9469 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 61],
                 &[libc::c_char; 61],
             >(b"int idxHashAdd(int *, IdxHash *, const char *, const char *)\0"))
@@ -8754,15 +8693,15 @@ unsafe extern "C" fn idxHashAdd(
     }
     pEntry = idxMalloc(
         pRc,
-        (::std::mem::size_of::<IdxHashEntry>() as libc::c_ulong)
+        (::core::mem::size_of::<IdxHashEntry>() as libc::c_ulong)
             .wrapping_add(nKey as libc::c_ulong)
             .wrapping_add(1 as libc::c_int as libc::c_ulong)
             .wrapping_add(nVal as libc::c_ulong)
             .wrapping_add(1 as libc::c_int as libc::c_ulong) as libc::c_int,
     ) as *mut IdxHashEntry;
     if !pEntry.is_null() {
-        let ref mut fresh107 = (*pEntry).zKey;
-        *fresh107 = &mut *pEntry.offset(1 as libc::c_int as isize) as *mut IdxHashEntry
+        (*pEntry)
+            .zKey = &mut *pEntry.offset(1 as libc::c_int as isize) as *mut IdxHashEntry
             as *mut libc::c_char;
         memcpy(
             (*pEntry).zKey as *mut libc::c_void,
@@ -8770,8 +8709,8 @@ unsafe extern "C" fn idxHashAdd(
             nKey as libc::c_ulong,
         );
         if !zVal.is_null() {
-            let ref mut fresh108 = (*pEntry).zVal;
-            *fresh108 = &mut *((*pEntry).zKey).offset((nKey + 1 as libc::c_int) as isize)
+            (*pEntry)
+                .zVal = &mut *((*pEntry).zKey).offset((nKey + 1 as libc::c_int) as isize)
                 as *mut libc::c_char;
             memcpy(
                 (*pEntry).zVal as *mut libc::c_void,
@@ -8779,14 +8718,10 @@ unsafe extern "C" fn idxHashAdd(
                 nVal as libc::c_ulong,
             );
         }
-        let ref mut fresh109 = (*pEntry).pHashNext;
-        *fresh109 = (*pHash).aHash[iHash as usize];
-        let ref mut fresh110 = (*pHash).aHash[iHash as usize];
-        *fresh110 = pEntry;
-        let ref mut fresh111 = (*pEntry).pNext;
-        *fresh111 = (*pHash).pFirst;
-        let ref mut fresh112 = (*pHash).pFirst;
-        *fresh112 = pEntry;
+        (*pEntry).pHashNext = (*pHash).aHash[iHash as usize];
+        (*pHash).aHash[iHash as usize] = pEntry;
+        (*pEntry).pNext = (*pHash).pFirst;
+        (*pHash).pFirst = pEntry;
     }
     return 0 as libc::c_int;
 }
@@ -8806,7 +8741,7 @@ unsafe extern "C" fn idxHashFind(
             b"iHash>=0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             9501 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 56],
                 &[libc::c_char; 56],
             >(b"IdxHashEntry *idxHashFind(IdxHash *, const char *, int)\0"))
@@ -8851,7 +8786,7 @@ unsafe extern "C" fn idxNewConstraint(
             b"*pRc==SQLITE_OK\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             9530 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 53],
                 &[libc::c_char; 53],
             >(b"IdxConstraint *idxNewConstraint(int *, const char *)\0"))
@@ -8860,13 +8795,13 @@ unsafe extern "C" fn idxNewConstraint(
     }
     pNew = idxMalloc(
         pRc,
-        (::std::mem::size_of::<IdxConstraint>() as libc::c_ulong)
+        (::core::mem::size_of::<IdxConstraint>() as libc::c_ulong)
             .wrapping_mul(nColl as libc::c_ulong)
             .wrapping_add(1 as libc::c_int as libc::c_ulong) as libc::c_int,
     ) as *mut IdxConstraint;
     if !pNew.is_null() {
-        let ref mut fresh113 = (*pNew).zColl;
-        *fresh113 = &mut *pNew.offset(1 as libc::c_int as isize) as *mut IdxConstraint
+        (*pNew)
+            .zColl = &mut *pNew.offset(1 as libc::c_int as isize) as *mut IdxConstraint
             as *mut libc::c_char;
         memcpy(
             (*pNew).zColl as *mut libc::c_void,
@@ -8911,7 +8846,7 @@ unsafe extern "C" fn idxPrintfPrepareStmt(
     mut zFmt: *const libc::c_char,
     mut args: ...
 ) -> libc::c_int {
-    let mut ap: ::std::ffi::VaListImpl;
+    let mut ap: ::core::ffi::VaListImpl;
     let mut rc: libc::c_int = 0;
     let mut zSql: *mut libc::c_char = 0 as *mut libc::c_char;
     ap = args.clone();
@@ -8932,7 +8867,7 @@ unsafe extern "C" fn expertDequote(mut zIn: *const libc::c_char) -> *mut libc::c
             b"zIn[0]=='\\''\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             9613 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 34],
                 &[libc::c_char; 34],
             >(b"char *expertDequote(const char *)\0"))
@@ -8945,7 +8880,7 @@ unsafe extern "C" fn expertDequote(mut zIn: *const libc::c_char) -> *mut libc::c
             b"zIn[n-1]=='\\''\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             9614 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 34],
                 &[libc::c_char; 34],
             >(b"char *expertDequote(const char *)\0"))
@@ -8965,7 +8900,7 @@ unsafe extern "C" fn expertDequote(mut zIn: *const libc::c_char) -> *mut libc::c
                         b"zIn[iIn+1]=='\\''\0" as *const u8 as *const libc::c_char,
                         b"shell.c\0" as *const u8 as *const libc::c_char,
                         9621 as libc::c_int as libc::c_uint,
-                        (*::std::mem::transmute::<
+                        (*::core::mem::transmute::<
                             &[u8; 34],
                             &[libc::c_char; 34],
                         >(b"char *expertDequote(const char *)\0"))
@@ -8974,9 +8909,9 @@ unsafe extern "C" fn expertDequote(mut zIn: *const libc::c_char) -> *mut libc::c
                 }
                 iIn += 1;
             }
-            let fresh114 = iOut;
+            let fresh26 = iOut;
             iOut = iOut + 1;
-            *zRet.offset(fresh114 as isize) = *zIn.offset(iIn as isize);
+            *zRet.offset(fresh26 as isize) = *zIn.offset(iIn as isize);
             iIn += 1;
         }
         *zRet.offset(iOut as isize) = '\0' as i32 as libc::c_char;
@@ -9008,14 +8943,12 @@ unsafe extern "C" fn expertConnect(
             if rc == 0 as libc::c_int {
                 p = idxMalloc(
                     &mut rc,
-                    ::std::mem::size_of::<ExpertVtab>() as libc::c_ulong as libc::c_int,
+                    ::core::mem::size_of::<ExpertVtab>() as libc::c_ulong as libc::c_int,
                 ) as *mut ExpertVtab;
             }
             if rc == 0 as libc::c_int {
-                let ref mut fresh115 = (*p).pExpert;
-                *fresh115 = pExpert;
-                let ref mut fresh116 = (*p).pTab;
-                *fresh116 = (*pExpert).pTable;
+                (*p).pExpert = pExpert;
+                (*p).pTab = (*pExpert).pTable;
                 if sqlite3_stricmp(
                     (*(*p).pTab).zName,
                     *argv.offset(2 as libc::c_int as isize),
@@ -9026,7 +8959,7 @@ unsafe extern "C" fn expertConnect(
                             as *const libc::c_char,
                         b"shell.c\0" as *const u8 as *const libc::c_char,
                         9665 as libc::c_int as libc::c_uint,
-                        (*::std::mem::transmute::<
+                        (*::core::mem::transmute::<
                             &[u8; 89],
                             &[libc::c_char; 89],
                         >(
@@ -9061,16 +8994,13 @@ unsafe extern "C" fn expertBestIndex(
         | 32 as libc::c_int | 8 as libc::c_int;
     pScan = idxMalloc(
         &mut rc,
-        ::std::mem::size_of::<IdxScan>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<IdxScan>() as libc::c_ulong as libc::c_int,
     ) as *mut IdxScan;
     if !pScan.is_null() {
         let mut i: libc::c_int = 0;
-        let ref mut fresh117 = (*pScan).pTab;
-        *fresh117 = (*p).pTab;
-        let ref mut fresh118 = (*pScan).pNextScan;
-        *fresh118 = (*(*p).pExpert).pScan;
-        let ref mut fresh119 = (*(*p).pExpert).pScan;
-        *fresh119 = pScan;
+        (*pScan).pTab = (*p).pTab;
+        (*pScan).pNextScan = (*(*p).pExpert).pScan;
+        (*(*p).pExpert).pScan = pScan;
         i = 0 as libc::c_int;
         while i < (*pIdxInfo).nConstraint {
             let mut pCons: *mut sqlite3_index_constraint = &mut *((*pIdxInfo)
@@ -9087,16 +9017,12 @@ unsafe extern "C" fn expertBestIndex(
                 if !pNew.is_null() {
                     (*pNew).iCol = (*pCons).iColumn;
                     if (*pCons).op as libc::c_int == 2 as libc::c_int {
-                        let ref mut fresh120 = (*pNew).pNext;
-                        *fresh120 = (*pScan).pEq;
-                        let ref mut fresh121 = (*pScan).pEq;
-                        *fresh121 = pNew;
+                        (*pNew).pNext = (*pScan).pEq;
+                        (*pScan).pEq = pNew;
                     } else {
                         (*pNew).bRange = 1 as libc::c_int;
-                        let ref mut fresh122 = (*pNew).pNext;
-                        *fresh122 = (*pScan).pRange;
-                        let ref mut fresh123 = (*pScan).pRange;
-                        *fresh123 = pNew;
+                        (*pNew).pNext = (*pScan).pRange;
+                        (*pScan).pRange = pNew;
                     }
                 }
                 n += 1;
@@ -9118,12 +9044,9 @@ unsafe extern "C" fn expertBestIndex(
                     (*pNew_0)
                         .bDesc = (*((*pIdxInfo).aOrderBy).offset(i as isize)).desc
                         as libc::c_int;
-                    let ref mut fresh124 = (*pNew_0).pNext;
-                    *fresh124 = (*pScan).pOrder;
-                    let ref mut fresh125 = (*pNew_0).pLink;
-                    *fresh125 = (*pScan).pOrder;
-                    let ref mut fresh126 = (*pScan).pOrder;
-                    *fresh126 = pNew_0;
+                    (*pNew_0).pNext = (*pScan).pOrder;
+                    (*pNew_0).pLink = (*pScan).pOrder;
+                    (*pScan).pOrder = pNew_0;
                     n += 1;
                 }
             }
@@ -9149,7 +9072,7 @@ unsafe extern "C" fn expertOpen(
     let mut pCsr: *mut ExpertCsr = 0 as *mut ExpertCsr;
     pCsr = idxMalloc(
         &mut rc,
-        ::std::mem::size_of::<ExpertCsr>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<ExpertCsr>() as libc::c_ulong as libc::c_int,
     ) as *mut ExpertCsr;
     *ppCursor = pCsr as *mut sqlite3_vtab_cursor;
     return rc;
@@ -9172,7 +9095,7 @@ unsafe extern "C" fn expertNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_in
             b"pCsr->pData\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             9803 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 38],
                 &[libc::c_char; 38],
             >(b"int expertNext(sqlite3_vtab_cursor *)\0"))
@@ -9182,8 +9105,7 @@ unsafe extern "C" fn expertNext(mut cur: *mut sqlite3_vtab_cursor) -> libc::c_in
     rc = sqlite3_step((*pCsr).pData);
     if rc != 100 as libc::c_int {
         rc = sqlite3_finalize((*pCsr).pData);
-        let ref mut fresh127 = (*pCsr).pData;
-        *fresh127 = 0 as *mut sqlite3_stmt;
+        (*pCsr).pData = 0 as *mut sqlite3_stmt;
     } else {
         rc = 0 as libc::c_int;
     }
@@ -9221,8 +9143,7 @@ unsafe extern "C" fn expertFilter(
     let mut pExpert: *mut sqlite3expert = (*pVtab).pExpert;
     let mut rc: libc::c_int = 0;
     rc = sqlite3_finalize((*pCsr).pData);
-    let ref mut fresh128 = (*pCsr).pData;
-    *fresh128 = 0 as *mut sqlite3_stmt;
+    (*pCsr).pData = 0 as *mut sqlite3_stmt;
     if rc == 0 as libc::c_int {
         rc = idxPrintfPrepareStmt(
             (*pExpert).db,
@@ -9383,7 +9304,7 @@ unsafe extern "C" fn idxGetTableInfo(
         return 1 as libc::c_int;
     }
     nTab = strlen(zTab) as libc::c_int;
-    nByte = (::std::mem::size_of::<IdxTable>() as libc::c_ulong)
+    nByte = (::core::mem::size_of::<IdxTable>() as libc::c_ulong)
         .wrapping_add(nTab as libc::c_ulong)
         .wrapping_add(1 as libc::c_int as libc::c_ulong) as libc::c_int;
     rc = idxPrintfPrepareStmt(
@@ -9429,15 +9350,15 @@ unsafe extern "C" fn idxGetTableInfo(
     }
     nByte = (nByte as libc::c_ulong)
         .wrapping_add(
-            (::std::mem::size_of::<IdxColumn>() as libc::c_ulong)
+            (::core::mem::size_of::<IdxColumn>() as libc::c_ulong)
                 .wrapping_mul(nCol as libc::c_ulong),
         ) as libc::c_int as libc::c_int;
     if rc == 0 as libc::c_int {
         pNew = idxMalloc(&mut rc, nByte) as *mut IdxTable;
     }
     if rc == 0 as libc::c_int {
-        let ref mut fresh129 = (*pNew).aCol;
-        *fresh129 = &mut *pNew.offset(1 as libc::c_int as isize) as *mut IdxTable
+        (*pNew)
+            .aCol = &mut *pNew.offset(1 as libc::c_int as isize) as *mut IdxTable
             as *mut IdxColumn;
         (*pNew).nCol = nCol;
         pCsr = &mut *((*pNew).aCol).offset(nCol as isize) as *mut IdxColumn
@@ -9453,8 +9374,8 @@ unsafe extern "C" fn idxGetTableInfo(
             continue;
         }
         nCopy = strlen(zCol_0) as libc::c_int + 1 as libc::c_int;
-        let ref mut fresh130 = (*((*pNew).aCol).offset(nCol as isize)).zName;
-        *fresh130 = pCsr;
+        let ref mut fresh27 = (*((*pNew).aCol).offset(nCol as isize)).zName;
+        *fresh27 = pCsr;
         (*((*pNew).aCol).offset(nCol as isize))
             .iPk = (sqlite3_column_int(p1, 5 as libc::c_int) == 1 as libc::c_int
             && nPk == 1 as libc::c_int) as libc::c_int;
@@ -9480,8 +9401,8 @@ unsafe extern "C" fn idxGetTableInfo(
                 zColSeq_0 = b"binary\0" as *const u8 as *const libc::c_char;
             }
             nCopy = strlen(zColSeq_0) as libc::c_int + 1 as libc::c_int;
-            let ref mut fresh131 = (*((*pNew).aCol).offset(nCol as isize)).zColl;
-            *fresh131 = pCsr;
+            let ref mut fresh28 = (*((*pNew).aCol).offset(nCol as isize)).zColl;
+            *fresh28 = pCsr;
             memcpy(
                 pCsr as *mut libc::c_void,
                 zColSeq_0 as *const libc::c_void,
@@ -9496,25 +9417,22 @@ unsafe extern "C" fn idxGetTableInfo(
         sqlite3_free(pNew as *mut libc::c_void);
         pNew = 0 as *mut IdxTable;
     } else if if !pNew.is_null() {
-            1 as libc::c_int
-        } else {
-            __assert_fail(
-                b"0\0" as *const u8 as *const libc::c_char,
-                b"shell.c\0" as *const u8 as *const libc::c_char,
-                10000 as libc::c_int as libc::c_uint,
-                (*::std::mem::transmute::<
-                    &[u8; 67],
-                    &[libc::c_char; 67],
-                >(
-                    b"int idxGetTableInfo(sqlite3 *, const char *, IdxTable **, char **)\0",
-                ))
-                    .as_ptr(),
-            );
-            0 as libc::c_int
-        } != 0
-        {
-        let ref mut fresh132 = (*pNew).zName;
-        *fresh132 = pCsr;
+        1 as libc::c_int
+    } else {
+        __assert_fail(
+            b"0\0" as *const u8 as *const libc::c_char,
+            b"shell.c\0" as *const u8 as *const libc::c_char,
+            10000 as libc::c_int as libc::c_uint,
+            (*::core::mem::transmute::<
+                &[u8; 67],
+                &[libc::c_char; 67],
+            >(b"int idxGetTableInfo(sqlite3 *, const char *, IdxTable **, char **)\0"))
+                .as_ptr(),
+        );
+        0 as libc::c_int
+    } != 0
+    {
+        (*pNew).zName = pCsr;
         if if !((*pNew).zName).is_null() {
             1 as libc::c_int
         } else {
@@ -9522,7 +9440,7 @@ unsafe extern "C" fn idxGetTableInfo(
                 b"0\0" as *const u8 as *const libc::c_char,
                 b"shell.c\0" as *const u8 as *const libc::c_char,
                 10002 as libc::c_int as libc::c_uint,
-                (*::std::mem::transmute::<
+                (*::core::mem::transmute::<
                     &[u8; 67],
                     &[libc::c_char; 67],
                 >(
@@ -9549,7 +9467,7 @@ unsafe extern "C" fn idxAppendText(
     mut zFmt: *const libc::c_char,
     mut args: ...
 ) -> *mut libc::c_char {
-    let mut ap: ::std::ffi::VaListImpl;
+    let mut ap: ::core::ffi::VaListImpl;
     let mut zAppend: *mut libc::c_char = 0 as *mut libc::c_char;
     let mut zRet: *mut libc::c_char = 0 as *mut libc::c_char;
     let mut nIn: libc::c_int = if !zIn.is_null() {
@@ -9845,7 +9763,7 @@ unsafe extern "C" fn idxCreateFromCons(
                         b"rc==SQLITE_OK\0" as *const u8 as *const libc::c_char,
                         b"shell.c\0" as *const u8 as *const libc::c_char,
                         10231 as libc::c_int as libc::c_uint,
-                        (*::std::mem::transmute::<
+                        (*::core::mem::transmute::<
                             &[u8; 84],
                             &[libc::c_char; 84],
                         >(
@@ -9927,8 +9845,7 @@ unsafe extern "C" fn idxCreateFromWhere(
     pCon = (*pScan).pEq;
     while !pCon.is_null() {
         if idxFindConstraint(p1, pCon) == 0 && idxFindConstraint(pTail, pCon) == 0 {
-            let ref mut fresh133 = (*pCon).pLink;
-            *fresh133 = p1;
+            (*pCon).pLink = p1;
             p1 = pCon;
         }
         pCon = (*pCon).pNext;
@@ -9942,7 +9859,7 @@ unsafe extern "C" fn idxCreateFromWhere(
                     b"pCon->pLink==0\0" as *const u8 as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
                     10308 as libc::c_int as libc::c_uint,
-                    (*::std::mem::transmute::<
+                    (*::core::mem::transmute::<
                         &[u8; 68],
                         &[libc::c_char; 68],
                     >(
@@ -10043,7 +9960,7 @@ unsafe extern "C" fn idxFindIndexes(
     };
     idxHashInit(&mut hIdx);
     pStmt = (*p).pStatement;
-    's_19: while rc == 0 as libc::c_int && !pStmt.is_null() {
+    's_13: while rc == 0 as libc::c_int && !pStmt.is_null() {
         let mut pEntry: *mut IdxHashEntry = 0 as *mut IdxHashEntry;
         let mut pExplain: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
         idxHashClear(&mut hIdx);
@@ -10080,14 +9997,14 @@ unsafe extern "C" fn idxFindIndexes(
                     zIdx = &*zDetail.offset((i + 13 as libc::c_int) as isize)
                         as *const libc::c_char;
                 } else if (i + 22 as libc::c_int) < nDetail
-                        && memcmp(
-                            &*zDetail.offset(i as isize) as *const libc::c_char
-                                as *const libc::c_void,
-                            b" USING COVERING INDEX \0" as *const u8
-                                as *const libc::c_char as *const libc::c_void,
-                            22 as libc::c_int as libc::c_ulong,
-                        ) == 0 as libc::c_int
-                    {
+                    && memcmp(
+                        &*zDetail.offset(i as isize) as *const libc::c_char
+                            as *const libc::c_void,
+                        b" USING COVERING INDEX \0" as *const u8 as *const libc::c_char
+                            as *const libc::c_void,
+                        22 as libc::c_int as libc::c_ulong,
+                    ) == 0 as libc::c_int
+                {
                     zIdx = &*zDetail.offset((i + 22 as libc::c_int) as isize)
                         as *const libc::c_char;
                 }
@@ -10107,7 +10024,7 @@ unsafe extern "C" fn idxFindIndexes(
                     }
                     idxHashAdd(&mut rc, &mut hIdx, zSql, 0 as *const libc::c_char);
                     if rc != 0 {
-                        break 's_19;
+                        break 's_13;
                     } else {
                         break;
                     }
@@ -10116,8 +10033,8 @@ unsafe extern "C" fn idxFindIndexes(
                 }
             }
             if *zDetail.offset(0 as libc::c_int as isize) as libc::c_int != '-' as i32 {
-                let ref mut fresh134 = (*pStmt).zEQP;
-                *fresh134 = idxAppendText(
+                (*pStmt)
+                    .zEQP = idxAppendText(
                     &mut rc as *mut libc::c_int,
                     (*pStmt).zEQP,
                     b"%s\n\0" as *const u8 as *const libc::c_char,
@@ -10127,8 +10044,8 @@ unsafe extern "C" fn idxFindIndexes(
         }
         pEntry = hIdx.pFirst;
         while !pEntry.is_null() {
-            let ref mut fresh135 = (*pStmt).zIdx;
-            *fresh135 = idxAppendText(
+            (*pStmt)
+                .zIdx = idxAppendText(
                 &mut rc as *mut libc::c_int,
                 (*pStmt).zIdx,
                 b"%s;\n\0" as *const u8 as *const libc::c_char,
@@ -10176,16 +10093,14 @@ unsafe extern "C" fn idxAuthCallback(
                 if pWrite.is_null() {
                     pWrite = idxMalloc(
                         &mut rc,
-                        ::std::mem::size_of::<IdxWrite>() as libc::c_ulong as libc::c_int,
+                        ::core::mem::size_of::<IdxWrite>() as libc::c_ulong
+                            as libc::c_int,
                     ) as *mut IdxWrite;
                     if rc == 0 as libc::c_int {
-                        let ref mut fresh136 = (*pWrite).pTab;
-                        *fresh136 = pTab;
+                        (*pWrite).pTab = pTab;
                         (*pWrite).eOp = eOp;
-                        let ref mut fresh137 = (*pWrite).pNext;
-                        *fresh137 = (*p).pWrite;
-                        let ref mut fresh138 = (*p).pWrite;
-                        *fresh138 = pWrite;
+                        (*pWrite).pNext = (*p).pWrite;
+                        (*p).pWrite = pWrite;
                     }
                 }
             }
@@ -10300,7 +10215,7 @@ unsafe extern "C" fn idxProcessOneTrigger(
                     b"pWrite->eOp==SQLITE_DELETE\0" as *const u8 as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
                     10577 as libc::c_int as libc::c_uint,
-                    (*::std::mem::transmute::<
+                    (*::core::mem::transmute::<
                         &[u8; 63],
                         &[libc::c_char; 63],
                     >(
@@ -10407,10 +10322,8 @@ unsafe extern "C" fn idxCreateVtabSchema(
                 let mut i: libc::c_int = 0;
                 let mut zInner: *mut libc::c_char = 0 as *mut libc::c_char;
                 let mut zOuter: *mut libc::c_char = 0 as *mut libc::c_char;
-                let ref mut fresh139 = (*pTab).pNext;
-                *fresh139 = (*p).pTable;
-                let ref mut fresh140 = (*p).pTable;
-                *fresh140 = pTab;
+                (*pTab).pNext = (*p).pTable;
+                (*p).pTable = pTab;
                 zInner = idxAppendText(
                     &mut rc as *mut libc::c_int,
                     0 as *mut libc::c_char,
@@ -10474,7 +10387,7 @@ unsafe extern "C" fn idxSampleFunc(
             b"argc==0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             10697 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 61],
                 &[libc::c_char; 61],
             >(b"void idxSampleFunc(sqlite3_context *, int, sqlite3_value **)\0"))
@@ -10512,7 +10425,7 @@ unsafe extern "C" fn idxRemFunc(
             b"argc==2\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             10737 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 58],
                 &[libc::c_char; 58],
             >(b"void idxRemFunc(sqlite3_context *, int, sqlite3_value **)\0"))
@@ -10525,7 +10438,7 @@ unsafe extern "C" fn idxRemFunc(
             b"iSlot<=p->nSlot\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             10740 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 58],
                 &[libc::c_char; 58],
             >(b"void idxRemFunc(sqlite3_context *, int, sqlite3_value **)\0"))
@@ -10545,7 +10458,7 @@ unsafe extern "C" fn idxRemFunc(
                 pCtx,
                 (*pSlot).z as *const libc::c_void,
                 (*pSlot).n,
-                ::std::mem::transmute::<
+                ::core::mem::transmute::<
                     libc::intptr_t,
                     sqlite3_destructor_type,
                 >(-(1 as libc::c_int) as libc::intptr_t),
@@ -10556,7 +10469,7 @@ unsafe extern "C" fn idxRemFunc(
                 pCtx,
                 (*pSlot).z,
                 (*pSlot).n,
-                ::std::mem::transmute::<
+                ::core::mem::transmute::<
                     libc::intptr_t,
                     sqlite3_destructor_type,
                 >(-(1 as libc::c_int) as libc::intptr_t),
@@ -10588,8 +10501,7 @@ unsafe extern "C" fn idxRemFunc(
                     return;
                 }
                 (*pSlot).nByte = nByte * 2 as libc::c_int;
-                let ref mut fresh141 = (*pSlot).z;
-                *fresh141 = zNew;
+                (*pSlot).z = zNew;
             }
             (*pSlot).n = nByte;
             if (*pSlot).eType == 4 as libc::c_int {
@@ -10648,7 +10560,7 @@ unsafe extern "C" fn idxPopulateOneStat1(
             b"p->iSample>0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             10842 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 110],
                 &[libc::c_char; 110],
             >(
@@ -10723,7 +10635,7 @@ unsafe extern "C" fn idxPopulateOneStat1(
     if rc == 0 as libc::c_int {
         aStat = idxMalloc(
             &mut rc,
-            (::std::mem::size_of::<libc::c_int>() as libc::c_ulong)
+            (::core::mem::size_of::<libc::c_int>() as libc::c_ulong)
                 .wrapping_mul((nCol + 1 as libc::c_int) as libc::c_ulong) as libc::c_int,
         ) as *mut libc::c_int;
     }
@@ -10736,8 +10648,8 @@ unsafe extern "C" fn idxPopulateOneStat1(
             i += 1;
         }
         while rc == 0 as libc::c_int && 100 as libc::c_int == sqlite3_step(pQuery) {
-            let ref mut fresh142 = *aStat.offset(0 as libc::c_int as isize);
-            *fresh142 += 1;
+            let ref mut fresh29 = *aStat.offset(0 as libc::c_int as isize);
+            *fresh29 += 1;
             i = 0 as libc::c_int;
             while i < nCol {
                 if sqlite3_column_int(pQuery, i) == 0 as libc::c_int {
@@ -10746,8 +10658,8 @@ unsafe extern "C" fn idxPopulateOneStat1(
                 i += 1;
             }
             while i < nCol {
-                let ref mut fresh143 = *aStat.offset((i + 1 as libc::c_int) as isize);
-                *fresh143 += 1;
+                let ref mut fresh30 = *aStat.offset((i + 1 as libc::c_int) as isize);
+                *fresh30 += 1;
                 i += 1;
             }
         }
@@ -10801,7 +10713,7 @@ unsafe extern "C" fn idxPopulateOneStat1(
                     b"pEntry->zVal2==0\0" as *const u8 as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
                     10913 as libc::c_int as libc::c_uint,
-                    (*::std::mem::transmute::<
+                    (*::core::mem::transmute::<
                         &[u8; 110],
                         &[libc::c_char; 110],
                     >(
@@ -10810,8 +10722,7 @@ unsafe extern "C" fn idxPopulateOneStat1(
                         .as_ptr(),
                 );
             }
-            let ref mut fresh144 = (*pEntry).zVal2;
-            *fresh144 = zStat;
+            (*pEntry).zVal2 = zStat;
         } else {
             sqlite3_free(zStat as *mut libc::c_void);
         }
@@ -10894,10 +10805,10 @@ unsafe extern "C" fn idxPopulateStat1(
         0 as *mut *mut libc::c_char,
     );
     if rc == 0 as libc::c_int {
-        let mut nByte: libc::c_int = (::std::mem::size_of::<IdxRemCtx>()
+        let mut nByte: libc::c_int = (::core::mem::size_of::<IdxRemCtx>()
             as libc::c_ulong)
             .wrapping_add(
-                (::std::mem::size_of::<IdxRemSlot>() as libc::c_ulong)
+                (::core::mem::size_of::<IdxRemSlot>() as libc::c_ulong)
                     .wrapping_mul(nMax as libc::c_ulong),
             ) as libc::c_int;
         pCtx = idxMalloc(&mut rc, nByte) as *mut IdxRemCtx;
@@ -11032,11 +10943,10 @@ pub unsafe extern "C" fn sqlite3_expert_new(
     let mut pNew: *mut sqlite3expert = 0 as *mut sqlite3expert;
     pNew = idxMalloc(
         &mut rc,
-        ::std::mem::size_of::<sqlite3expert>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<sqlite3expert>() as libc::c_ulong as libc::c_int,
     ) as *mut sqlite3expert;
     if rc == 0 as libc::c_int {
-        let ref mut fresh145 = (*pNew).db;
-        *fresh145 = db;
+        (*pNew).db = db;
         (*pNew).iSample = 100 as libc::c_int;
         rc = sqlite3_open(
             b":memory:\0" as *const u8 as *const libc::c_char,
@@ -11116,7 +11026,7 @@ pub unsafe extern "C" fn sqlite3_expert_config(
     mut args: ...
 ) -> libc::c_int {
     let mut rc: libc::c_int = 0 as libc::c_int;
-    let mut ap: ::std::ffi::VaListImpl;
+    let mut ap: ::core::ffi::VaListImpl;
     ap = args.clone();
     match op {
         1 => {
@@ -11166,26 +11076,24 @@ pub unsafe extern "C" fn sqlite3_expert_sql(
                 let mut n: libc::c_int = strlen(z) as libc::c_int;
                 pNew = idxMalloc(
                     &mut rc,
-                    (::std::mem::size_of::<IdxStatement>() as libc::c_ulong)
+                    (::core::mem::size_of::<IdxStatement>() as libc::c_ulong)
                         .wrapping_add(n as libc::c_ulong)
                         .wrapping_add(1 as libc::c_int as libc::c_ulong) as libc::c_int,
                 ) as *mut IdxStatement;
                 if rc == 0 as libc::c_int {
-                    let ref mut fresh146 = (*pNew).zSql;
-                    *fresh146 = &mut *pNew.offset(1 as libc::c_int as isize)
+                    (*pNew)
+                        .zSql = &mut *pNew.offset(1 as libc::c_int as isize)
                         as *mut IdxStatement as *mut libc::c_char;
                     memcpy(
                         (*pNew).zSql as *mut libc::c_void,
                         z as *const libc::c_void,
                         (n + 1 as libc::c_int) as libc::c_ulong,
                     );
-                    let ref mut fresh147 = (*pNew).pNext;
-                    *fresh147 = (*p).pStatement;
+                    (*pNew).pNext = (*p).pStatement;
                     if !((*p).pStatement).is_null() {
                         (*pNew).iId = (*(*p).pStatement).iId + 1 as libc::c_int;
                     }
-                    let ref mut fresh148 = (*p).pStatement;
-                    *fresh148 = pNew;
+                    (*p).pStatement = pNew;
                 }
                 sqlite3_finalize(pStmt);
             }
@@ -11196,10 +11104,8 @@ pub unsafe extern "C" fn sqlite3_expert_sql(
     if rc != 0 as libc::c_int {
         idxScanFree((*p).pScan, pScanOrig);
         idxStatementFree((*p).pStatement, pStmtOrig);
-        let ref mut fresh149 = (*p).pScan;
-        *fresh149 = pScanOrig;
-        let ref mut fresh150 = (*p).pStatement;
-        *fresh150 = pStmtOrig;
+        (*p).pScan = pScanOrig;
+        (*p).pStatement = pStmtOrig;
     }
     return rc;
 }
@@ -11227,8 +11133,8 @@ pub unsafe extern "C" fn sqlite3_expert_analyze(
     }
     pEntry = (*p).hIdx.pFirst;
     while !pEntry.is_null() {
-        let ref mut fresh151 = (*p).zCandidates;
-        *fresh151 = idxAppendText(
+        (*p)
+            .zCandidates = idxAppendText(
             &mut rc as *mut libc::c_int,
             (*p).zCandidates,
             b"%s;%s%s\n\0" as *const u8 as *const libc::c_char,
@@ -11367,7 +11273,7 @@ unsafe extern "C" fn failIfSafeMode(
     mut args: ...
 ) {
     if (*p).bSafeMode != 0 {
-        let mut ap: ::std::ffi::VaListImpl;
+        let mut ap: ::core::ffi::VaListImpl;
         let mut zMsg: *mut libc::c_char = 0 as *mut libc::c_char;
         ap = args.clone();
         zMsg = sqlite3_vmprintf(zErrMsg, ap.as_va_list());
@@ -11425,7 +11331,7 @@ unsafe extern "C" fn editFunc(
     if zTempFile.is_null() {
         let mut r: sqlite3_uint64 = 0 as libc::c_int as sqlite3_uint64;
         sqlite3_randomness(
-            ::std::mem::size_of::<sqlite3_uint64>() as libc::c_ulong as libc::c_int,
+            ::core::mem::size_of::<sqlite3_uint64>() as libc::c_ulong as libc::c_int,
             &mut r as *mut sqlite3_uint64 as *mut libc::c_void,
         );
         zTempFile = sqlite3_mprintf(
@@ -11566,9 +11472,9 @@ unsafe extern "C" fn editFunc(
                                             {
                                                 i += 1;
                                             }
-                                            let fresh152 = j;
+                                            let fresh31 = j;
                                             j = j + 1;
-                                            *p.offset(fresh152 as isize) = *p.offset(i as isize);
+                                            *p.offset(fresh31 as isize) = *p.offset(i as isize);
                                             i += 1;
                                         }
                                         sz = j;
@@ -11606,12 +11512,12 @@ unsafe extern "C" fn outputModePush(mut p: *mut ShellState) {
     memcpy(
         ((*p).colSepPrior).as_mut_ptr() as *mut libc::c_void,
         ((*p).colSeparator).as_mut_ptr() as *const libc::c_void,
-        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong,
+        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong,
     );
     memcpy(
         ((*p).rowSepPrior).as_mut_ptr() as *mut libc::c_void,
         ((*p).rowSeparator).as_mut_ptr() as *const libc::c_void,
-        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong,
+        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong,
     );
 }
 unsafe extern "C" fn outputModePop(mut p: *mut ShellState) {
@@ -11620,12 +11526,12 @@ unsafe extern "C" fn outputModePop(mut p: *mut ShellState) {
     memcpy(
         ((*p).colSeparator).as_mut_ptr() as *mut libc::c_void,
         ((*p).colSepPrior).as_mut_ptr() as *const libc::c_void,
-        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong,
+        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong,
     );
     memcpy(
         ((*p).rowSeparator).as_mut_ptr() as *mut libc::c_void,
         ((*p).rowSepPrior).as_mut_ptr() as *const libc::c_void,
-        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong,
+        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong,
     );
 }
 unsafe extern "C" fn output_hex_blob(
@@ -11661,14 +11567,14 @@ unsafe extern "C" fn unused_string(
         return zB;
     }
     loop {
-        let fresh153 = i;
+        let fresh32 = i;
         i = i.wrapping_add(1);
         sqlite3_snprintf(
             20 as libc::c_int,
             zBuf,
             b"(%s%u)\0" as *const u8 as *const libc::c_char,
             zA,
-            fresh153,
+            fresh32,
         );
         if (strstr(z, zBuf)).is_null() {
             break;
@@ -11824,9 +11730,9 @@ unsafe extern "C" fn output_c_string(mut out: *mut FILE, mut z: *const libc::c_c
     let mut c: libc::c_uint = 0;
     fputc('"' as i32, out);
     loop {
-        let fresh154 = z;
+        let fresh33 = z;
         z = z.offset(1);
-        c = *fresh154 as libc::c_uint;
+        c = *fresh33 as libc::c_uint;
         if !(c != 0 as libc::c_int as libc::c_uint) {
             break;
         }
@@ -11846,11 +11752,10 @@ unsafe extern "C" fn output_c_string(mut out: *mut FILE, mut z: *const libc::c_c
             fputc('\\' as i32, out);
             fputc('r' as i32, out);
         } else if *(*__ctype_b_loc())
-                .offset(
-                    (c & 0xff as libc::c_int as libc::c_uint) as libc::c_int as isize,
-                ) as libc::c_int
-                & _ISprint as libc::c_int as libc::c_ushort as libc::c_int == 0
-            {
+            .offset((c & 0xff as libc::c_int as libc::c_uint) as libc::c_int as isize)
+            as libc::c_int & _ISprint as libc::c_int as libc::c_ushort as libc::c_int
+            == 0
+        {
             fprintf(
                 out,
                 b"\\%03o\0" as *const u8 as *const libc::c_char,
@@ -11873,14 +11778,14 @@ unsafe extern "C" fn output_json_string(
     }
     fputc('"' as i32, out);
     loop {
-        let fresh155 = n;
+        let fresh34 = n;
         n = n - 1;
-        if !(fresh155 != 0) {
+        if !(fresh34 != 0) {
             break;
         }
-        let fresh156 = z;
+        let fresh35 = z;
         z = z.offset(1);
-        c = *fresh156 as libc::c_uint;
+        c = *fresh35 as libc::c_uint;
         if c == '\\' as i32 as libc::c_uint || c == '"' as i32 as libc::c_uint {
             fputc('\\' as i32, out);
             fputc(c as libc::c_int, out);
@@ -12246,9 +12151,9 @@ unsafe extern "C" fn output_csv(
     }
 }
 unsafe extern "C" fn interrupt_handler(mut NotUsed: libc::c_int) {
-    ::std::ptr::write_volatile(
+    ::core::ptr::write_volatile(
         &mut seenInterrupt as *mut libc::c_int,
-        ::std::ptr::read_volatile::<libc::c_int>(&seenInterrupt as *const libc::c_int)
+        ::core::ptr::read_volatile::<libc::c_int>(&seenInterrupt as *const libc::c_int)
             + 1,
     );
     if seenInterrupt > 2 as libc::c_int {
@@ -12287,9 +12192,9 @@ unsafe extern "C" fn safeModeAuth(
             let mut i: libc::c_int = 0;
             i = 0 as libc::c_int;
             while i
-                < (::std::mem::size_of::<[*const libc::c_char; 7]>() as libc::c_ulong)
+                < (::core::mem::size_of::<[*const libc::c_char; 7]>() as libc::c_ulong)
                     .wrapping_div(
-                        ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
+                        ::core::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
                     ) as libc::c_int
             {
                 if sqlite3_stricmp(zA1, azProhibitedFunctions[i as usize])
@@ -12459,7 +12364,7 @@ unsafe extern "C" fn eqp_append(
         );
     }
     pNew = sqlite3_malloc64(
-        (::std::mem::size_of::<EQPGraphRow>() as libc::c_ulong)
+        (::core::mem::size_of::<EQPGraphRow>() as libc::c_ulong)
             .wrapping_add(nText as libc::c_ulong) as sqlite3_uint64,
     ) as *mut EQPGraphRow;
     shell_check_oom(pNew as *mut libc::c_void);
@@ -12470,17 +12375,13 @@ unsafe extern "C" fn eqp_append(
         zText as *const libc::c_void,
         (nText + 1 as libc::c_int) as libc::c_ulong,
     );
-    let ref mut fresh157 = (*pNew).pNext;
-    *fresh157 = 0 as *mut EQPGraphRow;
+    (*pNew).pNext = 0 as *mut EQPGraphRow;
     if !((*p).sGraph.pLast).is_null() {
-        let ref mut fresh158 = (*(*p).sGraph.pLast).pNext;
-        *fresh158 = pNew;
+        (*(*p).sGraph.pLast).pNext = pNew;
     } else {
-        let ref mut fresh159 = (*p).sGraph.pRow;
-        *fresh159 = pNew;
+        (*p).sGraph.pRow = pNew;
     }
-    let ref mut fresh160 = (*p).sGraph.pLast;
-    *fresh160 = pNew;
+    (*p).sGraph.pLast = pNew;
 }
 unsafe extern "C" fn eqp_reset(mut p: *mut ShellState) {
     let mut pRow: *mut EQPGraphRow = 0 as *mut EQPGraphRow;
@@ -12494,7 +12395,7 @@ unsafe extern "C" fn eqp_reset(mut p: *mut ShellState) {
     memset(
         &mut (*p).sGraph as *mut EQPGraph as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<EQPGraph>() as libc::c_ulong,
+        ::core::mem::size_of::<EQPGraph>() as libc::c_ulong,
     );
 }
 unsafe extern "C" fn eqp_next_row(
@@ -12533,7 +12434,7 @@ unsafe extern "C" fn eqp_render_level(mut p: *mut ShellState, mut iEqpId: libc::
             z,
         );
         if n
-            < ::std::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
+            < ::core::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
                 as libc::c_int - 7 as libc::c_int
         {
             memcpy(
@@ -12567,8 +12468,7 @@ unsafe extern "C" fn eqp_render(mut p: *mut ShellState) {
                 b"%s\n\0" as *const u8 as *const libc::c_char,
                 ((*pRow).zText).as_mut_ptr().offset(3 as libc::c_int as isize),
             );
-            let ref mut fresh161 = (*p).sGraph.pRow;
-            *fresh161 = (*pRow).pNext;
+            (*p).sGraph.pRow = (*pRow).pNext;
             sqlite3_free(pRow as *mut libc::c_void);
         } else {
             fprintf((*p).out, b"QUERY PLAN\n\0" as *const u8 as *const libc::c_char);
@@ -12584,8 +12484,7 @@ unsafe extern "C" fn progress_handler(
     mut pClientData: *mut libc::c_void,
 ) -> libc::c_int {
     let mut p: *mut ShellState = pClientData as *mut ShellState;
-    let ref mut fresh162 = (*p).nProgress;
-    *fresh162 = (*fresh162).wrapping_add(1);
+    (*p).nProgress = ((*p).nProgress).wrapping_add(1);
     if (*p).nProgress >= (*p).mxProgress
         && (*p).mxProgress > 0 as libc::c_int as libc::c_uint
     {
@@ -12614,11 +12513,11 @@ unsafe extern "C" fn progress_handler(
     return 0 as libc::c_int;
 }
 unsafe extern "C" fn print_dashes(mut out: *mut FILE, mut N: libc::c_int) {
-    let zDash: [libc::c_char; 51] = *::std::mem::transmute::<
+    let zDash: [libc::c_char; 51] = *::core::mem::transmute::<
         &[u8; 51],
         &[libc::c_char; 51],
     >(b"--------------------------------------------------\0");
-    let nDash: libc::c_int = (::std::mem::size_of::<[libc::c_char; 51]>()
+    let nDash: libc::c_int = (::core::mem::size_of::<[libc::c_char; 51]>()
         as libc::c_ulong)
         .wrapping_sub(1 as libc::c_int as libc::c_ulong) as libc::c_int;
     while N > nDash {
@@ -12682,10 +12581,9 @@ unsafe extern "C" fn shell_callback(
                     }
                     i += 1;
                 }
-                let ref mut fresh163 = (*p).cnt;
-                let fresh164 = *fresh163;
-                *fresh163 = *fresh163 + 1;
-                if fresh164 > 0 as libc::c_int {
+                let fresh36 = (*p).cnt;
+                (*p).cnt = (*p).cnt + 1;
+                if fresh36 > 0 as libc::c_int {
                     fprintf(
                         (*p).out,
                         b"%s\0" as *const u8 as *const libc::c_char,
@@ -12722,18 +12620,17 @@ unsafe extern "C" fn shell_callback(
                 13 as libc::c_int,
             ];
             if nArg
-                > (::std::mem::size_of::<[libc::c_int; 8]>() as libc::c_ulong)
-                    .wrapping_div(::std::mem::size_of::<libc::c_int>() as libc::c_ulong)
+                > (::core::mem::size_of::<[libc::c_int; 8]>() as libc::c_ulong)
+                    .wrapping_div(::core::mem::size_of::<libc::c_int>() as libc::c_ulong)
                     as libc::c_int
             {
-                nArg = (::std::mem::size_of::<[libc::c_int; 8]>() as libc::c_ulong)
-                    .wrapping_div(::std::mem::size_of::<libc::c_int>() as libc::c_ulong)
+                nArg = (::core::mem::size_of::<[libc::c_int; 8]>() as libc::c_ulong)
+                    .wrapping_div(::core::mem::size_of::<libc::c_int>() as libc::c_ulong)
                     as libc::c_int;
             }
-            let ref mut fresh165 = (*p).cnt;
-            let fresh166 = *fresh165;
-            *fresh165 = *fresh165 + 1;
-            if fresh166 == 0 as libc::c_int {
+            let fresh37 = (*p).cnt;
+            (*p).cnt = (*p).cnt + 1;
+            if fresh37 == 0 as libc::c_int {
                 i = 0 as libc::c_int;
                 while i < nArg {
                     let mut w_0: libc::c_int = aExplainWidth[i as usize];
@@ -12786,8 +12683,7 @@ unsafe extern "C" fn shell_callback(
                                 b"\0" as *const u8 as *const libc::c_char,
                             );
                         }
-                        let ref mut fresh167 = (*p).iIndent;
-                        *fresh167 += 1;
+                        (*p).iIndent += 1;
                     }
                     utf8_width_print(
                         (*p).out,
@@ -12829,7 +12725,7 @@ unsafe extern "C" fn shell_callback(
                     b"nArg==1\0" as *const u8 as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
                     13256 as libc::c_int as libc::c_uint,
-                    (*::std::mem::transmute::<
+                    (*::core::mem::transmute::<
                         &[u8; 57],
                         &[libc::c_char; 57],
                     >(b"int shell_callback(void *, int, char **, char **, int *)\0"))
@@ -12900,9 +12796,9 @@ unsafe extern "C" fn shell_callback(
                                 || *z.offset((j - 1 as libc::c_int) as isize) as libc::c_int
                                     == '(' as i32
                             {
-                                current_block_58 = 13484060386966298149;
+                                current_block_58 = 168769493162332264;
                             } else {
-                                current_block_58 = 1352918242886884122;
+                                current_block_58 = 7494008139977416618;
                             }
                         } else {
                             if (c as libc::c_int == '(' as i32
@@ -12917,13 +12813,13 @@ unsafe extern "C" fn shell_callback(
                             {
                                 j -= 1;
                             }
-                            current_block_58 = 1352918242886884122;
+                            current_block_58 = 7494008139977416618;
                         }
                         match current_block_58 {
-                            1352918242886884122 => {
-                                let fresh168 = j;
+                            7494008139977416618 => {
+                                let fresh38 = j;
                                 j = j + 1;
-                                *z.offset(fresh168 as isize) = c;
+                                *z.offset(fresh38 as isize) = c;
                             }
                             _ => {}
                         }
@@ -12952,16 +12848,16 @@ unsafe extern "C" fn shell_callback(
                             if c as libc::c_int == cEnd as libc::c_int {
                                 cEnd = 0 as libc::c_int as libc::c_char;
                             } else if c as libc::c_int == '"' as i32
-                                    || c as libc::c_int == '\'' as i32
-                                    || c as libc::c_int == '`' as i32
-                                {
+                                || c as libc::c_int == '\'' as i32
+                                || c as libc::c_int == '`' as i32
+                            {
                                 cEnd = c;
                             } else if c as libc::c_int == '[' as i32 {
                                 cEnd = ']' as i32 as libc::c_char;
                             } else if c as libc::c_int == '-' as i32
-                                    && *z.offset((i + 1 as libc::c_int) as isize) as libc::c_int
-                                        == '-' as i32
-                                {
+                                && *z.offset((i + 1 as libc::c_int) as isize) as libc::c_int
+                                    == '-' as i32
+                            {
                                 cEnd = '\n' as i32 as libc::c_char;
                             } else if c as libc::c_int == '(' as i32 {
                                 nParen += 1;
@@ -12979,9 +12875,9 @@ unsafe extern "C" fn shell_callback(
                                     j = 0 as libc::c_int;
                                 }
                             }
-                            let fresh169 = j;
+                            let fresh39 = j;
                             j = j + 1;
-                            *z.offset(fresh169 as isize) = c;
+                            *z.offset(fresh39 as isize) = c;
                             if nParen == 1 as libc::c_int
                                 && cEnd as libc::c_int == 0 as libc::c_int
                                 && (c as libc::c_int == '(' as i32
@@ -13027,10 +12923,9 @@ unsafe extern "C" fn shell_callback(
             }
         }
         2 => {
-            let ref mut fresh170 = (*p).cnt;
-            let fresh171 = *fresh170;
-            *fresh170 = *fresh170 + 1;
-            if fresh171 == 0 as libc::c_int && (*p).showHeader != 0 {
+            let fresh40 = (*p).cnt;
+            (*p).cnt = (*p).cnt + 1;
+            if fresh40 == 0 as libc::c_int && (*p).showHeader != 0 {
                 i = 0 as libc::c_int;
                 while i < nArg {
                     fprintf(
@@ -13072,10 +12967,9 @@ unsafe extern "C" fn shell_callback(
             }
         }
         4 => {
-            let ref mut fresh172 = (*p).cnt;
-            let fresh173 = *fresh172;
-            *fresh172 = *fresh172 + 1;
-            if fresh173 == 0 as libc::c_int && (*p).showHeader != 0 {
+            let fresh41 = (*p).cnt;
+            (*p).cnt = (*p).cnt + 1;
+            if fresh41 == 0 as libc::c_int && (*p).showHeader != 0 {
                 fprintf((*p).out, b"<TR>\0" as *const u8 as *const libc::c_char);
                 i = 0 as libc::c_int;
                 while i < nArg {
@@ -13106,10 +13000,9 @@ unsafe extern "C" fn shell_callback(
             }
         }
         7 => {
-            let ref mut fresh174 = (*p).cnt;
-            let fresh175 = *fresh174;
-            *fresh174 = *fresh174 + 1;
-            if fresh175 == 0 as libc::c_int && (*p).showHeader != 0 {
+            let fresh42 = (*p).cnt;
+            (*p).cnt = (*p).cnt + 1;
+            if fresh42 == 0 as libc::c_int && (*p).showHeader != 0 {
                 i = 0 as libc::c_int;
                 while i < nArg {
                     output_c_string(
@@ -13163,10 +13056,9 @@ unsafe extern "C" fn shell_callback(
             }
         }
         8 => {
-            let ref mut fresh176 = (*p).cnt;
-            let fresh177 = *fresh176;
-            *fresh176 = *fresh176 + 1;
-            if fresh177 == 0 as libc::c_int && (*p).showHeader != 0 {
+            let fresh43 = (*p).cnt;
+            (*p).cnt = (*p).cnt + 1;
+            if fresh43 == 0 as libc::c_int && (*p).showHeader != 0 {
                 i = 0 as libc::c_int;
                 while i < nArg {
                     output_csv(
@@ -13243,8 +13135,7 @@ unsafe extern "C" fn shell_callback(
                     }
                     fprintf((*p).out, b")\0" as *const u8 as *const libc::c_char);
                 }
-                let ref mut fresh178 = (*p).cnt;
-                *fresh178 += 1;
+                (*p).cnt += 1;
                 i = 0 as libc::c_int;
                 while i < nArg {
                     fprintf(
@@ -13261,8 +13152,8 @@ unsafe extern "C" fn shell_callback(
                     {
                         fprintf((*p).out, b"NULL\0" as *const u8 as *const libc::c_char);
                     } else if !aiType.is_null()
-                            && *aiType.offset(i as isize) == 3 as libc::c_int
-                        {
+                        && *aiType.offset(i as isize) == 3 as libc::c_int
+                    {
                         if (*p).shellFlgs & 0x10 as libc::c_int as libc::c_uint
                             != 0 as libc::c_int as libc::c_uint
                         {
@@ -13274,23 +13165,23 @@ unsafe extern "C" fn shell_callback(
                             );
                         }
                     } else if !aiType.is_null()
-                            && *aiType.offset(i as isize) == 1 as libc::c_int
-                        {
+                        && *aiType.offset(i as isize) == 1 as libc::c_int
+                    {
                         fprintf(
                             (*p).out,
                             b"%s\0" as *const u8 as *const libc::c_char,
                             *azArg.offset(i as isize),
                         );
                     } else if !aiType.is_null()
-                            && *aiType.offset(i as isize) == 2 as libc::c_int
-                        {
+                        && *aiType.offset(i as isize) == 2 as libc::c_int
+                    {
                         let mut z_2: [libc::c_char; 50] = [0; 50];
                         let mut r: libc::c_double = sqlite3_column_double((*p).pStmt, i);
                         let mut ur: sqlite3_uint64 = 0;
                         memcpy(
                             &mut ur as *mut sqlite3_uint64 as *mut libc::c_void,
                             &mut r as *mut libc::c_double as *const libc::c_void,
-                            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
+                            ::core::mem::size_of::<libc::c_double>() as libc::c_ulong,
                         );
                         if ur
                             == 0x7ff0000000000000 as libc::c_longlong
@@ -13329,9 +13220,9 @@ unsafe extern "C" fn shell_callback(
                             );
                         }
                     } else if !aiType.is_null()
-                            && *aiType.offset(i as isize) == 4 as libc::c_int
-                            && !((*p).pStmt).is_null()
-                        {
+                        && *aiType.offset(i as isize) == 4 as libc::c_int
+                        && !((*p).pStmt).is_null()
+                    {
                         let mut pBlob: *const libc::c_void = sqlite3_column_blob(
                             (*p).pStmt,
                             i,
@@ -13339,16 +13230,16 @@ unsafe extern "C" fn shell_callback(
                         let mut nBlob: libc::c_int = sqlite3_column_bytes((*p).pStmt, i);
                         output_hex_blob((*p).out, pBlob, nBlob);
                     } else if isNumber(*azArg.offset(i as isize), 0 as *mut libc::c_int)
-                            != 0
-                        {
+                        != 0
+                    {
                         fprintf(
                             (*p).out,
                             b"%s\0" as *const u8 as *const libc::c_char,
                             *azArg.offset(i as isize),
                         );
                     } else if (*p).shellFlgs & 0x10 as libc::c_int as libc::c_uint
-                            != 0 as libc::c_int as libc::c_uint
-                        {
+                        != 0 as libc::c_int as libc::c_uint
+                    {
                         output_quoted_string((*p).out, *azArg.offset(i as isize));
                     } else {
                         output_quoted_escaped_string(
@@ -13368,8 +13259,7 @@ unsafe extern "C" fn shell_callback(
                 } else {
                     fputs(b",\n{\0" as *const u8 as *const libc::c_char, (*p).out);
                 }
-                let ref mut fresh179 = (*p).cnt;
-                *fresh179 += 1;
+                (*p).cnt += 1;
                 i = 0 as libc::c_int;
                 while i < nArg {
                     output_json_string(
@@ -13384,8 +13274,8 @@ unsafe extern "C" fn shell_callback(
                     {
                         fputs(b"null\0" as *const u8 as *const libc::c_char, (*p).out);
                     } else if !aiType.is_null()
-                            && *aiType.offset(i as isize) == 2 as libc::c_int
-                        {
+                        && *aiType.offset(i as isize) == 2 as libc::c_int
+                    {
                         let mut z_3: [libc::c_char; 50] = [0; 50];
                         let mut r_0: libc::c_double = sqlite3_column_double(
                             (*p).pStmt,
@@ -13395,7 +13285,7 @@ unsafe extern "C" fn shell_callback(
                         memcpy(
                             &mut ur_0 as *mut sqlite3_uint64 as *mut libc::c_void,
                             &mut r_0 as *mut libc::c_double as *const libc::c_void,
-                            ::std::mem::size_of::<libc::c_double>() as libc::c_ulong,
+                            ::core::mem::size_of::<libc::c_double>() as libc::c_ulong,
                         );
                         if ur_0
                             == 0x7ff0000000000000 as libc::c_longlong
@@ -13424,9 +13314,9 @@ unsafe extern "C" fn shell_callback(
                             );
                         }
                     } else if !aiType.is_null()
-                            && *aiType.offset(i as isize) == 4 as libc::c_int
-                            && !((*p).pStmt).is_null()
-                        {
+                        && *aiType.offset(i as isize) == 4 as libc::c_int
+                        && !((*p).pStmt).is_null()
+                    {
                         let mut pBlob_0: *const libc::c_void = sqlite3_column_blob(
                             (*p).pStmt,
                             i,
@@ -13441,8 +13331,8 @@ unsafe extern "C" fn shell_callback(
                             nBlob_0,
                         );
                     } else if !aiType.is_null()
-                            && *aiType.offset(i as isize) == 3 as libc::c_int
-                        {
+                        && *aiType.offset(i as isize) == 3 as libc::c_int
+                    {
                         output_json_string(
                             (*p).out,
                             *azArg.offset(i as isize),
@@ -13476,8 +13366,7 @@ unsafe extern "C" fn shell_callback(
                     }
                     fputs(((*p).rowSeparator).as_mut_ptr(), (*p).out);
                 }
-                let ref mut fresh180 = (*p).cnt;
-                *fresh180 += 1;
+                (*p).cnt += 1;
                 i = 0 as libc::c_int;
                 while i < nArg {
                     if i > 0 as libc::c_int {
@@ -13489,20 +13378,20 @@ unsafe extern "C" fn shell_callback(
                     {
                         fprintf((*p).out, b"NULL\0" as *const u8 as *const libc::c_char);
                     } else if !aiType.is_null()
-                            && *aiType.offset(i as isize) == 3 as libc::c_int
-                        {
+                        && *aiType.offset(i as isize) == 3 as libc::c_int
+                    {
                         output_quoted_string((*p).out, *azArg.offset(i as isize));
                     } else if !aiType.is_null()
-                            && *aiType.offset(i as isize) == 1 as libc::c_int
-                        {
+                        && *aiType.offset(i as isize) == 1 as libc::c_int
+                    {
                         fprintf(
                             (*p).out,
                             b"%s\0" as *const u8 as *const libc::c_char,
                             *azArg.offset(i as isize),
                         );
                     } else if !aiType.is_null()
-                            && *aiType.offset(i as isize) == 2 as libc::c_int
-                        {
+                        && *aiType.offset(i as isize) == 2 as libc::c_int
+                    {
                         let mut z_4: [libc::c_char; 50] = [0; 50];
                         let mut r_1: libc::c_double = sqlite3_column_double(
                             (*p).pStmt,
@@ -13520,9 +13409,9 @@ unsafe extern "C" fn shell_callback(
                             z_4.as_mut_ptr(),
                         );
                     } else if !aiType.is_null()
-                            && *aiType.offset(i as isize) == 4 as libc::c_int
-                            && !((*p).pStmt).is_null()
-                        {
+                        && *aiType.offset(i as isize) == 4 as libc::c_int
+                        && !((*p).pStmt).is_null()
+                    {
                         let mut pBlob_1: *const libc::c_void = sqlite3_column_blob(
                             (*p).pStmt,
                             i,
@@ -13533,8 +13422,8 @@ unsafe extern "C" fn shell_callback(
                         );
                         output_hex_blob((*p).out, pBlob_1, nBlob_1);
                     } else if isNumber(*azArg.offset(i as isize), 0 as *mut libc::c_int)
-                            != 0
-                        {
+                        != 0
+                    {
                         fprintf(
                             (*p).out,
                             b"%s\0" as *const u8 as *const libc::c_char,
@@ -13549,10 +13438,9 @@ unsafe extern "C" fn shell_callback(
             }
         }
         10 => {
-            let ref mut fresh181 = (*p).cnt;
-            let fresh182 = *fresh181;
-            *fresh181 = *fresh181 + 1;
-            if fresh182 == 0 as libc::c_int && (*p).showHeader != 0 {
+            let fresh44 = (*p).cnt;
+            (*p).cnt = (*p).cnt + 1;
+            if fresh44 == 0 as libc::c_int && (*p).showHeader != 0 {
                 i = 0 as libc::c_int;
                 while i < nArg {
                     if i > 0 as libc::c_int {
@@ -13698,8 +13586,7 @@ unsafe extern "C" fn set_table_name(
     let mut z: *mut libc::c_char = 0 as *mut libc::c_char;
     if !((*p).zDestTable).is_null() {
         free((*p).zDestTable as *mut libc::c_void);
-        let ref mut fresh183 = (*p).zDestTable;
-        *fresh183 = 0 as *mut libc::c_char;
+        (*p).zDestTable = 0 as *mut libc::c_char;
     }
     if zName.is_null() {
         return;
@@ -13709,32 +13596,33 @@ unsafe extern "C" fn set_table_name(
     if cQuote != 0 {
         n += n + 2 as libc::c_int;
     }
-    let ref mut fresh184 = (*p).zDestTable;
-    *fresh184 = malloc((n + 1 as libc::c_int) as libc::c_ulong) as *mut libc::c_char;
-    z = *fresh184;
+    (*p)
+        .zDestTable = malloc((n + 1 as libc::c_int) as libc::c_ulong)
+        as *mut libc::c_char;
+    z = (*p).zDestTable;
     shell_check_oom(z as *mut libc::c_void);
     n = 0 as libc::c_int;
     if cQuote != 0 {
-        let fresh185 = n;
+        let fresh45 = n;
         n = n + 1;
-        *z.offset(fresh185 as isize) = cQuote;
+        *z.offset(fresh45 as isize) = cQuote;
     }
     i = 0 as libc::c_int;
     while *zName.offset(i as isize) != 0 {
-        let fresh186 = n;
+        let fresh46 = n;
         n = n + 1;
-        *z.offset(fresh186 as isize) = *zName.offset(i as isize);
+        *z.offset(fresh46 as isize) = *zName.offset(i as isize);
         if *zName.offset(i as isize) as libc::c_int == cQuote as libc::c_int {
-            let fresh187 = n;
+            let fresh47 = n;
             n = n + 1;
-            *z.offset(fresh187 as isize) = cQuote;
+            *z.offset(fresh47 as isize) = cQuote;
         }
         i += 1;
     }
     if cQuote != 0 {
-        let fresh188 = n;
+        let fresh48 = n;
         n = n + 1;
-        *z.offset(fresh188 as isize) = cQuote;
+        *z.offset(fresh48 as isize) = cQuote;
     }
     *z.offset(n as isize) = 0 as libc::c_int as libc::c_char;
 }
@@ -13830,8 +13718,7 @@ unsafe extern "C" fn run_table_dump_query(
         );
         sqlite3_free(zContext as *mut libc::c_void);
         if rc & 0xff as libc::c_int != 11 as libc::c_int {
-            let ref mut fresh189 = (*p).nErr;
-            *fresh189 += 1;
+            (*p).nErr += 1;
         }
         return rc;
     }
@@ -13874,8 +13761,7 @@ unsafe extern "C" fn run_table_dump_query(
             sqlite3_errmsg((*p).db),
         );
         if rc & 0xff as libc::c_int != 11 as libc::c_int {
-            let ref mut fresh190 = (*p).nErr;
-            *fresh190 += 1;
+            (*p).nErr += 1;
         }
     }
     return rc;
@@ -13911,7 +13797,7 @@ unsafe extern "C" fn displayLinuxIoStats(mut out: *mut FILE) {
     let mut in_0: *mut FILE = 0 as *mut FILE;
     let mut z: [libc::c_char; 200] = [0; 200];
     sqlite3_snprintf(
-        ::std::mem::size_of::<[libc::c_char; 200]>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<[libc::c_char; 200]>() as libc::c_ulong as libc::c_int,
         z.as_mut_ptr(),
         b"/proc/%d/io\0" as *const u8 as *const libc::c_char,
         getpid(),
@@ -13922,7 +13808,7 @@ unsafe extern "C" fn displayLinuxIoStats(mut out: *mut FILE) {
     }
     while !(fgets(
         z.as_mut_ptr(),
-        ::std::mem::size_of::<[libc::c_char; 200]>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<[libc::c_char; 200]>() as libc::c_ulong as libc::c_int,
         in_0,
     ))
         .is_null()
@@ -13987,9 +13873,10 @@ unsafe extern "C" fn displayLinuxIoStats(mut out: *mut FILE) {
         let mut i: libc::c_int = 0;
         i = 0 as libc::c_int;
         while i
-            < (::std::mem::size_of::<[C2RustUnnamed_18; 7]>() as libc::c_ulong)
-                .wrapping_div(::std::mem::size_of::<C2RustUnnamed_18>() as libc::c_ulong)
-                as libc::c_int
+            < (::core::mem::size_of::<[C2RustUnnamed_18; 7]>() as libc::c_ulong)
+                .wrapping_div(
+                    ::core::mem::size_of::<C2RustUnnamed_18>() as libc::c_ulong,
+                ) as libc::c_int
         {
             let mut n: libc::c_int = strlen30(aTrans[i as usize].zPattern);
             if strncmp(aTrans[i as usize].zPattern, z.as_mut_ptr(), n as libc::c_ulong)
@@ -14032,7 +13919,8 @@ unsafe extern "C" fn displayStatLine(
     }
     if nPercent > 1 as libc::c_int {
         sqlite3_snprintf(
-            ::std::mem::size_of::<[libc::c_char; 200]>() as libc::c_ulong as libc::c_int,
+            ::core::mem::size_of::<[libc::c_char; 200]>() as libc::c_ulong
+                as libc::c_int,
             zLine.as_mut_ptr(),
             zFormat,
             iCur,
@@ -14040,7 +13928,8 @@ unsafe extern "C" fn displayStatLine(
         );
     } else {
         sqlite3_snprintf(
-            ::std::mem::size_of::<[libc::c_char; 200]>() as libc::c_ulong as libc::c_int,
+            ::core::mem::size_of::<[libc::c_char; 200]>() as libc::c_ulong
+                as libc::c_int,
             zLine.as_mut_ptr(),
             zFormat,
             iHiwtr,
@@ -14082,7 +13971,7 @@ unsafe extern "C" fn display_stats(
         i = 0 as libc::c_int;
         while i < nCol {
             sqlite3_snprintf(
-                ::std::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
+                ::core::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
                     as libc::c_int,
                 z.as_mut_ptr(),
                 b"Column %d %nname:\0" as *const u8 as *const libc::c_char,
@@ -14453,10 +14342,11 @@ unsafe extern "C" fn explain_data_prepare(
                 let mut jj: libc::c_int = 0;
                 jj = 0 as libc::c_int;
                 while jj
-                    < (::std::mem::size_of::<[*const libc::c_char; 8]>()
+                    < (::core::mem::size_of::<[*const libc::c_char; 8]>()
                         as libc::c_ulong)
                         .wrapping_div(
-                            ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
+                            ::core::mem::size_of::<*const libc::c_char>()
+                                as libc::c_ulong,
                         ) as libc::c_int
                 {
                     if strcmp(sqlite3_column_name(pSql, jj), explainCols[jj as usize])
@@ -14470,18 +14360,18 @@ unsafe extern "C" fn explain_data_prepare(
                 }
             }
             nAlloc += 100 as libc::c_int;
-            let ref mut fresh191 = (*p).aiIndent;
-            *fresh191 = sqlite3_realloc64(
+            (*p)
+                .aiIndent = sqlite3_realloc64(
                 (*p).aiIndent as *mut libc::c_void,
                 (nAlloc as libc::c_ulong)
-                    .wrapping_mul(::std::mem::size_of::<libc::c_int>() as libc::c_ulong)
+                    .wrapping_mul(::core::mem::size_of::<libc::c_int>() as libc::c_ulong)
                     as sqlite3_uint64,
             ) as *mut libc::c_int;
             shell_check_oom((*p).aiIndent as *mut libc::c_void);
             abYield = sqlite3_realloc64(
                 abYield as *mut libc::c_void,
                 (nAlloc as libc::c_ulong)
-                    .wrapping_mul(::std::mem::size_of::<libc::c_int>() as libc::c_ulong)
+                    .wrapping_mul(::core::mem::size_of::<libc::c_int>() as libc::c_ulong)
                     as sqlite3_uint64,
             ) as *mut libc::c_int;
             shell_check_oom(abYield as *mut libc::c_void);
@@ -14514,8 +14404,7 @@ unsafe extern "C" fn explain_data_prepare(
 }
 unsafe extern "C" fn explain_data_delete(mut p: *mut ShellState) {
     sqlite3_free((*p).aiIndent as *mut libc::c_void);
-    let ref mut fresh192 = (*p).aiIndent;
-    *fresh192 = 0 as *mut libc::c_int;
+    (*p).aiIndent = 0 as *mut libc::c_int;
     (*p).nIndent = 0 as libc::c_int;
     (*p).iIndent = 0 as libc::c_int;
 }
@@ -14627,7 +14516,7 @@ unsafe extern "C" fn bind_prepared_stmt(
         let mut zVar: *const libc::c_char = sqlite3_bind_parameter_name(pStmt, i);
         if zVar.is_null() {
             sqlite3_snprintf(
-                ::std::mem::size_of::<[libc::c_char; 30]>() as libc::c_ulong
+                ::core::mem::size_of::<[libc::c_char; 30]>() as libc::c_ulong
                     as libc::c_int,
                 zNum.as_mut_ptr(),
                 b"?%d\0" as *const u8 as *const libc::c_char,
@@ -14647,13 +14536,13 @@ unsafe extern "C" fn bind_prepared_stmt(
     sqlite3_finalize(pQ);
 }
 unsafe extern "C" fn print_box_line(mut out: *mut FILE, mut N: libc::c_int) {
-    let zDash: [libc::c_char; 61] = *::std::mem::transmute::<
+    let zDash: [libc::c_char; 61] = *::core::mem::transmute::<
         &[u8; 61],
         &[libc::c_char; 61],
     >(
         b"\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\0",
     );
-    let nDash: libc::c_int = (::std::mem::size_of::<[libc::c_char; 61]>()
+    let nDash: libc::c_int = (::core::mem::size_of::<[libc::c_char; 61]>()
         as libc::c_ulong)
         .wrapping_sub(1 as libc::c_int as libc::c_ulong) as libc::c_int;
     N *= 3 as libc::c_int;
@@ -14788,17 +14677,16 @@ unsafe extern "C" fn translateForDisplayAndDup(
     if n >= mxWidth && *z.offset(i as isize) as libc::c_int >= ' ' as i32 {
         *pzTail = &*z.offset(i as isize) as *const libc::c_uchar;
     } else if *z.offset(i as isize) as libc::c_int == '\r' as i32
-            && *z.offset((i + 1 as libc::c_int) as isize) as libc::c_int == '\n' as i32
-        {
+        && *z.offset((i + 1 as libc::c_int) as isize) as libc::c_int == '\n' as i32
+    {
         *pzTail = if *z.offset((i + 2 as libc::c_int) as isize) as libc::c_int != 0 {
             &*z.offset((i + 2 as libc::c_int) as isize) as *const libc::c_uchar
         } else {
             0 as *const libc::c_uchar
         };
     } else if *z.offset(i as isize) as libc::c_int == 0 as libc::c_int
-            || *z.offset((i + 1 as libc::c_int) as isize) as libc::c_int
-                == 0 as libc::c_int
-        {
+        || *z.offset((i + 1 as libc::c_int) as isize) as libc::c_int == 0 as libc::c_int
+    {
         *pzTail = 0 as *const libc::c_uchar;
     } else {
         *pzTail = &*z.offset((i + 1 as libc::c_int) as isize) as *const libc::c_uchar;
@@ -14812,11 +14700,11 @@ unsafe extern "C" fn translateForDisplayAndDup(
         if *z.offset(i as isize) as libc::c_int >= ' ' as i32 {
             n += 1;
             loop {
-                let fresh193 = i;
+                let fresh49 = i;
                 i = i + 1;
-                let fresh194 = j;
+                let fresh50 = j;
                 j = j + 1;
-                *zOut.offset(fresh194 as isize) = *z.offset(fresh193 as isize);
+                *zOut.offset(fresh50 as isize) = *z.offset(fresh49 as isize);
                 if !(*z.offset(i as isize) as libc::c_int & 0xc0 as libc::c_int
                     == 0x80 as libc::c_int)
                 {
@@ -14829,9 +14717,9 @@ unsafe extern "C" fn translateForDisplayAndDup(
             }
             loop {
                 n += 1;
-                let fresh195 = j;
+                let fresh51 = j;
                 j = j + 1;
-                *zOut.offset(fresh195 as isize) = ' ' as i32 as libc::c_uchar;
+                *zOut.offset(fresh51 as isize) = ' ' as i32 as libc::c_uchar;
                 if !(n & 7 as libc::c_int != 0 as libc::c_int && n < mxWidth) {
                     break;
                 }
@@ -14931,14 +14819,14 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
     azData = sqlite3_malloc64(
         (nAlloc as libc::c_ulonglong)
             .wrapping_mul(
-                ::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong
+                ::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong
                     as libc::c_ulonglong,
             ),
     ) as *mut *mut libc::c_char;
     shell_check_oom(azData as *mut libc::c_void);
     azNextLine = sqlite3_malloc64(
         (nColumn as libc::c_ulong)
-            .wrapping_mul(::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong)
+            .wrapping_mul(::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong)
             as sqlite3_uint64,
     ) as *mut *const libc::c_uchar;
     shell_check_oom(azNextLine as *mut libc::c_void);
@@ -14946,13 +14834,13 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
         azNextLine as *mut libc::c_void,
         0 as libc::c_int,
         (nColumn as libc::c_ulong)
-            .wrapping_mul(::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong),
+            .wrapping_mul(::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong),
     );
     if (*p).cmOpts.bQuote != 0 {
         azQuoted = sqlite3_malloc64(
             (nColumn as libc::c_ulong)
                 .wrapping_mul(
-                    ::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
+                    ::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
                 ) as sqlite3_uint64,
         ) as *mut *mut libc::c_char;
         shell_check_oom(azQuoted as *mut libc::c_void);
@@ -14961,7 +14849,7 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
             0 as libc::c_int,
             (nColumn as libc::c_ulong)
                 .wrapping_mul(
-                    ::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
+                    ::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
                 ),
         );
     }
@@ -14969,11 +14857,11 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
         as *mut libc::c_char;
     shell_check_oom(abRowDiv as *mut libc::c_void);
     if nColumn > (*p).nWidth {
-        let ref mut fresh196 = (*p).colWidth;
-        *fresh196 = realloc(
+        (*p)
+            .colWidth = realloc(
             (*p).colWidth as *mut libc::c_void,
             (((nColumn + 1 as libc::c_int) * 2 as libc::c_int) as libc::c_ulong)
-                .wrapping_mul(::std::mem::size_of::<libc::c_int>() as libc::c_ulong),
+                .wrapping_mul(::core::mem::size_of::<libc::c_int>() as libc::c_ulong),
         ) as *mut libc::c_int;
         shell_check_oom((*p).colWidth as *mut libc::c_void);
         i = (*p).nWidth as sqlite3_int64;
@@ -14982,14 +14870,15 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
             i += 1;
         }
         (*p).nWidth = nColumn;
-        let ref mut fresh197 = (*p).actualWidth;
-        *fresh197 = &mut *((*p).colWidth).offset(nColumn as isize) as *mut libc::c_int;
+        (*p)
+            .actualWidth = &mut *((*p).colWidth).offset(nColumn as isize)
+            as *mut libc::c_int;
     }
     memset(
         (*p).actualWidth as *mut libc::c_void,
         0 as libc::c_int,
         (nColumn as libc::c_ulong)
-            .wrapping_mul(::std::mem::size_of::<libc::c_int>() as libc::c_ulong),
+            .wrapping_mul(::core::mem::size_of::<libc::c_int>() as libc::c_ulong),
     );
     i = 0 as libc::c_int as sqlite3_int64;
     while i < nColumn as libc::c_longlong {
@@ -15011,8 +14900,8 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
             wx = -wx;
         }
         uz = sqlite3_column_name(pStmt, i as libc::c_int) as *const libc::c_uchar;
-        let ref mut fresh198 = *azData.offset(i as isize);
-        *fresh198 = translateForDisplayAndDup(uz, &mut zNotUsed, wx, bw as u8_0);
+        let ref mut fresh52 = *azData.offset(i as isize);
+        *fresh52 = translateForDisplayAndDup(uz, &mut zNotUsed, wx, bw as u8_0);
         i += 1;
     }
     loop {
@@ -15026,7 +14915,7 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
                 azData as *mut libc::c_void,
                 (nAlloc as libc::c_ulonglong)
                     .wrapping_mul(
-                        ::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong
+                        ::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong
                             as libc::c_ulonglong,
                     ),
             ) as *mut *mut libc::c_char;
@@ -15055,8 +14944,8 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
                 }
             } else if (*p).cmOpts.bQuote != 0 {
                 sqlite3_free(*azQuoted.offset(i as isize) as *mut libc::c_void);
-                let ref mut fresh199 = *azQuoted.offset(i as isize);
-                *fresh199 = quoted_column(pStmt, i as libc::c_int);
+                let ref mut fresh53 = *azQuoted.offset(i as isize);
+                *fresh53 = quoted_column(pStmt, i as libc::c_int);
                 uz = *azQuoted.offset(i as isize) as *const libc::c_uchar;
             } else {
                 uz = sqlite3_column_text(pStmt, i as libc::c_int);
@@ -15064,9 +14953,9 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
                     uz = zShowNull as *mut u8_0;
                 }
             }
-            let ref mut fresh200 = *azData
+            let ref mut fresh54 = *azData
                 .offset((nRow * nColumn as libc::c_longlong + i) as isize);
-            *fresh200 = translateForDisplayAndDup(
+            *fresh54 = translateForDisplayAndDup(
                 uz,
                 &mut *azNextLine.offset(i as isize),
                 wx_0,
@@ -15262,7 +15151,7 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
             j = 0 as libc::c_int;
             loop {
                 if !(i < nTotal as libc::c_longlong) {
-                    current_block = 16107425721173356396;
+                    current_block = 8880031775101799352;
                     break;
                 }
                 if j == 0 as libc::c_int && (*p).cMode != 1 as libc::c_int {
@@ -15323,7 +15212,7 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
                     }
                     j = -(1 as libc::c_int);
                     if seenInterrupt != 0 {
-                        current_block = 15446435856783543776;
+                        current_block = 9012110987785288076;
                         break;
                     }
                 } else {
@@ -15337,7 +15226,7 @@ unsafe extern "C" fn exec_prepared_stmt_columnar(
                 j += 1;
             }
             match current_block {
-                15446435856783543776 => {}
+                9012110987785288076 => {}
                 _ => {
                     if (*p).cMode == 15 as libc::c_int {
                         print_row_separator(
@@ -15400,7 +15289,7 @@ unsafe extern "C" fn exec_prepared_stmt(
         let mut pData: *mut libc::c_void = sqlite3_malloc64(
             ((3 as libc::c_int * nCol) as libc::c_ulong)
                 .wrapping_mul(
-                    ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
+                    ::core::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
                 )
                 .wrapping_add(1 as libc::c_int as libc::c_ulong) as sqlite3_uint64,
         );
@@ -15414,15 +15303,15 @@ unsafe extern "C" fn exec_prepared_stmt(
                 as *mut *mut libc::c_char as *mut libc::c_int;
             let mut i: libc::c_int = 0;
             let mut x: libc::c_int = 0;
-            if ::std::mem::size_of::<libc::c_int>() as libc::c_ulong
-                <= ::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong
+            if ::core::mem::size_of::<libc::c_int>() as libc::c_ulong
+                <= ::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong
             {} else {
                 __assert_fail(
                     b"sizeof(int) <= sizeof(char *)\0" as *const u8
                         as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
                     14704 as libc::c_int as libc::c_uint,
-                    (*::std::mem::transmute::<
+                    (*::core::mem::transmute::<
                         &[u8; 54],
                         &[libc::c_char; 54],
                     >(b"void exec_prepared_stmt(ShellState *, sqlite3_stmt *)\0"))
@@ -15431,8 +15320,8 @@ unsafe extern "C" fn exec_prepared_stmt(
             }
             i = 0 as libc::c_int;
             while i < nCol {
-                let ref mut fresh201 = *azCols.offset(i as isize);
-                *fresh201 = sqlite3_column_name(pStmt, i) as *mut libc::c_char;
+                let ref mut fresh55 = *azCols.offset(i as isize);
+                *fresh55 = sqlite3_column_name(pStmt, i) as *mut libc::c_char;
                 i += 1;
             }
             loop {
@@ -15445,12 +15334,12 @@ unsafe extern "C" fn exec_prepared_stmt(
                         && ((*pArg).cMode == 5 as libc::c_int
                             || (*pArg).cMode == 6 as libc::c_int)
                     {
-                        let ref mut fresh202 = *azVals.offset(i as isize);
-                        *fresh202 = b"\0" as *const u8 as *const libc::c_char
+                        let ref mut fresh56 = *azVals.offset(i as isize);
+                        *fresh56 = b"\0" as *const u8 as *const libc::c_char
                             as *mut libc::c_char;
                     } else {
-                        let ref mut fresh203 = *azVals.offset(i as isize);
-                        *fresh203 = sqlite3_column_text(pStmt, i) as *mut libc::c_char;
+                        let ref mut fresh57 = *azVals.offset(i as isize);
+                        *fresh57 = sqlite3_column_text(pStmt, i) as *mut libc::c_char;
                     }
                     if (*azVals.offset(i as isize)).is_null()
                         && *aiTypes.offset(i as isize) != 5 as libc::c_int
@@ -15485,7 +15374,7 @@ unsafe extern "C" fn exec_prepared_stmt(
             } else if (*pArg).cMode == 17 as libc::c_int {
                 let mut zBuf: [libc::c_char; 200] = [0; 200];
                 sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 200]>() as libc::c_ulong
+                    ::core::mem::size_of::<[libc::c_char; 200]>() as libc::c_ulong
                         as libc::c_int,
                     zBuf.as_mut_ptr(),
                     b"%llu row%s\n\0" as *const u8 as *const libc::c_char,
@@ -15511,7 +15400,7 @@ unsafe extern "C" fn expertHandleSQL(
             b"pState->expert.pExpert\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             14767 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 57],
                 &[libc::c_char; 57],
             >(b"int expertHandleSQL(ShellState *, const char *, char **)\0"))
@@ -15523,7 +15412,7 @@ unsafe extern "C" fn expertHandleSQL(
             b"pzErr==0 || *pzErr==0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             14768 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 57],
                 &[libc::c_char; 57],
             >(b"int expertHandleSQL(ShellState *, const char *, char **)\0"))
@@ -15544,7 +15433,7 @@ unsafe extern "C" fn expertFinish(
             b"p\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             14789 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 45],
                 &[libc::c_char; 45],
             >(b"int expertFinish(ShellState *, int, char **)\0"))
@@ -15556,7 +15445,7 @@ unsafe extern "C" fn expertFinish(
             b"bCancel || pzErr==0 || *pzErr==0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             14790 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 45],
                 &[libc::c_char; 45],
             >(b"int expertFinish(ShellState *, int, char **)\0"))
@@ -15619,8 +15508,7 @@ unsafe extern "C" fn expertFinish(
         }
     }
     sqlite3_expert_destroy(p);
-    let ref mut fresh204 = (*pState).expert.pExpert;
-    *fresh204 = 0 as *mut sqlite3expert;
+    (*pState).expert.pExpert = 0 as *mut sqlite3expert;
     return rc;
 }
 unsafe extern "C" fn expertDotCommand(
@@ -15637,7 +15525,7 @@ unsafe extern "C" fn expertDotCommand(
             b"pState->expert.pExpert==0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             14837 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 49],
                 &[libc::c_char; 49],
             >(b"int expertDotCommand(ShellState *, char **, int)\0"))
@@ -15647,7 +15535,7 @@ unsafe extern "C" fn expertDotCommand(
     memset(
         &mut (*pState).expert as *mut ExpertInfo as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<ExpertInfo>() as libc::c_ulong,
+        ::core::mem::size_of::<ExpertInfo>() as libc::c_ulong,
     );
     i = 1 as libc::c_int;
     while rc == 0 as libc::c_int && i < nArg {
@@ -15669,13 +15557,13 @@ unsafe extern "C" fn expertDotCommand(
         {
             (*pState).expert.bVerbose = 1 as libc::c_int;
         } else if n >= 2 as libc::c_int
-                && 0 as libc::c_int
-                    == strncmp(
-                        z,
-                        b"-sample\0" as *const u8 as *const libc::c_char,
-                        n as libc::c_ulong,
-                    )
-            {
+            && 0 as libc::c_int
+                == strncmp(
+                    z,
+                    b"-sample\0" as *const u8 as *const libc::c_char,
+                    n as libc::c_ulong,
+                )
+        {
             if i == nArg - 1 as libc::c_int {
                 fprintf(
                     stderr,
@@ -15708,8 +15596,7 @@ unsafe extern "C" fn expertDotCommand(
         i += 1;
     }
     if rc == 0 as libc::c_int {
-        let ref mut fresh205 = (*pState).expert.pExpert;
-        *fresh205 = sqlite3_expert_new((*pState).db, &mut zErr);
+        (*pState).expert.pExpert = sqlite3_expert_new((*pState).db, &mut zErr);
         if ((*pState).expert.pExpert).is_null() {
             fprintf(
                 stderr,
@@ -15791,8 +15678,7 @@ unsafe extern "C" fn shell_exec(
                 zStmtSql = zStmtSql.offset(1);
             }
             if !pArg.is_null() {
-                let ref mut fresh206 = (*pArg).pStmt;
-                *fresh206 = pStmt;
+                (*pArg).pStmt = pStmt;
                 (*pArg).cnt = 0 as libc::c_int;
             }
             if !pArg.is_null() && (*pArg).autoEQP as libc::c_int != 0
@@ -15896,8 +15782,7 @@ unsafe extern "C" fn shell_exec(
                         0 as *mut *const libc::c_char,
                     );
                     if !pArg.is_null() {
-                        let ref mut fresh207 = (*pArg).pStmt;
-                        *fresh207 = pStmt;
+                        (*pArg).pStmt = pStmt;
                     }
                 }
                 restore_debug_trace_modes();
@@ -15950,8 +15835,7 @@ unsafe extern "C" fn shell_exec(
                 );
             }
             if !pArg.is_null() {
-                let ref mut fresh208 = (*pArg).pStmt;
-                *fresh208 = 0 as *mut sqlite3_stmt;
+                (*pArg).pStmt = 0 as *mut sqlite3_stmt;
             }
         }
     }
@@ -16004,14 +15888,14 @@ unsafe extern "C" fn tableColumnList(
                 azCol as *mut libc::c_void,
                 (nAlloc as libc::c_ulong)
                     .wrapping_mul(
-                        ::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
+                        ::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
                     ) as libc::c_int,
             ) as *mut *mut libc::c_char;
             shell_check_oom(azCol as *mut libc::c_void);
         }
         nCol += 1;
-        let ref mut fresh209 = *azCol.offset(nCol as isize);
-        *fresh209 = sqlite3_mprintf(
+        let ref mut fresh58 = *azCol.offset(nCol as isize);
+        *fresh58 = sqlite3_mprintf(
             b"%s\0" as *const u8 as *const libc::c_char,
             sqlite3_column_text(pStmt, 1 as libc::c_int),
         );
@@ -16034,10 +15918,10 @@ unsafe extern "C" fn tableColumnList(
     if azCol.is_null() {
         return 0 as *mut *mut libc::c_char;
     }
-    let ref mut fresh210 = *azCol.offset(0 as libc::c_int as isize);
-    *fresh210 = 0 as *mut libc::c_char;
-    let ref mut fresh211 = *azCol.offset((nCol + 1 as libc::c_int) as isize);
-    *fresh211 = 0 as *mut libc::c_char;
+    let ref mut fresh59 = *azCol.offset(0 as libc::c_int as isize);
+    *fresh59 = 0 as *mut libc::c_char;
+    let ref mut fresh60 = *azCol.offset((nCol + 1 as libc::c_int) as isize);
+    *fresh60 = 0 as *mut libc::c_char;
     if preserveRowid != 0 && isIPK != 0 {
         zSql = sqlite3_mprintf(
             b"SELECT 1 FROM pragma_index_list(%Q) WHERE origin='pk'\0" as *const u8
@@ -16093,8 +15977,8 @@ unsafe extern "C" fn tableColumnList(
                     0 as *mut libc::c_int,
                 );
                 if rc == 0 as libc::c_int {
-                    let ref mut fresh212 = *azCol.offset(0 as libc::c_int as isize);
-                    *fresh212 = azRowid[j as usize];
+                    let ref mut fresh61 = *azCol.offset(0 as libc::c_int as isize);
+                    *fresh61 = azRowid[j as usize];
                 }
                 break;
             } else {
@@ -16120,7 +16004,7 @@ unsafe extern "C" fn toggleSelectOrder(mut db: *mut sqlite3) {
     }
     sqlite3_finalize(pStmt);
     sqlite3_snprintf(
-        ::std::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong as libc::c_int,
         zStmt.as_mut_ptr(),
         b"PRAGMA reverse_unordered_selects(%d)\0" as *const u8 as *const libc::c_char,
         (iSetting == 0) as libc::c_int,
@@ -16166,10 +16050,10 @@ unsafe extern "C" fn dump_callback(
             );
         }
     } else if sqlite3_strglob(
-            b"sqlite_stat?\0" as *const u8 as *const libc::c_char,
-            zTable,
-        ) == 0 as libc::c_int && noSys == 0
-        {
+        b"sqlite_stat?\0" as *const u8 as *const libc::c_char,
+        zTable,
+    ) == 0 as libc::c_int && noSys == 0
+    {
         if dataOnly == 0 {
             fprintf(
                 (*p).out,
@@ -16177,11 +16061,11 @@ unsafe extern "C" fn dump_callback(
             );
         }
     } else if strncmp(
-            zTable,
-            b"sqlite_\0" as *const u8 as *const libc::c_char,
-            7 as libc::c_int as libc::c_ulong,
-        ) == 0 as libc::c_int
-        {
+        zTable,
+        b"sqlite_\0" as *const u8 as *const libc::c_char,
+        7 as libc::c_int as libc::c_ulong,
+    ) == 0 as libc::c_int
+    {
         return 0 as libc::c_int
     } else {
         if !(dataOnly != 0) {
@@ -16238,8 +16122,7 @@ unsafe extern "C" fn dump_callback(
         let mut savedMode: libc::c_int = 0;
         azCol = tableColumnList(p, zTable);
         if azCol.is_null() {
-            let ref mut fresh213 = (*p).nErr;
-            *fresh213 += 1;
+            (*p).nErr += 1;
             return 0 as libc::c_int;
         }
         initText(&mut sTable);
@@ -16318,11 +16201,9 @@ unsafe extern "C" fn dump_callback(
         appendText(&mut sSelect, zTable, quoteChar(zTable));
         savedDestTable = (*p).zDestTable;
         savedMode = (*p).mode;
-        let ref mut fresh214 = (*p).zDestTable;
-        *fresh214 = sTable.z;
-        let ref mut fresh215 = (*p).cMode;
-        *fresh215 = 5 as libc::c_int;
-        (*p).mode = *fresh215;
+        (*p).zDestTable = sTable.z;
+        (*p).cMode = 5 as libc::c_int;
+        (*p).mode = (*p).cMode;
         rc = shell_exec(p, sSelect.z, 0 as *mut *mut libc::c_char);
         if rc & 0xff as libc::c_int == 11 as libc::c_int {
             fprintf(
@@ -16334,14 +16215,12 @@ unsafe extern "C" fn dump_callback(
             shell_exec(p, sSelect.z, 0 as *mut *mut libc::c_char);
             toggleSelectOrder((*p).db);
         }
-        let ref mut fresh216 = (*p).zDestTable;
-        *fresh216 = savedDestTable;
+        (*p).zDestTable = savedDestTable;
         (*p).mode = savedMode;
         freeText(&mut sTable);
         freeText(&mut sSelect);
         if rc != 0 {
-            let ref mut fresh217 = (*p).nErr;
-            *fresh217 += 1;
+            (*p).nErr += 1;
         }
     }
     return 0 as libc::c_int;
@@ -16764,9 +16643,9 @@ unsafe extern "C" fn showHelp(
         }
         i = 0 as libc::c_int;
         while i
-            < (::std::mem::size_of::<[*const libc::c_char; 175]>() as libc::c_ulong)
+            < (::core::mem::size_of::<[*const libc::c_char; 175]>() as libc::c_ulong)
                 .wrapping_div(
-                    ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
+                    ::core::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
                 ) as libc::c_int
         {
             if *(azHelp[i as usize]).offset(0 as libc::c_int as isize) as libc::c_int
@@ -16787,9 +16666,9 @@ unsafe extern "C" fn showHelp(
         shell_check_oom(zPat as *mut libc::c_void);
         i = 0 as libc::c_int;
         while i
-            < (::std::mem::size_of::<[*const libc::c_char; 175]>() as libc::c_ulong)
+            < (::core::mem::size_of::<[*const libc::c_char; 175]>() as libc::c_ulong)
                 .wrapping_div(
-                    ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
+                    ::core::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
                 ) as libc::c_int
         {
             if sqlite3_strglob(zPat, azHelp[i as usize]) == 0 as libc::c_int {
@@ -16807,10 +16686,11 @@ unsafe extern "C" fn showHelp(
         if n != 0 {
             if n == 1 as libc::c_int {
                 while j
-                    < (::std::mem::size_of::<[*const libc::c_char; 175]>()
+                    < (::core::mem::size_of::<[*const libc::c_char; 175]>()
                         as libc::c_ulong)
                         .wrapping_div(
-                            ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
+                            ::core::mem::size_of::<*const libc::c_char>()
+                                as libc::c_ulong,
                         ) as libc::c_int - 1 as libc::c_int
                     && *(azHelp[j as usize]).offset(0 as libc::c_int as isize)
                         as libc::c_int != '.' as i32
@@ -16832,9 +16712,9 @@ unsafe extern "C" fn showHelp(
         shell_check_oom(zPat as *mut libc::c_void);
         i = 0 as libc::c_int;
         while i
-            < (::std::mem::size_of::<[*const libc::c_char; 175]>() as libc::c_ulong)
+            < (::core::mem::size_of::<[*const libc::c_char; 175]>() as libc::c_ulong)
                 .wrapping_div(
-                    ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
+                    ::core::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
                 ) as libc::c_int
         {
             if *(azHelp[i as usize]).offset(0 as libc::c_int as isize) as libc::c_int
@@ -16854,10 +16734,11 @@ unsafe extern "C" fn showHelp(
                     azHelp[j as usize],
                 );
                 while j
-                    < (::std::mem::size_of::<[*const libc::c_char; 175]>()
+                    < (::core::mem::size_of::<[*const libc::c_char; 175]>()
                         as libc::c_ulong)
                         .wrapping_div(
-                            ::std::mem::size_of::<*const libc::c_char>() as libc::c_ulong,
+                            ::core::mem::size_of::<*const libc::c_char>()
+                                as libc::c_ulong,
                         ) as libc::c_int - 1 as libc::c_int
                     && *(azHelp[(j + 1 as libc::c_int) as usize])
                         .offset(0 as libc::c_int as isize) as libc::c_int != '.' as i32
@@ -16986,12 +16867,12 @@ pub unsafe extern "C" fn deduceDatabaseType(
         {
             rc = 3 as libc::c_int;
         } else if n == 0 as libc::c_int as libc::c_ulong && dfltZip != 0
-                && sqlite3_strlike(
-                    b"%.zip\0" as *const u8 as *const libc::c_char,
-                    zName,
-                    0 as libc::c_int as libc::c_uint,
-                ) == 0 as libc::c_int
-            {
+            && sqlite3_strlike(
+                b"%.zip\0" as *const u8 as *const libc::c_char,
+                zName,
+                0 as libc::c_int as libc::c_uint,
+            ) == 0 as libc::c_int
+        {
             rc = 3 as libc::c_int;
         }
     }
@@ -17037,7 +16918,7 @@ unsafe extern "C" fn readHexDb(
     nLine += 1;
     if !(fgets(
         zLine.as_mut_ptr(),
-        ::std::mem::size_of::<[libc::c_char; 1000]>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<[libc::c_char; 1000]>() as libc::c_ulong as libc::c_int,
         in_0,
     ))
         .is_null()
@@ -17069,7 +16950,7 @@ unsafe extern "C" fn readHexDb(
                         nLine += 1;
                         while !(fgets(
                             zLine.as_mut_ptr(),
-                            ::std::mem::size_of::<[libc::c_char; 1000]>()
+                            ::core::mem::size_of::<[libc::c_char; 1000]>()
                                 as libc::c_ulong as libc::c_int,
                             in_0,
                         ))
@@ -17166,7 +17047,7 @@ unsafe extern "C" fn readHexDb(
     } else {
         while !(fgets(
             zLine.as_mut_ptr(),
-            ::std::mem::size_of::<[libc::c_char; 1000]>() as libc::c_ulong
+            ::core::mem::size_of::<[libc::c_char; 1000]>() as libc::c_ulong
                 as libc::c_int,
             (*p).in_0,
         ))
@@ -17401,7 +17282,7 @@ unsafe extern "C" fn shellEscapeCrnl(
                 context,
                 zOut,
                 iOut,
-                ::std::mem::transmute::<
+                ::core::mem::transmute::<
                     libc::intptr_t,
                     sqlite3_destructor_type,
                 >(-(1 as libc::c_int) as libc::intptr_t),
@@ -17693,8 +17574,8 @@ unsafe extern "C" fn open_db(mut p: *mut ShellState, mut openFlags: libc::c_int)
             );
             sqlite3_free(zSql as *mut libc::c_void);
         } else if (*p).openMode as libc::c_int == 5 as libc::c_int
-                || (*p).openMode as libc::c_int == 6 as libc::c_int
-            {
+            || (*p).openMode as libc::c_int == 6 as libc::c_int
+        {
             let mut rc: libc::c_int = 0;
             let mut nData: libc::c_int = 0 as libc::c_int;
             let mut aData: *mut libc::c_uchar = 0 as *mut libc::c_uchar;
@@ -17905,12 +17786,12 @@ unsafe extern "C" fn output_file_open(
     {
         f = stdout;
     } else if strcmp(zFile, b"stderr\0" as *const u8 as *const libc::c_char)
-            == 0 as libc::c_int
-        {
+        == 0 as libc::c_int
+    {
         f = stderr;
     } else if strcmp(zFile, b"off\0" as *const u8 as *const libc::c_char)
-            == 0 as libc::c_int
-        {
+        == 0 as libc::c_int
+    {
         f = 0 as *mut FILE;
     } else {
         f = fopen(
@@ -18006,27 +17887,24 @@ unsafe extern "C" fn test_breakpoint() {
 unsafe extern "C" fn import_cleanup(mut p: *mut ImportCtx) {
     if !((*p).in_0).is_null() && ((*p).xCloser).is_some() {
         ((*p).xCloser).expect("non-null function pointer")((*p).in_0);
-        let ref mut fresh218 = (*p).in_0;
-        *fresh218 = 0 as *mut FILE;
+        (*p).in_0 = 0 as *mut FILE;
     }
     sqlite3_free((*p).z as *mut libc::c_void);
-    let ref mut fresh219 = (*p).z;
-    *fresh219 = 0 as *mut libc::c_char;
+    (*p).z = 0 as *mut libc::c_char;
 }
 unsafe extern "C" fn import_append_char(mut p: *mut ImportCtx, mut c: libc::c_int) {
     if (*p).n + 1 as libc::c_int >= (*p).nAlloc {
         (*p).nAlloc += (*p).nAlloc + 100 as libc::c_int;
-        let ref mut fresh220 = (*p).z;
-        *fresh220 = sqlite3_realloc64(
+        (*p)
+            .z = sqlite3_realloc64(
             (*p).z as *mut libc::c_void,
             (*p).nAlloc as sqlite3_uint64,
         ) as *mut libc::c_char;
         shell_check_oom((*p).z as *mut libc::c_void);
     }
-    let ref mut fresh221 = (*p).n;
-    let fresh222 = *fresh221;
-    *fresh221 = *fresh221 + 1;
-    *((*p).z).offset(fresh222 as isize) = c as libc::c_char;
+    let fresh62 = (*p).n;
+    (*p).n = (*p).n + 1;
+    *((*p).z).offset(fresh62 as isize) = c as libc::c_char;
 }
 unsafe extern "C" fn csv_read_one_field(mut p: *mut ImportCtx) -> *mut libc::c_char {
     let mut c: libc::c_int = 0;
@@ -18048,8 +17926,7 @@ unsafe extern "C" fn csv_read_one_field(mut p: *mut ImportCtx) -> *mut libc::c_c
         loop {
             c = fgetc((*p).in_0);
             if c == rSep {
-                let ref mut fresh223 = (*p).nLine;
-                *fresh223 += 1;
+                (*p).nLine += 1;
             }
             if c == cQuote {
                 if pc == cQuote {
@@ -18062,8 +17939,7 @@ unsafe extern "C" fn csv_read_one_field(mut p: *mut ImportCtx) -> *mut libc::c_c
                 || c == -(1 as libc::c_int) && pc == cQuote
             {
                 loop {
-                    let ref mut fresh224 = (*p).n;
-                    *fresh224 -= 1;
+                    (*p).n -= 1;
                     if !(*((*p).z).offset((*p).n as isize) as libc::c_int != cQuote) {
                         break;
                     }
@@ -18120,14 +17996,12 @@ unsafe extern "C" fn csv_read_one_field(mut p: *mut ImportCtx) -> *mut libc::c_c
             c = fgetc((*p).in_0);
         }
         if c == rSep {
-            let ref mut fresh225 = (*p).nLine;
-            *fresh225 += 1;
+            (*p).nLine += 1;
             if (*p).n > 0 as libc::c_int
                 && *((*p).z).offset(((*p).n - 1 as libc::c_int) as isize) as libc::c_int
                     == '\r' as i32
             {
-                let ref mut fresh226 = (*p).n;
-                *fresh226 -= 1;
+                (*p).n -= 1;
             }
         }
         (*p).cTerm = c;
@@ -18153,8 +18027,7 @@ unsafe extern "C" fn ascii_read_one_field(mut p: *mut ImportCtx) -> *mut libc::c
         c = fgetc((*p).in_0);
     }
     if c == rSep {
-        let ref mut fresh227 = (*p).nLine;
-        *fresh227 += 1;
+        (*p).nLine += 1;
     }
     (*p).cTerm = c;
     if !((*p).z).is_null() {
@@ -18309,7 +18182,7 @@ unsafe extern "C" fn tryToCloneData(
                     if cnt % spinRate == 0 as libc::c_int {
                         printf(
                             b"%c\x08\0" as *const u8 as *const libc::c_char,
-                            (*::std::mem::transmute::<
+                            (*::core::mem::transmute::<
                                 &[u8; 5],
                                 &[libc::c_char; 5],
                             >(b"|/-\\\0"))[(cnt / spinRate % 4 as libc::c_int) as usize]
@@ -18594,8 +18467,7 @@ unsafe extern "C" fn output_reset(mut p: *mut ShellState) {
         }
     }
     (*p).outfile[0 as libc::c_int as usize] = 0 as libc::c_int as libc::c_char;
-    let ref mut fresh228 = (*p).out;
-    *fresh228 = stdout;
+    (*p).out = stdout;
 }
 unsafe extern "C" fn db_int(
     mut db: *mut sqlite3,
@@ -18630,9 +18502,9 @@ unsafe extern "C" fn testcase_glob(
     let mut invert: libc::c_int = 0;
     let mut seen: libc::c_int = 0;
     loop {
-        let fresh229 = zGlob;
+        let fresh63 = zGlob;
         zGlob = zGlob.offset(1);
-        c = *fresh229 as libc::c_int;
+        c = *fresh63 as libc::c_int;
         if !(c != 0 as libc::c_int) {
             break;
         }
@@ -18660,17 +18532,17 @@ unsafe extern "C" fn testcase_glob(
             }
         } else if c == '*' as i32 {
             loop {
-                let fresh230 = zGlob;
+                let fresh64 = zGlob;
                 zGlob = zGlob.offset(1);
-                c = *fresh230 as libc::c_int;
+                c = *fresh64 as libc::c_int;
                 if !(c == '*' as i32 || c == '?' as i32) {
                     break;
                 }
                 if c == '?' as i32
                     && {
-                        let fresh231 = z;
+                        let fresh65 = z;
                         z = z.offset(1);
-                        *fresh231 as libc::c_int == 0 as libc::c_int
+                        *fresh65 as libc::c_int == 0 as libc::c_int
                     }
                 {
                     return 0 as libc::c_int;
@@ -18690,16 +18562,16 @@ unsafe extern "C" fn testcase_glob(
                 }
             }
             loop {
-                let fresh232 = z;
+                let fresh66 = z;
                 z = z.offset(1);
-                c2 = *fresh232 as libc::c_int;
+                c2 = *fresh66 as libc::c_int;
                 if !(c2 != 0 as libc::c_int) {
                     break;
                 }
                 while c2 != c {
-                    let fresh233 = z;
+                    let fresh67 = z;
                     z = z.offset(1);
-                    c2 = *fresh233 as libc::c_int;
+                    c2 = *fresh67 as libc::c_int;
                     if c2 == 0 as libc::c_int {
                         return 0 as libc::c_int;
                     }
@@ -18711,37 +18583,37 @@ unsafe extern "C" fn testcase_glob(
             return 0 as libc::c_int;
         } else {
             if c == '?' as i32 {
-                let fresh234 = z;
+                let fresh68 = z;
                 z = z.offset(1);
-                if *fresh234 as libc::c_int == 0 as libc::c_int {
+                if *fresh68 as libc::c_int == 0 as libc::c_int {
                     return 0 as libc::c_int;
                 }
             } else if c == '[' as i32 {
                 let mut prior_c: libc::c_int = 0 as libc::c_int;
                 seen = 0 as libc::c_int;
                 invert = 0 as libc::c_int;
-                let fresh235 = z;
+                let fresh69 = z;
                 z = z.offset(1);
-                c = *fresh235 as libc::c_int;
+                c = *fresh69 as libc::c_int;
                 if c == 0 as libc::c_int {
                     return 0 as libc::c_int;
                 }
-                let fresh236 = zGlob;
+                let fresh70 = zGlob;
                 zGlob = zGlob.offset(1);
-                c2 = *fresh236 as libc::c_int;
+                c2 = *fresh70 as libc::c_int;
                 if c2 == '^' as i32 {
                     invert = 1 as libc::c_int;
-                    let fresh237 = zGlob;
+                    let fresh71 = zGlob;
                     zGlob = zGlob.offset(1);
-                    c2 = *fresh237 as libc::c_int;
+                    c2 = *fresh71 as libc::c_int;
                 }
                 if c2 == ']' as i32 {
                     if c == ']' as i32 {
                         seen = 1 as libc::c_int;
                     }
-                    let fresh238 = zGlob;
+                    let fresh72 = zGlob;
                     zGlob = zGlob.offset(1);
-                    c2 = *fresh238 as libc::c_int;
+                    c2 = *fresh72 as libc::c_int;
                 }
                 while c2 != 0 && c2 != ']' as i32 {
                     if c2 == '-' as i32
@@ -18750,9 +18622,9 @@ unsafe extern "C" fn testcase_glob(
                         && *zGlob.offset(0 as libc::c_int as isize) as libc::c_int
                             != 0 as libc::c_int && prior_c > 0 as libc::c_int
                     {
-                        let fresh239 = zGlob;
+                        let fresh73 = zGlob;
                         zGlob = zGlob.offset(1);
-                        c2 = *fresh239 as libc::c_int;
+                        c2 = *fresh73 as libc::c_int;
                         if c >= prior_c && c <= c2 {
                             seen = 1 as libc::c_int;
                         }
@@ -18763,9 +18635,9 @@ unsafe extern "C" fn testcase_glob(
                         }
                         prior_c = c2;
                     }
-                    let fresh240 = zGlob;
+                    let fresh74 = zGlob;
                     zGlob = zGlob.offset(1);
-                    c2 = *fresh240 as libc::c_int;
+                    c2 = *fresh74 as libc::c_int;
                 }
                 if c2 == 0 as libc::c_int || seen ^ invert == 0 as libc::c_int {
                     return 0 as libc::c_int;
@@ -18802,9 +18674,9 @@ unsafe extern "C" fn testcase_glob(
                     z = z.offset(1);
                 }
             } else {
-                let fresh241 = z;
+                let fresh75 = z;
                 z = z.offset(1);
-                if c != *fresh241 as libc::c_int {
+                if c != *fresh75 as libc::c_int {
                     return 0 as libc::c_int;
                 }
             }
@@ -18849,8 +18721,7 @@ unsafe extern "C" fn clearTempFile(mut p: *mut ShellState) {
         return;
     }
     sqlite3_free((*p).zTempFile as *mut libc::c_void);
-    let ref mut fresh242 = (*p).zTempFile;
-    *fresh242 = 0 as *mut libc::c_char;
+    (*p).zTempFile = 0 as *mut libc::c_char;
 }
 unsafe extern "C" fn newTempFile(
     mut p: *mut ShellState,
@@ -18858,8 +18729,7 @@ unsafe extern "C" fn newTempFile(
 ) {
     clearTempFile(p);
     sqlite3_free((*p).zTempFile as *mut libc::c_void);
-    let ref mut fresh243 = (*p).zTempFile;
-    *fresh243 = 0 as *mut libc::c_char;
+    (*p).zTempFile = 0 as *mut libc::c_char;
     if !((*p).db).is_null() {
         sqlite3_file_control(
             (*p).db,
@@ -18872,7 +18742,7 @@ unsafe extern "C" fn newTempFile(
         let mut zTemp: *mut libc::c_char = 0 as *mut libc::c_char;
         let mut r: sqlite3_uint64 = 0;
         sqlite3_randomness(
-            ::std::mem::size_of::<sqlite3_uint64>() as libc::c_ulong as libc::c_int,
+            ::core::mem::size_of::<sqlite3_uint64>() as libc::c_ulong as libc::c_int,
             &mut r as *mut sqlite3_uint64 as *mut libc::c_void,
         );
         zTemp = getenv(b"TEMP\0" as *const u8 as *const libc::c_char);
@@ -18882,16 +18752,16 @@ unsafe extern "C" fn newTempFile(
         if zTemp.is_null() {
             zTemp = b"/tmp\0" as *const u8 as *const libc::c_char as *mut libc::c_char;
         }
-        let ref mut fresh244 = (*p).zTempFile;
-        *fresh244 = sqlite3_mprintf(
+        (*p)
+            .zTempFile = sqlite3_mprintf(
             b"%s/temp%llx.%s\0" as *const u8 as *const libc::c_char,
             zTemp,
             r,
             zSuffix,
         );
     } else {
-        let ref mut fresh245 = (*p).zTempFile;
-        *fresh245 = sqlite3_mprintf(
+        (*p)
+            .zTempFile = sqlite3_mprintf(
             b"%z.%s\0" as *const u8 as *const libc::c_char,
             (*p).zTempFile,
             zSuffix,
@@ -18917,7 +18787,7 @@ unsafe extern "C" fn shellFkeyCollateClause(
             b"nVal==4\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             17245 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 70],
                 &[libc::c_char; 70],
             >(
@@ -18973,7 +18843,7 @@ unsafe extern "C" fn shellFkeyCollateClause(
             pCtx,
             z,
             -(1 as libc::c_int),
-            ::std::mem::transmute::<
+            ::core::mem::transmute::<
                 libc::intptr_t,
                 sqlite3_destructor_type,
             >(-(1 as libc::c_int) as libc::intptr_t),
@@ -19010,12 +18880,12 @@ unsafe extern "C" fn lintFkeyIndexes(
         {
             bVerbose = 1 as libc::c_int;
         } else if n > 1 as libc::c_int
-                && sqlite3_strnicmp(
-                    b"-groupbyparent\0" as *const u8 as *const libc::c_char,
-                    *azArg.offset(i as isize),
-                    n,
-                ) == 0 as libc::c_int
-            {
+            && sqlite3_strnicmp(
+                b"-groupbyparent\0" as *const u8 as *const libc::c_char,
+                *azArg.offset(i as isize),
+                n,
+            ) == 0 as libc::c_int
+        {
             bGroupByParent = 1 as libc::c_int;
             zIndent = b"    \0" as *const u8 as *const libc::c_char;
         } else {
@@ -19256,7 +19126,7 @@ pub unsafe extern "C" fn shellPreparePrintf(
 ) {
     *ppStmt = 0 as *mut sqlite3_stmt;
     if *pRc == 0 as libc::c_int {
-        let mut ap: ::std::ffi::VaListImpl;
+        let mut ap: ::core::ffi::VaListImpl;
         let mut z: *mut libc::c_char = 0 as *mut libc::c_char;
         ap = args.clone();
         z = sqlite3_vmprintf(zFmt, ap.as_va_list());
@@ -19315,7 +19185,7 @@ unsafe extern "C" fn rc_err_oom_die(mut rc: libc::c_int) {
             b"rc==SQLITE_OK||rc==SQLITE_DONE\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             19011 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 25],
                 &[libc::c_char; 25],
             >(b"void rc_err_oom_die(int)\0"))
@@ -19353,7 +19223,7 @@ unsafe extern "C" fn zAutoColumn(
             b"pDb!=0\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             19137 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 53],
                 &[libc::c_char; 53],
             >(b"char *zAutoColumn(const char *, sqlite3 **, char **)\0"))
@@ -19379,7 +19249,7 @@ unsafe extern "C" fn zAutoColumn(
                 b"*pDb!=0\0" as *const u8 as *const libc::c_char,
                 b"shell.c\0" as *const u8 as *const libc::c_char,
                 19150 as libc::c_int as libc::c_uint,
-                (*::std::mem::transmute::<
+                (*::core::mem::transmute::<
                     &[u8; 53],
                     &[libc::c_char; 53],
                 >(b"char *zAutoColumn(const char *, sqlite3 **, char **)\0"))
@@ -19441,7 +19311,7 @@ unsafe extern "C" fn zAutoColumn(
                     b"rc==SQLITE_DONE\0" as *const u8 as *const libc::c_char,
                     b"shell.c\0" as *const u8 as *const libc::c_char,
                     19178 as libc::c_int as libc::c_uint,
-                    (*::std::mem::transmute::<
+                    (*::core::mem::transmute::<
                         &[u8; 53],
                         &[libc::c_char; 53],
                     >(b"char *zAutoColumn(const char *, sqlite3 **, char **)\0"))
@@ -19454,7 +19324,7 @@ unsafe extern "C" fn zAutoColumn(
                 b"db_int(*pDb, zHasDupes)==0\0" as *const u8 as *const libc::c_char,
                 b"shell.c\0" as *const u8 as *const libc::c_char,
                 19180 as libc::c_int as libc::c_uint,
-                (*::std::mem::transmute::<
+                (*::core::mem::transmute::<
                     &[u8; 53],
                     &[libc::c_char; 53],
                 >(b"char *zAutoColumn(const char *, sqlite3 **, char **)\0"))
@@ -19526,9 +19396,9 @@ unsafe extern "C" fn do_meta_command(
     }
     while *zLine.offset(h as isize) as libc::c_int != 0
         && nArg
-            < (::std::mem::size_of::<[*mut libc::c_char; 52]>() as libc::c_ulong)
+            < (::core::mem::size_of::<[*mut libc::c_char; 52]>() as libc::c_ulong)
                 .wrapping_div(
-                    ::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
+                    ::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
                 ) as libc::c_int - 1 as libc::c_int
     {
         while *(*__ctype_b_loc())
@@ -19544,12 +19414,12 @@ unsafe extern "C" fn do_meta_command(
         if *zLine.offset(h as isize) as libc::c_int == '\'' as i32
             || *zLine.offset(h as isize) as libc::c_int == '"' as i32
         {
-            let fresh246 = h;
+            let fresh76 = h;
             h = h + 1;
-            let mut delim: libc::c_int = *zLine.offset(fresh246 as isize) as libc::c_int;
-            let fresh247 = nArg;
+            let mut delim: libc::c_int = *zLine.offset(fresh76 as isize) as libc::c_int;
+            let fresh77 = nArg;
             nArg = nArg + 1;
-            azArg[fresh247
+            azArg[fresh77
                 as usize] = &mut *zLine.offset(h as isize) as *mut libc::c_char;
             while *zLine.offset(h as isize) as libc::c_int != 0
                 && *zLine.offset(h as isize) as libc::c_int != delim
@@ -19564,17 +19434,17 @@ unsafe extern "C" fn do_meta_command(
                 h += 1;
             }
             if *zLine.offset(h as isize) as libc::c_int == delim {
-                let fresh248 = h;
+                let fresh78 = h;
                 h = h + 1;
-                *zLine.offset(fresh248 as isize) = 0 as libc::c_int as libc::c_char;
+                *zLine.offset(fresh78 as isize) = 0 as libc::c_int as libc::c_char;
             }
             if delim == '"' as i32 {
                 resolve_backslashes(azArg[(nArg - 1 as libc::c_int) as usize]);
             }
         } else {
-            let fresh249 = nArg;
+            let fresh79 = nArg;
             nArg = nArg + 1;
-            azArg[fresh249
+            azArg[fresh79
                 as usize] = &mut *zLine.offset(h as isize) as *mut libc::c_char;
             while *zLine.offset(h as isize) as libc::c_int != 0
                 && *(*__ctype_b_loc())
@@ -19587,9 +19457,9 @@ unsafe extern "C" fn do_meta_command(
                 h += 1;
             }
             if *zLine.offset(h as isize) != 0 {
-                let fresh250 = h;
+                let fresh80 = h;
                 h = h + 1;
-                *zLine.offset(fresh250 as isize) = 0 as libc::c_int as libc::c_char;
+                *zLine.offset(fresh80 as isize) = 0 as libc::c_int as libc::c_char;
             }
             resolve_backslashes(azArg[(nArg - 1 as libc::c_int) as usize]);
         }
@@ -19654,18 +19524,18 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'b' as i32 && n >= 3 as libc::c_int
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"backup\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+        || c == 's' as i32 && n >= 3 as libc::c_int
             && strncmp(
                 azArg[0 as libc::c_int as usize],
-                b"backup\0" as *const u8 as *const libc::c_char,
+                b"save\0" as *const u8 as *const libc::c_char,
                 n as libc::c_ulong,
             ) == 0 as libc::c_int
-            || c == 's' as i32 && n >= 3 as libc::c_int
-                && strncmp(
-                    azArg[0 as libc::c_int as usize],
-                    b"save\0" as *const u8 as *const libc::c_char,
-                    n as libc::c_ulong,
-                ) == 0 as libc::c_int
-        {
+    {
         let mut zDestFile: *const libc::c_char = 0 as *const libc::c_char;
         let mut zDb: *const libc::c_char = 0 as *const libc::c_char;
         let mut pDest: *mut sqlite3 = 0 as *mut sqlite3;
@@ -19690,8 +19560,8 @@ unsafe extern "C" fn do_meta_command(
                 {
                     zVfs = b"apndvfs\0" as *const u8 as *const libc::c_char;
                 } else if strcmp(z, b"-async\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     bAsync = 1 as libc::c_int;
                 } else {
                     fprintf(
@@ -19787,12 +19657,12 @@ unsafe extern "C" fn do_meta_command(
         }
         close_db(pDest);
     } else if c == 'b' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"bail\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"bail\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg == 2 as libc::c_int {
             bail_on_error = booleanValue(azArg[1 as libc::c_int as usize]);
         } else {
@@ -19803,12 +19673,12 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 'b' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"binary\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"binary\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg == 2 as libc::c_int {
             booleanValue(azArg[1 as libc::c_int as usize]) != 0;
         } else {
@@ -19819,19 +19689,19 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 'b' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"breakpoint\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"breakpoint\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         test_breakpoint();
     } else if c == 'c' as i32
-            && strcmp(
-                azArg[0 as libc::c_int as usize],
-                b"cd\0" as *const u8 as *const libc::c_char,
-            ) == 0 as libc::c_int
-        {
+        && strcmp(
+            azArg[0 as libc::c_int as usize],
+            b"cd\0" as *const u8 as *const libc::c_char,
+        ) == 0 as libc::c_int
+    {
         failIfSafeMode(
             p,
             b"cannot run .cd in safe mode\0" as *const u8 as *const libc::c_char,
@@ -19855,12 +19725,12 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 'c' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"changes\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"changes\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg == 2 as libc::c_int {
             setOrClearFlag(
                 p,
@@ -19875,12 +19745,12 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 'c' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"check\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"check\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut zRes: *mut libc::c_char = 0 as *mut libc::c_char;
         output_reset(p);
         if nArg != 2 as libc::c_int {
@@ -19902,8 +19772,8 @@ unsafe extern "C" fn do_meta_command(
                 );
                 rc = 2 as libc::c_int;
             } else if testcase_glob(azArg[1 as libc::c_int as usize], zRes)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 fprintf(
                     stderr,
                     b"testcase-%s FAILED\n Expected: [%s]\n      Got: [%s]\n\0"
@@ -19919,18 +19789,17 @@ unsafe extern "C" fn do_meta_command(
                     b"testcase-%s ok\n\0" as *const u8 as *const libc::c_char,
                     ((*p).zTestcase).as_mut_ptr(),
                 );
-                let ref mut fresh251 = (*p).nCheck;
-                *fresh251 += 1;
+                (*p).nCheck += 1;
             }
         }
         sqlite3_free(zRes as *mut libc::c_void);
     } else if c == 'c' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"clone\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"clone\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         failIfSafeMode(
             p,
             b"cannot run .clone in safe mode\0" as *const u8 as *const libc::c_char,
@@ -19945,18 +19814,18 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 'c' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"connection\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"connection\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg == 1 as libc::c_int {
             let mut i: libc::c_int = 0;
             i = 0 as libc::c_int;
             while i
-                < (::std::mem::size_of::<[AuxDb; 5]>() as libc::c_ulong)
-                    .wrapping_div(::std::mem::size_of::<AuxDb>() as libc::c_ulong)
+                < (::core::mem::size_of::<[AuxDb; 5]>() as libc::c_ulong)
+                    .wrapping_div(::core::mem::size_of::<AuxDb>() as libc::c_ulong)
                     as libc::c_int
             {
                 let mut zFile: *const libc::c_char = (*p).aAuxDb[i as usize].zDbFilename;
@@ -19969,8 +19838,8 @@ unsafe extern "C" fn do_meta_command(
                 } else if zFile.is_null() {
                     zFile = b"(memory)\0" as *const u8 as *const libc::c_char;
                 } else if *zFile.offset(0 as libc::c_int as isize) as libc::c_int
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     zFile = b"(temporary-file)\0" as *const u8 as *const libc::c_char;
                 }
                 if (*p).pAuxDb
@@ -19993,58 +19862,53 @@ unsafe extern "C" fn do_meta_command(
                 i += 1;
             }
         } else if nArg == 2 as libc::c_int
-                && *(*__ctype_b_loc())
-                    .offset(
-                        *(azArg[1 as libc::c_int as usize])
-                            .offset(0 as libc::c_int as isize) as libc::c_uchar
-                            as libc::c_int as isize,
-                    ) as libc::c_int
-                    & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
-                && *(azArg[1 as libc::c_int as usize]).offset(1 as libc::c_int as isize)
-                    as libc::c_int == 0 as libc::c_int
-            {
+            && *(*__ctype_b_loc())
+                .offset(
+                    *(azArg[1 as libc::c_int as usize]).offset(0 as libc::c_int as isize)
+                        as libc::c_uchar as libc::c_int as isize,
+                ) as libc::c_int
+                & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
+            && *(azArg[1 as libc::c_int as usize]).offset(1 as libc::c_int as isize)
+                as libc::c_int == 0 as libc::c_int
+        {
             let mut i_0: libc::c_int = *(azArg[1 as libc::c_int as usize])
                 .offset(0 as libc::c_int as isize) as libc::c_int - '0' as i32;
             if (*p).pAuxDb
                 != &mut *((*p).aAuxDb).as_mut_ptr().offset(i_0 as isize) as *mut AuxDb
                 && i_0 >= 0 as libc::c_int
                 && i_0
-                    < (::std::mem::size_of::<[AuxDb; 5]>() as libc::c_ulong)
-                        .wrapping_div(::std::mem::size_of::<AuxDb>() as libc::c_ulong)
+                    < (::core::mem::size_of::<[AuxDb; 5]>() as libc::c_ulong)
+                        .wrapping_div(::core::mem::size_of::<AuxDb>() as libc::c_ulong)
                         as libc::c_int
             {
-                let ref mut fresh252 = (*(*p).pAuxDb).db;
-                *fresh252 = (*p).db;
-                let ref mut fresh253 = (*p).pAuxDb;
-                *fresh253 = &mut *((*p).aAuxDb).as_mut_ptr().offset(i_0 as isize)
+                (*(*p).pAuxDb).db = (*p).db;
+                (*p)
+                    .pAuxDb = &mut *((*p).aAuxDb).as_mut_ptr().offset(i_0 as isize)
                     as *mut AuxDb;
-                let ref mut fresh254 = (*p).db;
-                *fresh254 = (*(*p).pAuxDb).db;
-                globalDb = *fresh254;
-                let ref mut fresh255 = (*(*p).pAuxDb).db;
-                *fresh255 = 0 as *mut sqlite3;
+                (*p).db = (*(*p).pAuxDb).db;
+                globalDb = (*p).db;
+                (*(*p).pAuxDb).db = 0 as *mut sqlite3;
             }
         } else if nArg == 3 as libc::c_int
-                && strcmp(
-                    azArg[1 as libc::c_int as usize],
-                    b"close\0" as *const u8 as *const libc::c_char,
-                ) == 0 as libc::c_int
-                && *(*__ctype_b_loc())
-                    .offset(
-                        *(azArg[2 as libc::c_int as usize])
-                            .offset(0 as libc::c_int as isize) as libc::c_uchar
-                            as libc::c_int as isize,
-                    ) as libc::c_int
-                    & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
-                && *(azArg[2 as libc::c_int as usize]).offset(1 as libc::c_int as isize)
-                    as libc::c_int == 0 as libc::c_int
-            {
+            && strcmp(
+                azArg[1 as libc::c_int as usize],
+                b"close\0" as *const u8 as *const libc::c_char,
+            ) == 0 as libc::c_int
+            && *(*__ctype_b_loc())
+                .offset(
+                    *(azArg[2 as libc::c_int as usize]).offset(0 as libc::c_int as isize)
+                        as libc::c_uchar as libc::c_int as isize,
+                ) as libc::c_int
+                & _ISdigit as libc::c_int as libc::c_ushort as libc::c_int != 0
+            && *(azArg[2 as libc::c_int as usize]).offset(1 as libc::c_int as isize)
+                as libc::c_int == 0 as libc::c_int
+        {
             let mut i_1: libc::c_int = *(azArg[2 as libc::c_int as usize])
                 .offset(0 as libc::c_int as isize) as libc::c_int - '0' as i32;
             if !(i_1 < 0 as libc::c_int
                 || i_1
-                    >= (::std::mem::size_of::<[AuxDb; 5]>() as libc::c_ulong)
-                        .wrapping_div(::std::mem::size_of::<AuxDb>() as libc::c_ulong)
+                    >= (::core::mem::size_of::<[AuxDb; 5]>() as libc::c_ulong)
+                        .wrapping_div(::core::mem::size_of::<AuxDb>() as libc::c_ulong)
                         as libc::c_int)
             {
                 if (*p).pAuxDb
@@ -20059,8 +19923,7 @@ unsafe extern "C" fn do_meta_command(
                     rc = 1 as libc::c_int;
                 } else if !((*p).aAuxDb[i_1 as usize].db).is_null() {
                     close_db((*p).aAuxDb[i_1 as usize].db);
-                    let ref mut fresh256 = (*p).aAuxDb[i_1 as usize].db;
-                    *fresh256 = 0 as *mut sqlite3;
+                    (*p).aAuxDb[i_1 as usize].db = 0 as *mut sqlite3;
                 }
             }
         } else {
@@ -20072,12 +19935,12 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 'd' as i32 && n > 1 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"databases\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"databases\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut azName: *mut *mut libc::c_char = 0 as *mut *mut libc::c_char;
         let mut nName: libc::c_int = 0 as libc::c_int;
         let mut pStmt: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
@@ -20114,16 +19977,16 @@ unsafe extern "C" fn do_meta_command(
                     azName as *mut libc::c_void,
                     (((nName + 1 as libc::c_int) * 2 as libc::c_int) as libc::c_ulong)
                         .wrapping_mul(
-                            ::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
+                            ::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
                         ) as libc::c_int,
                 ) as *mut *mut libc::c_char;
                 shell_check_oom(azName as *mut libc::c_void);
-                let ref mut fresh257 = *azName
+                let ref mut fresh81 = *azName
                     .offset((nName * 2 as libc::c_int) as isize);
-                *fresh257 = strdup(zSchema);
-                let ref mut fresh258 = *azName
+                *fresh81 = strdup(zSchema);
+                let ref mut fresh82 = *azName
                     .offset((nName * 2 as libc::c_int + 1 as libc::c_int) as isize);
-                *fresh258 = strdup(zFile_0);
+                *fresh82 = strdup(zFile_0);
                 nName += 1;
             }
         }
@@ -20173,12 +20036,12 @@ unsafe extern "C" fn do_meta_command(
         }
         sqlite3_free(azName as *mut libc::c_void);
     } else if c == 'd' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"dbconfig\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"dbconfig\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         static mut aDbConfig: [DbConfigChoices; 16] = [
             {
                 let mut init = DbConfigChoices {
@@ -20298,8 +20161,8 @@ unsafe extern "C" fn do_meta_command(
         open_db(p, 0 as libc::c_int);
         ii = 0 as libc::c_int;
         while ii
-            < (::std::mem::size_of::<[DbConfigChoices; 16]>() as libc::c_ulong)
-                .wrapping_div(::std::mem::size_of::<DbConfigChoices>() as libc::c_ulong)
+            < (::core::mem::size_of::<[DbConfigChoices; 16]>() as libc::c_ulong)
+                .wrapping_div(::core::mem::size_of::<DbConfigChoices>() as libc::c_ulong)
                 as libc::c_int
         {
             if !(nArg > 1 as libc::c_int
@@ -20338,9 +20201,9 @@ unsafe extern "C" fn do_meta_command(
         }
         if nArg > 1 as libc::c_int
             && ii
-                == (::std::mem::size_of::<[DbConfigChoices; 16]>() as libc::c_ulong)
+                == (::core::mem::size_of::<[DbConfigChoices; 16]>() as libc::c_ulong)
                     .wrapping_div(
-                        ::std::mem::size_of::<DbConfigChoices>() as libc::c_ulong,
+                        ::core::mem::size_of::<DbConfigChoices>() as libc::c_ulong,
                     ) as libc::c_int
         {
             fprintf(
@@ -20356,12 +20219,12 @@ unsafe extern "C" fn do_meta_command(
             );
         }
     } else if c == 'd' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"dump\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"dump\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut zLike: *mut libc::c_char = 0 as *mut libc::c_char;
         let mut zSql: *mut libc::c_char = 0 as *mut libc::c_char;
         let mut i_3: libc::c_int = 0;
@@ -20373,7 +20236,7 @@ unsafe extern "C" fn do_meta_command(
         i_3 = 1 as libc::c_int;
         loop {
             if !(i_3 < nArg) {
-                current_block = 15737493854269785664;
+                current_block = 13714309095952152938;
                 break;
             }
             if *(azArg[i_3 as usize]).offset(0 as libc::c_int as isize) as libc::c_int
@@ -20389,16 +20252,16 @@ unsafe extern "C" fn do_meta_command(
                 {
                     (*p).shellFlgs |= 0x8 as libc::c_int as libc::c_uint;
                 } else if strcmp(z_1, b"newlines\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     (*p).shellFlgs |= 0x10 as libc::c_int as libc::c_uint;
                 } else if strcmp(z_1, b"data-only\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     (*p).shellFlgs |= 0x100 as libc::c_int as libc::c_uint;
                 } else if strcmp(z_1, b"nosys\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     (*p).shellFlgs |= 0x200 as libc::c_int as libc::c_uint;
                 } else {
                     fprintf(
@@ -20409,7 +20272,7 @@ unsafe extern "C" fn do_meta_command(
                     );
                     rc = 1 as libc::c_int;
                     sqlite3_free(zLike as *mut libc::c_void);
-                    current_block = 10784143920802550123;
+                    current_block = 5240171864706220143;
                     break;
                 }
             } else {
@@ -20432,7 +20295,7 @@ unsafe extern "C" fn do_meta_command(
             i_3 += 1;
         }
         match current_block {
-            10784143920802550123 => {}
+            5240171864706220143 => {}
             _ => {
                 open_db(p, 0 as libc::c_int);
                 if (*p).shellFlgs & 0x100 as libc::c_int as libc::c_uint
@@ -20523,12 +20386,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'e' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"echo\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"echo\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg == 2 as libc::c_int {
             setOrClearFlag(
                 p,
@@ -20543,12 +20406,12 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 'e' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"eqp\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"eqp\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg == 2 as libc::c_int {
             (*p).autoEQPtest = 0 as libc::c_int as u8_0;
             if (*p).autoEQPtrace != 0 {
@@ -20570,10 +20433,10 @@ unsafe extern "C" fn do_meta_command(
             {
                 (*p).autoEQP = 3 as libc::c_int as u8_0;
             } else if strcmp(
-                    azArg[1 as libc::c_int as usize],
-                    b"trigger\0" as *const u8 as *const libc::c_char,
-                ) == 0 as libc::c_int
-                {
+                azArg[1 as libc::c_int as usize],
+                b"trigger\0" as *const u8 as *const libc::c_char,
+            ) == 0 as libc::c_int
+            {
                 (*p).autoEQP = 2 as libc::c_int as u8_0;
             } else {
                 (*p).autoEQP = booleanValue(azArg[1 as libc::c_int as usize]) as u8_0;
@@ -20587,12 +20450,12 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 'e' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"exit\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"exit\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg > 1 as libc::c_int
             && {
                 rc = integerValue(azArg[1 as libc::c_int as usize]) as libc::c_int;
@@ -20603,12 +20466,12 @@ unsafe extern "C" fn do_meta_command(
         }
         rc = 2 as libc::c_int;
     } else if c == 'e' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"explain\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"explain\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut val: libc::c_int = 1 as libc::c_int;
         if nArg >= 2 as libc::c_int {
             if strcmp(
@@ -20637,12 +20500,12 @@ unsafe extern "C" fn do_meta_command(
             (*p).autoExplain = 1 as libc::c_int as u8_0;
         }
     } else if c == 'e' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"expert\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"expert\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if (*p).bSafeMode != 0 {
             fprintf(
                 stderr,
@@ -20656,12 +20519,12 @@ unsafe extern "C" fn do_meta_command(
             expertDotCommand(p, azArg.as_mut_ptr(), nArg);
         }
     } else if c == 'f' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"filectrl\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"filectrl\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         static mut aCtrl: [C2RustUnnamed_21; 9] = [
             {
                 let mut init = C2RustUnnamed_21 {
@@ -20784,9 +20647,9 @@ unsafe extern "C" fn do_meta_command(
             );
             i_4 = 0 as libc::c_int;
             while i_4
-                < (::std::mem::size_of::<[C2RustUnnamed_21; 9]>() as libc::c_ulong)
+                < (::core::mem::size_of::<[C2RustUnnamed_21; 9]>() as libc::c_ulong)
                     .wrapping_div(
-                        ::std::mem::size_of::<C2RustUnnamed_21>() as libc::c_ulong,
+                        ::core::mem::size_of::<C2RustUnnamed_21>() as libc::c_ulong,
                     ) as libc::c_int
             {
                 fprintf(
@@ -20803,12 +20666,12 @@ unsafe extern "C" fn do_meta_command(
             i_4 = 0 as libc::c_int;
             loop {
                 if !(i_4
-                    < (::std::mem::size_of::<[C2RustUnnamed_21; 9]>() as libc::c_ulong)
+                    < (::core::mem::size_of::<[C2RustUnnamed_21; 9]>() as libc::c_ulong)
                         .wrapping_div(
-                            ::std::mem::size_of::<C2RustUnnamed_21>() as libc::c_ulong,
+                            ::core::mem::size_of::<C2RustUnnamed_21>() as libc::c_ulong,
                         ) as libc::c_int)
                 {
-                    current_block = 15849589987095405551;
+                    current_block = 15508192053828812388;
                     break;
                 }
                 if strncmp(zCmd, aCtrl[i_4 as usize].zCtrlName, n2 as libc::c_ulong)
@@ -20825,14 +20688,14 @@ unsafe extern "C" fn do_meta_command(
                             zCmd,
                         );
                         rc = 1 as libc::c_int;
-                        current_block = 10784143920802550123;
+                        current_block = 5240171864706220143;
                         break;
                     }
                 }
                 i_4 += 1;
             }
             match current_block {
-                10784143920802550123 => {}
+                5240171864706220143 => {}
                 _ => {
                     if filectrl < 0 as libc::c_int {
                         fprintf(
@@ -20964,8 +20827,8 @@ unsafe extern "C" fn do_meta_command(
                     } else if isOk == 1 as libc::c_int {
                         let mut zBuf: [libc::c_char; 100] = [0; 100];
                         sqlite3_snprintf(
-                            ::std::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
-                                as libc::c_int,
+                            ::core::mem::size_of::<[libc::c_char; 100]>()
+                                as libc::c_ulong as libc::c_int,
                             zBuf.as_mut_ptr(),
                             b"%lld\0" as *const u8 as *const libc::c_char,
                             iRes,
@@ -20980,12 +20843,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'f' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"fullschema\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"fullschema\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut data: ShellState = ShellState {
             db: 0 as *mut sqlite3,
             autoExplain: 0,
@@ -21066,7 +20929,7 @@ unsafe extern "C" fn do_meta_command(
         memcpy(
             &mut data as *mut ShellState as *mut libc::c_void,
             p as *const libc::c_void,
-            ::std::mem::size_of::<ShellState>() as libc::c_ulong,
+            ::core::mem::size_of::<ShellState>() as libc::c_ulong,
         );
         data.showHeader = 0 as libc::c_int;
         data.mode = 3 as libc::c_int;
@@ -21154,12 +21017,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'h' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"headers\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"headers\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg == 2 as libc::c_int {
             (*p).showHeader = booleanValue(azArg[1 as libc::c_int as usize]);
             (*p).shellFlgs |= 0x80 as libc::c_int as libc::c_uint;
@@ -21171,12 +21034,12 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 'h' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"help\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"help\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg >= 2 as libc::c_int {
             n = showHelp((*p).out, azArg[1 as libc::c_int as usize]);
             if n == 0 as libc::c_int {
@@ -21190,12 +21053,12 @@ unsafe extern "C" fn do_meta_command(
             showHelp((*p).out, 0 as *const libc::c_char);
         }
     } else if c == 'i' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"import\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"import\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut zTable: *mut libc::c_char = 0 as *mut libc::c_char;
         let mut zSchema_1: *mut libc::c_char = 0 as *mut libc::c_char;
         let mut zFile_1: *mut libc::c_char = 0 as *mut libc::c_char;
@@ -21237,7 +21100,7 @@ unsafe extern "C" fn do_meta_command(
         memset(
             &mut sCtx as *mut ImportCtx as *mut libc::c_void,
             0 as libc::c_int,
-            ::std::mem::size_of::<ImportCtx>() as libc::c_ulong,
+            ::core::mem::size_of::<ImportCtx>() as libc::c_ulong,
         );
         if (*p).mode == 10 as libc::c_int {
             xRead = Some(
@@ -21254,7 +21117,7 @@ unsafe extern "C" fn do_meta_command(
         i_5 = 1 as libc::c_int;
         loop {
             if !(i_5 < nArg) {
-                current_block = 9847636477235348409;
+                current_block = 5946490239152004759;
                 break;
             }
             let mut z_3: *mut libc::c_char = azArg[i_5 as usize];
@@ -21276,33 +21139,33 @@ unsafe extern "C" fn do_meta_command(
                         z_3,
                     );
                     showHelp((*p).out, b"import\0" as *const u8 as *const libc::c_char);
-                    current_block = 10784143920802550123;
+                    current_block = 5240171864706220143;
                     break;
                 }
             } else if strcmp(z_3, b"-v\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 eVerbose += 1;
             } else if strcmp(z_3, b"-schema\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int && i_5 < nArg - 1 as libc::c_int
-                {
+                == 0 as libc::c_int && i_5 < nArg - 1 as libc::c_int
+            {
                 i_5 += 1;
                 zSchema_1 = azArg[i_5 as usize];
             } else if strcmp(z_3, b"-skip\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int && i_5 < nArg - 1 as libc::c_int
-                {
+                == 0 as libc::c_int && i_5 < nArg - 1 as libc::c_int
+            {
                 i_5 += 1;
                 nSkip = integerValue(azArg[i_5 as usize]) as libc::c_int;
             } else if strcmp(z_3, b"-ascii\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 sCtx
-                    .cColSep = (*::std::mem::transmute::<
+                    .cColSep = (*::core::mem::transmute::<
                     &[u8; 2],
                     &[libc::c_char; 2],
                 >(b"\x1F\0"))[0 as libc::c_int as usize] as libc::c_int;
                 sCtx
-                    .cRowSep = (*::std::mem::transmute::<
+                    .cRowSep = (*::core::mem::transmute::<
                     &[u8; 2],
                     &[libc::c_char; 2],
                 >(b"\x1E\0"))[0 as libc::c_int as usize] as libc::c_int;
@@ -21312,8 +21175,8 @@ unsafe extern "C" fn do_meta_command(
                 );
                 useOutputMode = 0 as libc::c_int;
             } else if strcmp(z_3, b"-csv\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 sCtx.cColSep = ',' as i32;
                 sCtx.cRowSep = '\n' as i32;
                 xRead = Some(
@@ -21329,13 +21192,13 @@ unsafe extern "C" fn do_meta_command(
                     z_3,
                 );
                 showHelp((*p).out, b"import\0" as *const u8 as *const libc::c_char);
-                current_block = 10784143920802550123;
+                current_block = 5240171864706220143;
                 break;
             }
             i_5 += 1;
         }
         match current_block {
-            10784143920802550123 => {}
+            5240171864706220143 => {}
             _ => {
                 if zTable.is_null() {
                     fprintf(
@@ -21350,7 +21213,7 @@ unsafe extern "C" fn do_meta_command(
                     );
                     showHelp((*p).out, b"import\0" as *const u8 as *const libc::c_char);
                 } else {
-                    ::std::ptr::write_volatile(
+                    ::core::ptr::write_volatile(
                         &mut seenInterrupt as *mut libc::c_int,
                         0 as libc::c_int,
                     );
@@ -21363,14 +21226,14 @@ unsafe extern "C" fn do_meta_command(
                                 b"Error: non-null column separator required for import\n\0"
                                     as *const u8 as *const libc::c_char,
                             );
-                            current_block = 10784143920802550123;
+                            current_block = 5240171864706220143;
                         } else if nSep > 1 as libc::c_int {
                             fprintf(
                                 stderr,
                                 b"Error: multi-character column separators not allowed for import\n\0"
                                     as *const u8 as *const libc::c_char,
                             );
-                            current_block = 10784143920802550123;
+                            current_block = 5240171864706220143;
                         } else {
                             nSep = strlen30(((*p).rowSeparator).as_mut_ptr());
                             if nSep == 0 as libc::c_int {
@@ -21379,7 +21242,7 @@ unsafe extern "C" fn do_meta_command(
                                     b"Error: non-null row separator required for import\n\0"
                                         as *const u8 as *const libc::c_char,
                                 );
-                                current_block = 10784143920802550123;
+                                current_block = 5240171864706220143;
                             } else {
                                 if nSep == 2 as libc::c_int && (*p).mode == 8 as libc::c_int
                                     && strcmp(
@@ -21388,8 +21251,8 @@ unsafe extern "C" fn do_meta_command(
                                     ) == 0 as libc::c_int
                                 {
                                     sqlite3_snprintf(
-                                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
-                                            as libc::c_int,
+                                        ::core::mem::size_of::<[libc::c_char; 20]>()
+                                            as libc::c_ulong as libc::c_int,
                                         ((*p).rowSeparator).as_mut_ptr(),
                                         b"\n\0" as *const u8 as *const libc::c_char,
                                     );
@@ -21401,7 +21264,7 @@ unsafe extern "C" fn do_meta_command(
                                         b"Error: multi-character row separators not allowed for import\n\0"
                                             as *const u8 as *const libc::c_char,
                                     );
-                                    current_block = 10784143920802550123;
+                                    current_block = 5240171864706220143;
                                 } else {
                                     sCtx
                                         .cColSep = (*p).colSeparator[0 as libc::c_int as usize]
@@ -21409,15 +21272,15 @@ unsafe extern "C" fn do_meta_command(
                                     sCtx
                                         .cRowSep = (*p).rowSeparator[0 as libc::c_int as usize]
                                         as libc::c_int;
-                                    current_block = 369283622388157215;
+                                    current_block = 6940122889508134762;
                                 }
                             }
                         }
                     } else {
-                        current_block = 369283622388157215;
+                        current_block = 6940122889508134762;
                     }
                     match current_block {
-                        10784143920802550123 => {}
+                        5240171864706220143 => {}
                         _ => {
                             sCtx.zFile = zFile_1;
                             sCtx.nLine = 1 as libc::c_int;
@@ -21487,9 +21350,9 @@ unsafe extern "C" fn do_meta_command(
                                     shell_out_of_memory();
                                 }
                                 loop {
-                                    let fresh259 = nSkip;
+                                    let fresh83 = nSkip;
                                     nSkip = nSkip - 1;
-                                    if !(fresh259 > 0 as libc::c_int) {
+                                    if !(fresh83 > 0 as libc::c_int) {
                                         break;
                                     }
                                     while !(xRead
@@ -21576,7 +21439,7 @@ unsafe extern "C" fn do_meta_command(
                                             b"dbCols==0\0" as *const u8 as *const libc::c_char,
                                             b"shell.c\0" as *const u8 as *const libc::c_char,
                                             20178 as libc::c_int as libc::c_uint,
-                                            (*::std::mem::transmute::<
+                                            (*::core::mem::transmute::<
                                                 &[u8; 42],
                                                 &[libc::c_char; 42],
                                             >(b"int do_meta_command(char *, ShellState *)\0"))
@@ -21589,7 +21452,7 @@ unsafe extern "C" fn do_meta_command(
                                             b"%s: empty file\n\0" as *const u8 as *const libc::c_char,
                                             sCtx.zFile,
                                         );
-                                        current_block = 9580166445774441429;
+                                        current_block = 3776591993419627335;
                                     } else {
                                         zCreate = sqlite3_mprintf(
                                             b"%z%z\n\0" as *const u8 as *const libc::c_char,
@@ -21617,7 +21480,7 @@ unsafe extern "C" fn do_meta_command(
                                                 zCreate,
                                                 sqlite3_errmsg((*p).db),
                                             );
-                                            current_block = 9580166445774441429;
+                                            current_block = 3776591993419627335;
                                         } else {
                                             sqlite3_free(zCreate as *mut libc::c_void);
                                             zCreate = 0 as *mut libc::c_char;
@@ -21628,14 +21491,14 @@ unsafe extern "C" fn do_meta_command(
                                                 &mut pStmt_1,
                                                 0 as *mut *const libc::c_char,
                                             );
-                                            current_block = 11298318405609849625;
+                                            current_block = 4948376380723518226;
                                         }
                                     }
                                 } else {
-                                    current_block = 11298318405609849625;
+                                    current_block = 4948376380723518226;
                                 }
                                 match current_block {
-                                    11298318405609849625 => {
+                                    4948376380723518226 => {
                                         if rc != 0 {
                                             if !pStmt_1.is_null() {
                                                 sqlite3_finalize(pStmt_1);
@@ -21645,7 +21508,7 @@ unsafe extern "C" fn do_meta_command(
                                                 b"Error: %s\n\0" as *const u8 as *const libc::c_char,
                                                 sqlite3_errmsg((*p).db),
                                             );
-                                            current_block = 9580166445774441429;
+                                            current_block = 3776591993419627335;
                                         } else {
                                             sqlite3_free(zSql_0 as *mut libc::c_void);
                                             nCol = sqlite3_column_count(pStmt_1);
@@ -21672,20 +21535,20 @@ unsafe extern "C" fn do_meta_command(
                                             j_0 = strlen30(zSql_0);
                                             i_5 = 1 as libc::c_int;
                                             while i_5 < nCol {
-                                                let fresh260 = j_0;
+                                                let fresh84 = j_0;
                                                 j_0 = j_0 + 1;
                                                 *zSql_0
-                                                    .offset(fresh260 as isize) = ',' as i32 as libc::c_char;
-                                                let fresh261 = j_0;
+                                                    .offset(fresh84 as isize) = ',' as i32 as libc::c_char;
+                                                let fresh85 = j_0;
                                                 j_0 = j_0 + 1;
                                                 *zSql_0
-                                                    .offset(fresh261 as isize) = '?' as i32 as libc::c_char;
+                                                    .offset(fresh85 as isize) = '?' as i32 as libc::c_char;
                                                 i_5 += 1;
                                             }
-                                            let fresh262 = j_0;
+                                            let fresh86 = j_0;
                                             j_0 = j_0 + 1;
                                             *zSql_0
-                                                .offset(fresh262 as isize) = ')' as i32 as libc::c_char;
+                                                .offset(fresh86 as isize) = ')' as i32 as libc::c_char;
                                             *zSql_0
                                                 .offset(j_0 as isize) = 0 as libc::c_int as libc::c_char;
                                             if eVerbose >= 2 as libc::c_int {
@@ -21711,7 +21574,7 @@ unsafe extern "C" fn do_meta_command(
                                                 if !pStmt_1.is_null() {
                                                     sqlite3_finalize(pStmt_1);
                                                 }
-                                                current_block = 9580166445774441429;
+                                                current_block = 3776591993419627335;
                                             } else {
                                                 sqlite3_free(zSql_0 as *mut libc::c_void);
                                                 sqlite3_free(zFullTabName as *mut libc::c_void);
@@ -21746,7 +21609,7 @@ unsafe extern "C" fn do_meta_command(
                                                             i_5 + 1 as libc::c_int,
                                                             z_4,
                                                             -(1 as libc::c_int),
-                                                            ::std::mem::transmute::<
+                                                            ::core::mem::transmute::<
                                                                 libc::intptr_t,
                                                                 sqlite3_destructor_type,
                                                             >(-(1 as libc::c_int) as libc::intptr_t),
@@ -21831,14 +21694,14 @@ unsafe extern "C" fn do_meta_command(
                                                         sCtx.nLine - 1 as libc::c_int,
                                                     );
                                                 }
-                                                current_block = 10784143920802550123;
+                                                current_block = 5240171864706220143;
                                             }
                                         }
                                     }
                                     _ => {}
                                 }
                                 match current_block {
-                                    10784143920802550123 => {}
+                                    5240171864706220143 => {}
                                     _ => {
                                         sqlite3_free(zCreate as *mut libc::c_void);
                                         sqlite3_free(zSql_0 as *mut libc::c_void);
@@ -21854,12 +21717,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'i' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"imposter\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"imposter\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut zSql_1: *mut libc::c_char = 0 as *mut libc::c_char;
         let mut zCollist: *mut libc::c_char = 0 as *mut libc::c_char;
         let mut pStmt_2: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
@@ -21939,8 +21802,8 @@ unsafe extern "C" fn do_meta_command(
                             zCol = b"_ROWID_\0" as *const u8 as *const libc::c_char;
                         } else {
                             sqlite3_snprintf(
-                                ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
-                                    as libc::c_int,
+                                ::core::mem::size_of::<[libc::c_char; 20]>()
+                                    as libc::c_ulong as libc::c_int,
                                 zLabel.as_mut_ptr(),
                                 b"expr%d\0" as *const u8 as *const libc::c_char,
                                 i_6,
@@ -22051,12 +21914,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'l' as i32 && n >= 5 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"limits\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"limits\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         static mut aLimit: [C2RustUnnamed_20; 12] = [
             {
                 let mut init = C2RustUnnamed_20 {
@@ -22150,9 +22013,9 @@ unsafe extern "C" fn do_meta_command(
         if nArg == 1 as libc::c_int {
             i_7 = 0 as libc::c_int;
             while i_7
-                < (::std::mem::size_of::<[C2RustUnnamed_20; 12]>() as libc::c_ulong)
+                < (::core::mem::size_of::<[C2RustUnnamed_20; 12]>() as libc::c_ulong)
                     .wrapping_div(
-                        ::std::mem::size_of::<C2RustUnnamed_20>() as libc::c_ulong,
+                        ::core::mem::size_of::<C2RustUnnamed_20>() as libc::c_ulong,
                     ) as libc::c_int
             {
                 printf(
@@ -22178,12 +22041,12 @@ unsafe extern "C" fn do_meta_command(
             i_7 = 0 as libc::c_int;
             loop {
                 if !(i_7
-                    < (::std::mem::size_of::<[C2RustUnnamed_20; 12]>() as libc::c_ulong)
+                    < (::core::mem::size_of::<[C2RustUnnamed_20; 12]>() as libc::c_ulong)
                         .wrapping_div(
-                            ::std::mem::size_of::<C2RustUnnamed_20>() as libc::c_ulong,
+                            ::core::mem::size_of::<C2RustUnnamed_20>() as libc::c_ulong,
                         ) as libc::c_int)
                 {
-                    current_block = 2153344065440256775;
+                    current_block = 2027797428995195695;
                     break;
                 }
                 if sqlite3_strnicmp(
@@ -22202,14 +22065,14 @@ unsafe extern "C" fn do_meta_command(
                             azArg[1 as libc::c_int as usize],
                         );
                         rc = 1 as libc::c_int;
-                        current_block = 10784143920802550123;
+                        current_block = 5240171864706220143;
                         break;
                     }
                 }
                 i_7 += 1;
             }
             match current_block {
-                10784143920802550123 => {}
+                5240171864706220143 => {}
                 _ => {
                     if iLimit < 0 as libc::c_int {
                         fprintf(
@@ -22242,21 +22105,21 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'l' as i32 && n > 2 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"lint\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"lint\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         open_db(p, 0 as libc::c_int);
         lintDotCommand(p, azArg.as_mut_ptr(), nArg);
     } else if c == 'l' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"load\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"load\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut zFile_2: *const libc::c_char = 0 as *const libc::c_char;
         let mut zProc: *const libc::c_char = 0 as *const libc::c_char;
         let mut zErrMsg: *mut libc::c_char = 0 as *mut libc::c_char;
@@ -22290,12 +22153,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'l' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"log\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"log\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         failIfSafeMode(
             p,
             b"cannot run .log in safe mode\0" as *const u8 as *const libc::c_char,
@@ -22309,16 +22172,15 @@ unsafe extern "C" fn do_meta_command(
         } else {
             let mut zFile_3: *const libc::c_char = azArg[1 as libc::c_int as usize];
             output_file_close((*p).pLog);
-            let ref mut fresh263 = (*p).pLog;
-            *fresh263 = output_file_open(zFile_3, 0 as libc::c_int);
+            (*p).pLog = output_file_open(zFile_3, 0 as libc::c_int);
         }
     } else if c == 'm' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"mode\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"mode\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut zMode: *const libc::c_char = 0 as *const libc::c_char;
         let mut zTabname: *const libc::c_char = 0 as *const libc::c_char;
         let mut i_8: libc::c_int = 0;
@@ -22334,7 +22196,7 @@ unsafe extern "C" fn do_meta_command(
         i_8 = 1 as libc::c_int;
         loop {
             if !(i_8 < nArg) {
-                current_block = 18033822173290418659;
+                current_block = 15868221551087540686;
                 break;
             }
             let mut z_5: *const libc::c_char = azArg[i_8 as usize];
@@ -22344,20 +22206,20 @@ unsafe extern "C" fn do_meta_command(
                 i_8 += 1;
                 cmOpts.iWrap = integerValue(azArg[i_8 as usize]) as libc::c_int;
             } else if optionMatch(z_5, b"ww\0" as *const u8 as *const libc::c_char) != 0
-                {
+            {
                 cmOpts.bWordWrap = 1 as libc::c_int as u8_0;
             } else if optionMatch(z_5, b"wordwrap\0" as *const u8 as *const libc::c_char)
-                    != 0 && (i_8 + 1 as libc::c_int) < nArg
-                {
+                != 0 && (i_8 + 1 as libc::c_int) < nArg
+            {
                 i_8 += 1;
                 cmOpts.bWordWrap = booleanValue(azArg[i_8 as usize]) as u8_0;
             } else if optionMatch(z_5, b"quote\0" as *const u8 as *const libc::c_char)
-                    != 0
-                {
+                != 0
+            {
                 cmOpts.bQuote = 1 as libc::c_int as u8_0;
             } else if optionMatch(z_5, b"noquote\0" as *const u8 as *const libc::c_char)
-                    != 0
-                {
+                != 0
+            {
                 cmOpts.bQuote = 0 as libc::c_int as u8_0;
             } else if zMode.is_null() {
                 zMode = z_5;
@@ -22378,7 +22240,7 @@ unsafe extern "C" fn do_meta_command(
             } else if zTabname.is_null() {
                 zTabname = z_5;
             } else if *z_5.offset(0 as libc::c_int as isize) as libc::c_int == '-' as i32
-                {
+            {
                 fprintf(
                     stderr,
                     b"unknown option: %s\n\0" as *const u8 as *const libc::c_char,
@@ -22390,7 +22252,7 @@ unsafe extern "C" fn do_meta_command(
                         as *const u8 as *const libc::c_char,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 10784143920802550123;
+                current_block = 5240171864706220143;
                 break;
             } else {
                 fprintf(
@@ -22399,13 +22261,13 @@ unsafe extern "C" fn do_meta_command(
                     z_5,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 10784143920802550123;
+                current_block = 5240171864706220143;
                 break;
             }
             i_8 += 1;
         }
         match current_block {
-            10784143920802550123 => {}
+            5240171864706220143 => {}
             _ => {
                 if zMode.is_null() {
                     if (*p).mode == 1 as libc::c_int
@@ -22448,17 +22310,17 @@ unsafe extern "C" fn do_meta_command(
                 {
                     (*p).mode = 0 as libc::c_int;
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).rowSeparator).as_mut_ptr(),
                         b"\n\0" as *const u8 as *const libc::c_char,
                     );
                 } else if strncmp(
-                        zMode,
-                        b"columns\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"columns\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 1 as libc::c_int;
                     if (*p).shellFlgs & 0x80 as libc::c_int as libc::c_uint
                         == 0 as libc::c_int as libc::c_uint
@@ -22466,95 +22328,95 @@ unsafe extern "C" fn do_meta_command(
                         (*p).showHeader = 1 as libc::c_int;
                     }
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).rowSeparator).as_mut_ptr(),
                         b"\n\0" as *const u8 as *const libc::c_char,
                     );
                     (*p).cmOpts = cmOpts;
                 } else if strncmp(
-                        zMode,
-                        b"list\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"list\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 2 as libc::c_int;
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).colSeparator).as_mut_ptr(),
                         b"|\0" as *const u8 as *const libc::c_char,
                     );
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).rowSeparator).as_mut_ptr(),
                         b"\n\0" as *const u8 as *const libc::c_char,
                     );
                 } else if strncmp(
-                        zMode,
-                        b"html\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"html\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 4 as libc::c_int;
                 } else if strncmp(
-                        zMode,
-                        b"tcl\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"tcl\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 7 as libc::c_int;
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).colSeparator).as_mut_ptr(),
                         b" \0" as *const u8 as *const libc::c_char,
                     );
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).rowSeparator).as_mut_ptr(),
                         b"\n\0" as *const u8 as *const libc::c_char,
                     );
                 } else if strncmp(
-                        zMode,
-                        b"csv\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"csv\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 8 as libc::c_int;
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).colSeparator).as_mut_ptr(),
                         b",\0" as *const u8 as *const libc::c_char,
                     );
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).rowSeparator).as_mut_ptr(),
                         b"\r\n\0" as *const u8 as *const libc::c_char,
                     );
                 } else if strncmp(
-                        zMode,
-                        b"tabs\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"tabs\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 2 as libc::c_int;
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).colSeparator).as_mut_ptr(),
                         b"\t\0" as *const u8 as *const libc::c_char,
                     );
                 } else if strncmp(
-                        zMode,
-                        b"insert\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"insert\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 5 as libc::c_int;
                     set_table_name(
                         p,
@@ -22565,87 +22427,87 @@ unsafe extern "C" fn do_meta_command(
                         },
                     );
                 } else if strncmp(
-                        zMode,
-                        b"quote\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"quote\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 6 as libc::c_int;
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).colSeparator).as_mut_ptr(),
                         b",\0" as *const u8 as *const libc::c_char,
                     );
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).rowSeparator).as_mut_ptr(),
                         b"\n\0" as *const u8 as *const libc::c_char,
                     );
                 } else if strncmp(
-                        zMode,
-                        b"ascii\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"ascii\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 10 as libc::c_int;
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).colSeparator).as_mut_ptr(),
                         b"\x1F\0" as *const u8 as *const libc::c_char,
                     );
                     sqlite3_snprintf(
-                        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                             as libc::c_int,
                         ((*p).rowSeparator).as_mut_ptr(),
                         b"\x1E\0" as *const u8 as *const libc::c_char,
                     );
                 } else if strncmp(
-                        zMode,
-                        b"markdown\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"markdown\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 14 as libc::c_int;
                     (*p).cmOpts = cmOpts;
                 } else if strncmp(
-                        zMode,
-                        b"table\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"table\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 15 as libc::c_int;
                     (*p).cmOpts = cmOpts;
                 } else if strncmp(
-                        zMode,
-                        b"box\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"box\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 16 as libc::c_int;
                     (*p).cmOpts = cmOpts;
                 } else if strncmp(
-                        zMode,
-                        b"count\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"count\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 17 as libc::c_int;
                 } else if strncmp(
-                        zMode,
-                        b"off\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"off\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 18 as libc::c_int;
                 } else if strncmp(
-                        zMode,
-                        b"json\0" as *const u8 as *const libc::c_char,
-                        n2_1 as libc::c_ulong,
-                    ) == 0 as libc::c_int
-                    {
+                    zMode,
+                    b"json\0" as *const u8 as *const libc::c_char,
+                    n2_1 as libc::c_ulong,
+                ) == 0 as libc::c_int
+                {
                     (*p).mode = 13 as libc::c_int;
                 } else {
                     fprintf(
@@ -22659,11 +22521,11 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'n' as i32
-            && strcmp(
-                azArg[0 as libc::c_int as usize],
-                b"nonce\0" as *const u8 as *const libc::c_char,
-            ) == 0 as libc::c_int
-        {
+        && strcmp(
+            azArg[0 as libc::c_int as usize],
+            b"nonce\0" as *const u8 as *const libc::c_char,
+        ) == 0 as libc::c_int
+    {
         if nArg != 2 as libc::c_int {
             fprintf(
                 stderr,
@@ -22671,9 +22533,8 @@ unsafe extern "C" fn do_meta_command(
             );
             rc = 1 as libc::c_int;
         } else if ((*p).zNonce).is_null()
-                || strcmp(azArg[1 as libc::c_int as usize], (*p).zNonce)
-                    != 0 as libc::c_int
-            {
+            || strcmp(azArg[1 as libc::c_int as usize], (*p).zNonce) != 0 as libc::c_int
+        {
             fprintf(
                 stderr,
                 b"line %d: incorrect nonce: \"%s\"\n\0" as *const u8
@@ -22687,21 +22548,22 @@ unsafe extern "C" fn do_meta_command(
             return 0 as libc::c_int;
         }
     } else if c == 'n' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"nullvalue\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"nullvalue\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg == 2 as libc::c_int {
             sqlite3_snprintf(
-                ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                     as libc::c_int,
                 ((*p).nullValue).as_mut_ptr(),
                 b"%.*s\0" as *const u8 as *const libc::c_char,
-                (::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong)
-                    .wrapping_div(::std::mem::size_of::<libc::c_char>() as libc::c_ulong)
-                    as libc::c_int - 1 as libc::c_int,
+                (::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong)
+                    .wrapping_div(
+                        ::core::mem::size_of::<libc::c_char>() as libc::c_ulong,
+                    ) as libc::c_int - 1 as libc::c_int,
                 azArg[1 as libc::c_int as usize],
             );
         } else {
@@ -22712,12 +22574,12 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 'o' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"open\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int && n >= 2 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"open\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int && n >= 2 as libc::c_int
+    {
         let mut zFN: *const libc::c_char = 0 as *const libc::c_char;
         let mut zNewFilename: *mut libc::c_char = 0 as *mut libc::c_char;
         let mut iName: libc::c_int = 1 as libc::c_int;
@@ -22726,48 +22588,48 @@ unsafe extern "C" fn do_meta_command(
         iName = 1 as libc::c_int;
         loop {
             if !(iName < nArg) {
-                current_block = 7376108633251332364;
+                current_block = 15261013481348428112;
                 break;
             }
             let mut z_6: *const libc::c_char = azArg[iName as usize];
             if optionMatch(z_6, b"new\0" as *const u8 as *const libc::c_char) != 0 {
                 newFlag = 1 as libc::c_int;
             } else if optionMatch(z_6, b"append\0" as *const u8 as *const libc::c_char)
-                    != 0
-                {
+                != 0
+            {
                 openMode = 2 as libc::c_int;
             } else if optionMatch(z_6, b"readonly\0" as *const u8 as *const libc::c_char)
-                    != 0
-                {
+                != 0
+            {
                 openMode = 4 as libc::c_int;
             } else if optionMatch(z_6, b"nofollow\0" as *const u8 as *const libc::c_char)
-                    != 0
-                {
+                != 0
+            {
                 (*p).openFlags |= 0x1000000 as libc::c_int;
             } else if optionMatch(
-                    z_6,
-                    b"deserialize\0" as *const u8 as *const libc::c_char,
-                ) != 0
-                {
+                z_6,
+                b"deserialize\0" as *const u8 as *const libc::c_char,
+            ) != 0
+            {
                 openMode = 5 as libc::c_int;
             } else if optionMatch(z_6, b"hexdb\0" as *const u8 as *const libc::c_char)
-                    != 0
-                {
+                != 0
+            {
                 openMode = 6 as libc::c_int;
             } else if optionMatch(z_6, b"maxsize\0" as *const u8 as *const libc::c_char)
-                    != 0 && (iName + 1 as libc::c_int) < nArg
-                {
+                != 0 && (iName + 1 as libc::c_int) < nArg
+            {
                 iName += 1;
                 (*p).szMax = integerValue(azArg[iName as usize]);
             } else if *z_6.offset(0 as libc::c_int as isize) as libc::c_int == '-' as i32
-                {
+            {
                 fprintf(
                     stderr,
                     b"unknown option: %s\n\0" as *const u8 as *const libc::c_char,
                     z_6,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 10784143920802550123;
+                current_block = 5240171864706220143;
                 break;
             } else if !zFN.is_null() {
                 fprintf(
@@ -22776,7 +22638,7 @@ unsafe extern "C" fn do_meta_command(
                     z_6,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 10784143920802550123;
+                current_block = 5240171864706220143;
                 break;
             } else {
                 zFN = z_6;
@@ -22784,16 +22646,13 @@ unsafe extern "C" fn do_meta_command(
             iName += 1;
         }
         match current_block {
-            10784143920802550123 => {}
+            5240171864706220143 => {}
             _ => {
                 close_db((*p).db);
-                let ref mut fresh264 = (*p).db;
-                *fresh264 = 0 as *mut sqlite3;
-                let ref mut fresh265 = (*(*p).pAuxDb).zDbFilename;
-                *fresh265 = 0 as *const libc::c_char;
+                (*p).db = 0 as *mut sqlite3;
+                (*(*p).pAuxDb).zDbFilename = 0 as *const libc::c_char;
                 sqlite3_free((*(*p).pAuxDb).zFreeOnClose as *mut libc::c_void);
-                let ref mut fresh266 = (*(*p).pAuxDb).zFreeOnClose;
-                *fresh266 = 0 as *mut libc::c_char;
+                (*(*p).pAuxDb).zFreeOnClose = 0 as *mut libc::c_char;
                 (*p).openMode = openMode as u8_0;
                 (*p).openFlags = 0 as libc::c_int;
                 (*p).szMax = 0 as libc::c_int as sqlite3_int64;
@@ -22822,8 +22681,7 @@ unsafe extern "C" fn do_meta_command(
                     } else {
                         zNewFilename = 0 as *mut libc::c_char;
                     }
-                    let ref mut fresh267 = (*(*p).pAuxDb).zDbFilename;
-                    *fresh267 = zNewFilename;
+                    (*(*p).pAuxDb).zDbFilename = zNewFilename;
                     open_db(p, 0x1 as libc::c_int);
                     if ((*p).db).is_null() {
                         fprintf(
@@ -22834,34 +22692,32 @@ unsafe extern "C" fn do_meta_command(
                         );
                         sqlite3_free(zNewFilename as *mut libc::c_void);
                     } else {
-                        let ref mut fresh268 = (*(*p).pAuxDb).zFreeOnClose;
-                        *fresh268 = zNewFilename;
+                        (*(*p).pAuxDb).zFreeOnClose = zNewFilename;
                     }
                 }
                 if ((*p).db).is_null() {
-                    let ref mut fresh269 = (*(*p).pAuxDb).zDbFilename;
-                    *fresh269 = 0 as *const libc::c_char;
+                    (*(*p).pAuxDb).zDbFilename = 0 as *const libc::c_char;
                     open_db(p, 0 as libc::c_int);
                 }
             }
         }
     } else if c == 'o' as i32
-            && (strncmp(
+        && (strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"output\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+            || strncmp(
                 azArg[0 as libc::c_int as usize],
-                b"output\0" as *const u8 as *const libc::c_char,
+                b"once\0" as *const u8 as *const libc::c_char,
                 n as libc::c_ulong,
+            ) == 0 as libc::c_int)
+        || c == 'e' as i32 && n == 5 as libc::c_int
+            && strcmp(
+                azArg[0 as libc::c_int as usize],
+                b"excel\0" as *const u8 as *const libc::c_char,
             ) == 0 as libc::c_int
-                || strncmp(
-                    azArg[0 as libc::c_int as usize],
-                    b"once\0" as *const u8 as *const libc::c_char,
-                    n as libc::c_ulong,
-                ) == 0 as libc::c_int)
-            || c == 'e' as i32 && n == 5 as libc::c_int
-                && strcmp(
-                    azArg[0 as libc::c_int as usize],
-                    b"excel\0" as *const u8 as *const libc::c_char,
-                ) == 0 as libc::c_int
-        {
+    {
         let mut zFile_4: *mut libc::c_char = 0 as *mut libc::c_char;
         let mut bTxtMode: libc::c_int = 0 as libc::c_int;
         let mut i_9: libc::c_int = 0;
@@ -22878,17 +22734,17 @@ unsafe extern "C" fn do_meta_command(
             eMode = 'x' as i32;
             bOnce = 2 as libc::c_int;
         } else if strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"once\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-            {
+            azArg[0 as libc::c_int as usize],
+            b"once\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+        {
             bOnce = 1 as libc::c_int;
         }
         i_9 = 1 as libc::c_int;
         loop {
             if !(i_9 < nArg) {
-                current_block = 5124238684214664916;
+                current_block = 3435079061329681511;
                 break;
             }
             let mut z_7: *mut libc::c_char = azArg[i_9 as usize];
@@ -22907,14 +22763,14 @@ unsafe extern "C" fn do_meta_command(
                         as usize] = 0xbf as libc::c_int as libc::c_uchar;
                     zBOM[3 as libc::c_int as usize] = 0 as libc::c_int as libc::c_uchar;
                 } else if c != 'e' as i32
-                        && strcmp(z_7, b"-x\0" as *const u8 as *const libc::c_char)
-                            == 0 as libc::c_int
-                    {
+                    && strcmp(z_7, b"-x\0" as *const u8 as *const libc::c_char)
+                        == 0 as libc::c_int
+                {
                     eMode = 'x' as i32;
                 } else if c != 'e' as i32
-                        && strcmp(z_7, b"-e\0" as *const u8 as *const libc::c_char)
-                            == 0 as libc::c_int
-                    {
+                    && strcmp(z_7, b"-e\0" as *const u8 as *const libc::c_char)
+                        == 0 as libc::c_int
+                {
                     eMode = 'e' as i32;
                 } else {
                     fprintf(
@@ -22925,7 +22781,7 @@ unsafe extern "C" fn do_meta_command(
                     );
                     showHelp((*p).out, azArg[0 as libc::c_int as usize]);
                     rc = 1 as libc::c_int;
-                    current_block = 10784143920802550123;
+                    current_block = 5240171864706220143;
                     break;
                 }
             } else if zFile_4.is_null() && eMode != 'e' as i32 && eMode != 'x' as i32 {
@@ -22945,7 +22801,7 @@ unsafe extern "C" fn do_meta_command(
                             azArg[i_9 as usize],
                         );
                     }
-                    current_block = 5124238684214664916;
+                    current_block = 3435079061329681511;
                     break;
                 }
             } else {
@@ -22958,13 +22814,13 @@ unsafe extern "C" fn do_meta_command(
                 showHelp((*p).out, azArg[0 as libc::c_int as usize]);
                 rc = 1 as libc::c_int;
                 sqlite3_free(zFile_4 as *mut libc::c_void);
-                current_block = 10784143920802550123;
+                current_block = 5240171864706220143;
                 break;
             }
             i_9 += 1;
         }
         match current_block {
-            10784143920802550123 => {}
+            5240171864706220143 => {}
             _ => {
                 if zFile_4.is_null() {
                     zFile_4 = sqlite3_mprintf(
@@ -22985,13 +22841,13 @@ unsafe extern "C" fn do_meta_command(
                         (*p).shellFlgs &= !(0x40 as libc::c_int) as libc::c_uint;
                         (*p).mode = 8 as libc::c_int;
                         sqlite3_snprintf(
-                            ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                            ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                                 as libc::c_int,
                             ((*p).colSeparator).as_mut_ptr(),
                             b",\0" as *const u8 as *const libc::c_char,
                         );
                         sqlite3_snprintf(
-                            ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                            ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                                 as libc::c_int,
                             ((*p).rowSeparator).as_mut_ptr(),
                             b"\r\n\0" as *const u8 as *const libc::c_char,
@@ -23010,8 +22866,8 @@ unsafe extern "C" fn do_meta_command(
                 if *zFile_4.offset(0 as libc::c_int as isize) as libc::c_int
                     == '|' as i32
                 {
-                    let ref mut fresh270 = (*p).out;
-                    *fresh270 = popen(
+                    (*p)
+                        .out = popen(
                         zFile_4.offset(1 as libc::c_int as isize),
                         b"w\0" as *const u8 as *const libc::c_char,
                     );
@@ -23022,8 +22878,7 @@ unsafe extern "C" fn do_meta_command(
                                 as *const libc::c_char,
                             zFile_4.offset(1 as libc::c_int as isize),
                         );
-                        let ref mut fresh271 = (*p).out;
-                        *fresh271 = stdout;
+                        (*p).out = stdout;
                         rc = 1 as libc::c_int;
                     } else {
                         if zBOM[0 as libc::c_int as usize] != 0 {
@@ -23035,7 +22890,7 @@ unsafe extern "C" fn do_meta_command(
                             );
                         }
                         sqlite3_snprintf(
-                            ::std::mem::size_of::<[libc::c_char; 4096]>()
+                            ::core::mem::size_of::<[libc::c_char; 4096]>()
                                 as libc::c_ulong as libc::c_int,
                             ((*p).outfile).as_mut_ptr(),
                             b"%s\0" as *const u8 as *const libc::c_char,
@@ -23043,8 +22898,7 @@ unsafe extern "C" fn do_meta_command(
                         );
                     }
                 } else {
-                    let ref mut fresh272 = (*p).out;
-                    *fresh272 = output_file_open(zFile_4, bTxtMode);
+                    (*p).out = output_file_open(zFile_4, bTxtMode);
                     if ((*p).out).is_null() {
                         if strcmp(zFile_4, b"off\0" as *const u8 as *const libc::c_char)
                             != 0 as libc::c_int
@@ -23056,8 +22910,7 @@ unsafe extern "C" fn do_meta_command(
                                 zFile_4,
                             );
                         }
-                        let ref mut fresh273 = (*p).out;
-                        *fresh273 = stdout;
+                        (*p).out = stdout;
                         rc = 1 as libc::c_int;
                     } else {
                         if zBOM[0 as libc::c_int as usize] != 0 {
@@ -23069,7 +22922,7 @@ unsafe extern "C" fn do_meta_command(
                             );
                         }
                         sqlite3_snprintf(
-                            ::std::mem::size_of::<[libc::c_char; 4096]>()
+                            ::core::mem::size_of::<[libc::c_char; 4096]>()
                                 as libc::c_ulong as libc::c_int,
                             ((*p).outfile).as_mut_ptr(),
                             b"%s\0" as *const u8 as *const libc::c_char,
@@ -23081,22 +22934,22 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'p' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"parameter\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"parameter\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut current_block_1079: u64;
         open_db(p, 0 as libc::c_int);
         if nArg <= 1 as libc::c_int {
-            current_block_1079 = 16731566415202341427;
+            current_block_1079 = 5648565205831007635;
         } else if nArg == 2 as libc::c_int
-                && strcmp(
-                    azArg[1 as libc::c_int as usize],
-                    b"clear\0" as *const u8 as *const libc::c_char,
-                ) == 0 as libc::c_int
-            {
+            && strcmp(
+                azArg[1 as libc::c_int as usize],
+                b"clear\0" as *const u8 as *const libc::c_char,
+            ) == 0 as libc::c_int
+        {
             sqlite3_exec(
                 (*p).db,
                 b"DROP TABLE IF EXISTS temp.sqlite_parameters;\0" as *const u8
@@ -23105,13 +22958,13 @@ unsafe extern "C" fn do_meta_command(
                 0 as *mut libc::c_void,
                 0 as *mut *mut libc::c_char,
             );
-            current_block_1079 = 10756506701594629759;
+            current_block_1079 = 16090971439598032253;
         } else if nArg == 2 as libc::c_int
-                && strcmp(
-                    azArg[1 as libc::c_int as usize],
-                    b"list\0" as *const u8 as *const libc::c_char,
-                ) == 0 as libc::c_int
-            {
+            && strcmp(
+                azArg[1 as libc::c_int as usize],
+                b"list\0" as *const u8 as *const libc::c_char,
+            ) == 0 as libc::c_int
+        {
             let mut pStmt_3: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
             let mut rx: libc::c_int = 0;
             let mut len: libc::c_int = 0 as libc::c_int;
@@ -23153,21 +23006,21 @@ unsafe extern "C" fn do_meta_command(
                 }
                 sqlite3_finalize(pStmt_3);
             }
-            current_block_1079 = 10756506701594629759;
+            current_block_1079 = 16090971439598032253;
         } else if nArg == 2 as libc::c_int
-                && strcmp(
-                    azArg[1 as libc::c_int as usize],
-                    b"init\0" as *const u8 as *const libc::c_char,
-                ) == 0 as libc::c_int
-            {
+            && strcmp(
+                azArg[1 as libc::c_int as usize],
+                b"init\0" as *const u8 as *const libc::c_char,
+            ) == 0 as libc::c_int
+        {
             bind_table_init(p);
-            current_block_1079 = 10756506701594629759;
+            current_block_1079 = 16090971439598032253;
         } else if nArg == 4 as libc::c_int
-                && strcmp(
-                    azArg[1 as libc::c_int as usize],
-                    b"set\0" as *const u8 as *const libc::c_char,
-                ) == 0 as libc::c_int
-            {
+            && strcmp(
+                azArg[1 as libc::c_int as usize],
+                b"set\0" as *const u8 as *const libc::c_char,
+            ) == 0 as libc::c_int
+        {
             let mut rx_0: libc::c_int = 0;
             let mut zSql_2: *mut libc::c_char = 0 as *mut libc::c_char;
             let mut pStmt_4: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
@@ -23221,13 +23074,13 @@ unsafe extern "C" fn do_meta_command(
             }
             sqlite3_step(pStmt_4);
             sqlite3_finalize(pStmt_4);
-            current_block_1079 = 10756506701594629759;
+            current_block_1079 = 16090971439598032253;
         } else if nArg == 3 as libc::c_int
-                && strcmp(
-                    azArg[1 as libc::c_int as usize],
-                    b"unset\0" as *const u8 as *const libc::c_char,
-                ) == 0 as libc::c_int
-            {
+            && strcmp(
+                azArg[1 as libc::c_int as usize],
+                b"unset\0" as *const u8 as *const libc::c_char,
+            ) == 0 as libc::c_int
+        {
             let mut zSql_3: *mut libc::c_char = sqlite3_mprintf(
                 b"DELETE FROM temp.sqlite_parameters WHERE key=%Q\0" as *const u8
                     as *const libc::c_char,
@@ -23242,23 +23095,23 @@ unsafe extern "C" fn do_meta_command(
                 0 as *mut *mut libc::c_char,
             );
             sqlite3_free(zSql_3 as *mut libc::c_void);
-            current_block_1079 = 10756506701594629759;
+            current_block_1079 = 16090971439598032253;
         } else {
-            current_block_1079 = 16731566415202341427;
+            current_block_1079 = 5648565205831007635;
         }
         match current_block_1079 {
-            16731566415202341427 => {
+            5648565205831007635 => {
                 showHelp((*p).out, b"parameter\0" as *const u8 as *const libc::c_char);
             }
             _ => {}
         }
     } else if c == 'p' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"print\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"print\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut i_10: libc::c_int = 0;
         i_10 = 1 as libc::c_int;
         while i_10 < nArg {
@@ -23274,12 +23127,12 @@ unsafe extern "C" fn do_meta_command(
         }
         fprintf((*p).out, b"\n\0" as *const u8 as *const libc::c_char);
     } else if c == 'p' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"progress\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"progress\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut i_11: libc::c_int = 0;
         let mut nn: libc::c_int = 0 as libc::c_int;
         (*p).flgProgress = 0 as libc::c_int as libc::c_uint;
@@ -23288,7 +23141,7 @@ unsafe extern "C" fn do_meta_command(
         i_11 = 1 as libc::c_int;
         loop {
             if !(i_11 < nArg) {
-                current_block = 14838460950600253724;
+                current_block = 16622677065440087404;
                 break;
             }
             let mut z_8: *const libc::c_char = azArg[i_11 as usize];
@@ -23304,16 +23157,16 @@ unsafe extern "C" fn do_meta_command(
                 {
                     (*p).flgProgress |= 0x1 as libc::c_int as libc::c_uint;
                 } else if strcmp(z_8, b"reset\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     (*p).flgProgress |= 0x2 as libc::c_int as libc::c_uint;
                 } else if strcmp(z_8, b"once\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     (*p).flgProgress |= 0x4 as libc::c_int as libc::c_uint;
                 } else if strcmp(z_8, b"limit\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     if i_11 + 1 as libc::c_int >= nArg {
                         fprintf(
                             stderr,
@@ -23321,7 +23174,7 @@ unsafe extern "C" fn do_meta_command(
                                 as *const libc::c_char,
                         );
                         rc = 1 as libc::c_int;
-                        current_block = 10784143920802550123;
+                        current_block = 5240171864706220143;
                         break;
                     } else {
                         i_11 += 1;
@@ -23337,7 +23190,7 @@ unsafe extern "C" fn do_meta_command(
                         azArg[i_11 as usize],
                     );
                     rc = 1 as libc::c_int;
-                    current_block = 10784143920802550123;
+                    current_block = 5240171864706220143;
                     break;
                 }
             } else {
@@ -23346,7 +23199,7 @@ unsafe extern "C" fn do_meta_command(
             i_11 += 1;
         }
         match current_block {
-            10784143920802550123 => {}
+            5240171864706220143 => {}
             _ => {
                 open_db(p, 0 as libc::c_int);
                 sqlite3_progress_handler(
@@ -23361,45 +23214,47 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'p' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"prompt\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"prompt\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg >= 2 as libc::c_int {
             strncpy(
                 mainPrompt.as_mut_ptr(),
                 azArg[1 as libc::c_int as usize],
-                ((::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong)
-                    .wrapping_div(::std::mem::size_of::<libc::c_char>() as libc::c_ulong)
-                    as libc::c_int - 1 as libc::c_int) as libc::c_ulong,
+                ((::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong)
+                    .wrapping_div(
+                        ::core::mem::size_of::<libc::c_char>() as libc::c_ulong,
+                    ) as libc::c_int - 1 as libc::c_int) as libc::c_ulong,
             );
         }
         if nArg >= 3 as libc::c_int {
             strncpy(
                 continuePrompt.as_mut_ptr(),
                 azArg[2 as libc::c_int as usize],
-                ((::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong)
-                    .wrapping_div(::std::mem::size_of::<libc::c_char>() as libc::c_ulong)
-                    as libc::c_int - 1 as libc::c_int) as libc::c_ulong,
+                ((::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong)
+                    .wrapping_div(
+                        ::core::mem::size_of::<libc::c_char>() as libc::c_ulong,
+                    ) as libc::c_int - 1 as libc::c_int) as libc::c_ulong,
             );
         }
     } else if c == 'q' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"quit\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"quit\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         rc = 2 as libc::c_int;
     } else if c == 'r' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"read\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"read\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut inSaved: *mut FILE = (*p).in_0;
         let mut savedLineno: libc::c_int = (*p).lineno;
         failIfSafeMode(
@@ -23416,8 +23271,8 @@ unsafe extern "C" fn do_meta_command(
             if *(azArg[1 as libc::c_int as usize]).offset(0 as libc::c_int as isize)
                 as libc::c_int == '|' as i32
             {
-                let ref mut fresh274 = (*p).in_0;
-                *fresh274 = popen(
+                (*p)
+                    .in_0 = popen(
                     (azArg[1 as libc::c_int as usize]).offset(1 as libc::c_int as isize),
                     b"r\0" as *const u8 as *const libc::c_char,
                 );
@@ -23434,9 +23289,8 @@ unsafe extern "C" fn do_meta_command(
                     pclose((*p).in_0);
                 }
             } else {
-                let ref mut fresh275 = (*p).in_0;
-                *fresh275 = openChrSource(azArg[1 as libc::c_int as usize]);
-                if (*fresh275).is_null() {
+                (*p).in_0 = openChrSource(azArg[1 as libc::c_int as usize]);
+                if ((*p).in_0).is_null() {
                     fprintf(
                         stderr,
                         b"Error: cannot open \"%s\"\n\0" as *const u8
@@ -23449,17 +23303,16 @@ unsafe extern "C" fn do_meta_command(
                     fclose((*p).in_0);
                 }
             }
-            let ref mut fresh276 = (*p).in_0;
-            *fresh276 = inSaved;
+            (*p).in_0 = inSaved;
             (*p).lineno = savedLineno;
         }
     } else if c == 'r' as i32 && n >= 3 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"restore\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"restore\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut zSrcFile: *const libc::c_char = 0 as *const libc::c_char;
         let mut zDb_0: *const libc::c_char = 0 as *const libc::c_char;
         let mut pSrc: *mut sqlite3 = 0 as *mut sqlite3;
@@ -23472,21 +23325,21 @@ unsafe extern "C" fn do_meta_command(
         if nArg == 2 as libc::c_int {
             zSrcFile = azArg[1 as libc::c_int as usize];
             zDb_0 = b"main\0" as *const u8 as *const libc::c_char;
-            current_block = 17977243304706214701;
+            current_block = 9898047525107966717;
         } else if nArg == 3 as libc::c_int {
             zSrcFile = azArg[2 as libc::c_int as usize];
             zDb_0 = azArg[1 as libc::c_int as usize];
-            current_block = 17977243304706214701;
+            current_block = 9898047525107966717;
         } else {
             fprintf(
                 stderr,
                 b"Usage: .restore ?DB? FILE\n\0" as *const u8 as *const libc::c_char,
             );
             rc = 1 as libc::c_int;
-            current_block = 10784143920802550123;
+            current_block = 5240171864706220143;
         }
         match current_block {
-            10784143920802550123 => {}
+            5240171864706220143 => {}
             _ => {
                 rc = sqlite3_open(zSrcFile, &mut pSrc);
                 if rc != 0 as libc::c_int {
@@ -23523,9 +23376,9 @@ unsafe extern "C" fn do_meta_command(
                     if !(rc == 5 as libc::c_int) {
                         continue;
                     }
-                    let fresh277 = nTimeout;
+                    let fresh87 = nTimeout;
                     nTimeout = nTimeout + 1;
-                    if fresh277 >= 3 as libc::c_int {
+                    if fresh87 >= 3 as libc::c_int {
                         break;
                     }
                     sqlite3_sleep(100 as libc::c_int);
@@ -23552,12 +23405,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 's' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"scanstats\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"scanstats\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg == 2 as libc::c_int {
             (*p).scanstatsOn = booleanValue(azArg[1 as libc::c_int as usize]) as u8_0;
             fprintf(
@@ -23573,12 +23426,12 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 's' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"schema\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"schema\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut sSelect: ShellText = ShellText {
             z: 0 as *mut libc::c_char,
             n: 0,
@@ -23671,7 +23524,7 @@ unsafe extern "C" fn do_meta_command(
         memcpy(
             &mut data_0 as *mut ShellState as *mut libc::c_void,
             p as *const libc::c_void,
-            ::std::mem::size_of::<ShellState>() as libc::c_ulong,
+            ::core::mem::size_of::<ShellState>() as libc::c_ulong,
         );
         data_0.showHeader = 0 as libc::c_int;
         data_0.mode = 3 as libc::c_int;
@@ -23680,7 +23533,7 @@ unsafe extern "C" fn do_meta_command(
         ii_0 = 1 as libc::c_int;
         loop {
             if !(ii_0 < nArg) {
-                current_block = 14973791933760508592;
+                current_block = 8586487098565199158;
                 break;
             }
             if optionMatch(
@@ -23691,27 +23544,27 @@ unsafe extern "C" fn do_meta_command(
                 data_0.mode = 11 as libc::c_int;
                 data_0.cMode = data_0.mode;
             } else if optionMatch(
-                    azArg[ii_0 as usize],
-                    b"debug\0" as *const u8 as *const libc::c_char,
-                ) != 0
-                {
+                azArg[ii_0 as usize],
+                b"debug\0" as *const u8 as *const libc::c_char,
+            ) != 0
+            {
                 bDebug = 1 as libc::c_int;
             } else if optionMatch(
-                    azArg[ii_0 as usize],
-                    b"nosys\0" as *const u8 as *const libc::c_char,
-                ) != 0
-                {
+                azArg[ii_0 as usize],
+                b"nosys\0" as *const u8 as *const libc::c_char,
+            ) != 0
+            {
                 bNoSystemTabs = 1 as libc::c_int;
             } else if *(azArg[ii_0 as usize]).offset(0 as libc::c_int as isize)
-                    as libc::c_int == '-' as i32
-                {
+                as libc::c_int == '-' as i32
+            {
                 fprintf(
                     stderr,
                     b"Unknown option: \"%s\"\n\0" as *const u8 as *const libc::c_char,
                     azArg[ii_0 as usize],
                 );
                 rc = 1 as libc::c_int;
-                current_block = 10784143920802550123;
+                current_block = 5240171864706220143;
                 break;
             } else if zName.is_null() {
                 zName = azArg[ii_0 as usize];
@@ -23722,13 +23575,13 @@ unsafe extern "C" fn do_meta_command(
                         as *const u8 as *const libc::c_char,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 10784143920802550123;
+                current_block = 5240171864706220143;
                 break;
             }
             ii_0 += 1;
         }
         match current_block {
-            10784143920802550123 => {}
+            5240171864706220143 => {}
             _ => {
                 if !zName.is_null() {
                     let mut isSchema: libc::c_int = (sqlite3_strlike(
@@ -23799,7 +23652,7 @@ unsafe extern "C" fn do_meta_command(
                         );
                         sqlite3_finalize(pStmt_5);
                         rc = 1 as libc::c_int;
-                        current_block = 10784143920802550123;
+                        current_block = 5240171864706220143;
                     } else {
                         appendText(
                             &mut sSelect,
@@ -23815,8 +23668,8 @@ unsafe extern "C" fn do_meta_command(
                             let mut zScNum: [libc::c_char; 30] = [0; 30];
                             iSchema += 1;
                             sqlite3_snprintf(
-                                ::std::mem::size_of::<[libc::c_char; 30]>() as libc::c_ulong
-                                    as libc::c_int,
+                                ::core::mem::size_of::<[libc::c_char; 30]>()
+                                    as libc::c_ulong as libc::c_int,
                                 zScNum.as_mut_ptr(),
                                 b"%d\0" as *const u8 as *const libc::c_char,
                                 iSchema,
@@ -23983,13 +23836,13 @@ unsafe extern "C" fn do_meta_command(
                             );
                         }
                         freeText(&mut sSelect);
-                        current_block = 14120497301439965229;
+                        current_block = 9397180409927122761;
                     }
                 } else {
-                    current_block = 14120497301439965229;
+                    current_block = 9397180409927122761;
                 }
                 match current_block {
-                    10784143920802550123 => {}
+                    5240171864706220143 => {}
                     _ => {
                         if !zErrMsg_0.is_null() {
                             fprintf(
@@ -24014,18 +23867,18 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 's' as i32 && n == 11 as libc::c_int
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"selecttrace\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+        || c == 't' as i32 && n == 9 as libc::c_int
             && strncmp(
                 azArg[0 as libc::c_int as usize],
-                b"selecttrace\0" as *const u8 as *const libc::c_char,
+                b"treetrace\0" as *const u8 as *const libc::c_char,
                 n as libc::c_ulong,
             ) == 0 as libc::c_int
-            || c == 't' as i32 && n == 9 as libc::c_int
-                && strncmp(
-                    azArg[0 as libc::c_int as usize],
-                    b"treetrace\0" as *const u8 as *const libc::c_char,
-                    n as libc::c_ulong,
-                ) == 0 as libc::c_int
-        {
+    {
         let mut x_3: libc::c_uint = if nArg >= 2 as libc::c_int {
             integerValue(azArg[1 as libc::c_int as usize]) as libc::c_uint
         } else {
@@ -24037,12 +23890,12 @@ unsafe extern "C" fn do_meta_command(
             &mut x_3 as *mut libc::c_uint,
         );
     } else if c == 's' as i32 && n >= 4 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"selftest\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"selftest\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut bIsInit: libc::c_int = 0 as libc::c_int;
         let mut bVerbose: libc::c_int = 0 as libc::c_int;
         let mut bSelftestExists: libc::c_int = 0;
@@ -24060,7 +23913,7 @@ unsafe extern "C" fn do_meta_command(
         i_12 = 1 as libc::c_int;
         loop {
             if !(i_12 < nArg) {
-                current_block = 16374705988211805206;
+                current_block = 13478971412006294660;
                 break;
             }
             let mut z_9: *const libc::c_char = azArg[i_12 as usize];
@@ -24074,8 +23927,8 @@ unsafe extern "C" fn do_meta_command(
             {
                 bIsInit = 1 as libc::c_int;
             } else if strcmp(z_9, b"-v\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 bVerbose += 1;
             } else {
                 fprintf(
@@ -24091,13 +23944,13 @@ unsafe extern "C" fn do_meta_command(
                         as *const libc::c_char,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 10784143920802550123;
+                current_block = 5240171864706220143;
                 break;
             }
             i_12 += 1;
         }
         match current_block {
-            10784143920802550123 => {}
+            5240171864706220143 => {}
             _ => {
                 if sqlite3_table_column_metadata(
                     (*p).db,
@@ -24128,7 +23981,7 @@ unsafe extern "C" fn do_meta_command(
                 k = bSelftestExists;
                 loop {
                     if !(k >= 0 as libc::c_int) {
-                        current_block = 8916766783087548254;
+                        current_block = 16565263184454850237;
                         break;
                     }
                     if k == 1 as libc::c_int {
@@ -24158,7 +24011,7 @@ unsafe extern "C" fn do_meta_command(
                         );
                         rc = 1 as libc::c_int;
                         sqlite3_finalize(pStmt_6);
-                        current_block = 10784143920802550123;
+                        current_block = 5240171864706220143;
                         break;
                     } else {
                         i_12 = 1 as libc::c_int;
@@ -24202,10 +24055,10 @@ unsafe extern "C" fn do_meta_command(
                                                 zSql_4,
                                             );
                                         } else if strcmp(
-                                                zOp,
-                                                b"run\0" as *const u8 as *const libc::c_char,
-                                            ) == 0 as libc::c_int
-                                            {
+                                            zOp,
+                                            b"run\0" as *const u8 as *const libc::c_char,
+                                        ) == 0 as libc::c_int
+                                        {
                                             let mut zErrMsg_1: *mut libc::c_char = 0
                                                 as *mut libc::c_char;
                                             str.n = 0 as libc::c_int;
@@ -24287,7 +24140,7 @@ unsafe extern "C" fn do_meta_command(
                     }
                 }
                 match current_block {
-                    10784143920802550123 => {}
+                    5240171864706220143 => {}
                     _ => {
                         freeText(&mut str);
                         fprintf(
@@ -24302,12 +24155,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 's' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"separator\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"separator\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg < 2 as libc::c_int || nArg > 3 as libc::c_int {
             fprintf(
                 stderr,
@@ -24317,35 +24170,37 @@ unsafe extern "C" fn do_meta_command(
         }
         if nArg >= 2 as libc::c_int {
             sqlite3_snprintf(
-                ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                     as libc::c_int,
                 ((*p).colSeparator).as_mut_ptr(),
                 b"%.*s\0" as *const u8 as *const libc::c_char,
-                (::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong)
-                    .wrapping_div(::std::mem::size_of::<libc::c_char>() as libc::c_ulong)
-                    as libc::c_int - 1 as libc::c_int,
+                (::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong)
+                    .wrapping_div(
+                        ::core::mem::size_of::<libc::c_char>() as libc::c_ulong,
+                    ) as libc::c_int - 1 as libc::c_int,
                 azArg[1 as libc::c_int as usize],
             );
         }
         if nArg >= 3 as libc::c_int {
             sqlite3_snprintf(
-                ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                     as libc::c_int,
                 ((*p).rowSeparator).as_mut_ptr(),
                 b"%.*s\0" as *const u8 as *const libc::c_char,
-                (::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong)
-                    .wrapping_div(::std::mem::size_of::<libc::c_char>() as libc::c_ulong)
-                    as libc::c_int - 1 as libc::c_int,
+                (::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong)
+                    .wrapping_div(
+                        ::core::mem::size_of::<libc::c_char>() as libc::c_ulong,
+                    ) as libc::c_int - 1 as libc::c_int,
                 azArg[2 as libc::c_int as usize],
             );
         }
     } else if c == 's' as i32 && n >= 4 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"sha3sum\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"sha3sum\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut zLike_0: *const libc::c_char = 0 as *const libc::c_char;
         let mut i_13: libc::c_int = 0;
         let mut bSchema: libc::c_int = 0 as libc::c_int;
@@ -24369,7 +24224,7 @@ unsafe extern "C" fn do_meta_command(
         i_13 = 1 as libc::c_int;
         loop {
             if !(i_13 < nArg) {
-                current_block = 16608208809591729229;
+                current_block = 14729575995664663948;
                 break;
             }
             let mut z_10: *const libc::c_char = azArg[i_13 as usize];
@@ -24383,24 +24238,18 @@ unsafe extern "C" fn do_meta_command(
                 {
                     bSchema = 1 as libc::c_int;
                 } else if strcmp(z_10, b"sha3-224\0" as *const u8 as *const libc::c_char)
+                    == 0 as libc::c_int
+                    || strcmp(z_10, b"sha3-256\0" as *const u8 as *const libc::c_char)
                         == 0 as libc::c_int
-                        || strcmp(
-                            z_10,
-                            b"sha3-256\0" as *const u8 as *const libc::c_char,
-                        ) == 0 as libc::c_int
-                        || strcmp(
-                            z_10,
-                            b"sha3-384\0" as *const u8 as *const libc::c_char,
-                        ) == 0 as libc::c_int
-                        || strcmp(
-                            z_10,
-                            b"sha3-512\0" as *const u8 as *const libc::c_char,
-                        ) == 0 as libc::c_int
-                    {
+                    || strcmp(z_10, b"sha3-384\0" as *const u8 as *const libc::c_char)
+                        == 0 as libc::c_int
+                    || strcmp(z_10, b"sha3-512\0" as *const u8 as *const libc::c_char)
+                        == 0 as libc::c_int
+                {
                     iSize = atoi(&*z_10.offset(5 as libc::c_int as isize));
                 } else if strcmp(z_10, b"debug\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     bDebug_0 = 1 as libc::c_int;
                 } else {
                     fprintf(
@@ -24412,7 +24261,7 @@ unsafe extern "C" fn do_meta_command(
                     );
                     showHelp((*p).out, azArg[0 as libc::c_int as usize]);
                     rc = 1 as libc::c_int;
-                    current_block = 10784143920802550123;
+                    current_block = 5240171864706220143;
                     break;
                 }
             } else if !zLike_0.is_null() {
@@ -24422,7 +24271,7 @@ unsafe extern "C" fn do_meta_command(
                         as *const libc::c_char,
                 );
                 rc = 1 as libc::c_int;
-                current_block = 10784143920802550123;
+                current_block = 5240171864706220143;
                 break;
             } else {
                 zLike_0 = z_10;
@@ -24439,7 +24288,7 @@ unsafe extern "C" fn do_meta_command(
             i_13 += 1;
         }
         match current_block {
-            10784143920802550123 => {}
+            5240171864706220143 => {}
             _ => {
                 if bSchema != 0 {
                     zSql_5 = b"SELECT lower(name) FROM sqlite_schema WHERE type='table' AND coalesce(rootpage,0)>1 UNION ALL SELECT 'sqlite_schema' ORDER BY 1 collate nocase\0"
@@ -24500,10 +24349,10 @@ unsafe extern "C" fn do_meta_command(
                             0 as libc::c_int as libc::c_char,
                         );
                     } else if strcmp(
-                            zTab,
-                            b"sqlite_schema\0" as *const u8 as *const libc::c_char,
-                        ) == 0 as libc::c_int
-                        {
+                        zTab,
+                        b"sqlite_schema\0" as *const u8 as *const libc::c_char,
+                    ) == 0 as libc::c_int
+                    {
                         appendText(
                             &mut sQuery,
                             b"SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY name;\0"
@@ -24511,10 +24360,10 @@ unsafe extern "C" fn do_meta_command(
                             0 as libc::c_int as libc::c_char,
                         );
                     } else if strcmp(
-                            zTab,
-                            b"sqlite_sequence\0" as *const u8 as *const libc::c_char,
-                        ) == 0 as libc::c_int
-                        {
+                        zTab,
+                        b"sqlite_sequence\0" as *const u8 as *const libc::c_char,
+                    ) == 0 as libc::c_int
+                    {
                         appendText(
                             &mut sQuery,
                             b"SELECT name,seq FROM sqlite_sequence ORDER BY name;\0"
@@ -24522,10 +24371,10 @@ unsafe extern "C" fn do_meta_command(
                             0 as libc::c_int as libc::c_char,
                         );
                     } else if strcmp(
-                            zTab,
-                            b"sqlite_stat1\0" as *const u8 as *const libc::c_char,
-                        ) == 0 as libc::c_int
-                        {
+                        zTab,
+                        b"sqlite_stat1\0" as *const u8 as *const libc::c_char,
+                    ) == 0 as libc::c_int
+                    {
                         appendText(
                             &mut sQuery,
                             b"SELECT tbl,idx,stat FROM sqlite_stat1 ORDER BY tbl,idx;\0"
@@ -24533,10 +24382,10 @@ unsafe extern "C" fn do_meta_command(
                             0 as libc::c_int as libc::c_char,
                         );
                     } else if strcmp(
-                            zTab,
-                            b"sqlite_stat4\0" as *const u8 as *const libc::c_char,
-                        ) == 0 as libc::c_int
-                        {
+                        zTab,
+                        b"sqlite_stat4\0" as *const u8 as *const libc::c_char,
+                    ) == 0 as libc::c_int
+                    {
                         appendText(
                             &mut sQuery,
                             b"SELECT * FROM \0" as *const u8 as *const libc::c_char,
@@ -24594,17 +24443,17 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 's' as i32
-            && (strncmp(
+        && (strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"shell\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+            || strncmp(
                 azArg[0 as libc::c_int as usize],
-                b"shell\0" as *const u8 as *const libc::c_char,
+                b"system\0" as *const u8 as *const libc::c_char,
                 n as libc::c_ulong,
-            ) == 0 as libc::c_int
-                || strncmp(
-                    azArg[0 as libc::c_int as usize],
-                    b"system\0" as *const u8 as *const libc::c_char,
-                    n as libc::c_ulong,
-                ) == 0 as libc::c_int)
-        {
+            ) == 0 as libc::c_int)
+    {
         let mut zCmd_0: *mut libc::c_char = 0 as *mut libc::c_char;
         let mut i_14: libc::c_int = 0;
         let mut x_4: libc::c_int = 0;
@@ -24652,12 +24501,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 's' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"show\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"show\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         static mut azBool: [*const libc::c_char; 4] = [
             b"off\0" as *const u8 as *const libc::c_char,
             b"on\0" as *const u8 as *const libc::c_char,
@@ -24808,12 +24657,12 @@ unsafe extern "C" fn do_meta_command(
             );
         }
     } else if c == 's' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"stats\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"stats\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg == 2 as libc::c_int {
             if strcmp(
                 azArg[1 as libc::c_int as usize],
@@ -24822,10 +24671,10 @@ unsafe extern "C" fn do_meta_command(
             {
                 (*p).statsOn = 2 as libc::c_int as libc::c_uint;
             } else if strcmp(
-                    azArg[1 as libc::c_int as usize],
-                    b"vmstep\0" as *const u8 as *const libc::c_char,
-                ) == 0 as libc::c_int
-                {
+                azArg[1 as libc::c_int as usize],
+                b"vmstep\0" as *const u8 as *const libc::c_char,
+            ) == 0 as libc::c_int
+            {
                 (*p).statsOn = 3 as libc::c_int as libc::c_uint;
             } else {
                 (*p)
@@ -24843,23 +24692,23 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 't' as i32 && n > 1 as libc::c_int
-            && strncmp(
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"tables\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+        || c == 'i' as i32
+            && (strncmp(
                 azArg[0 as libc::c_int as usize],
-                b"tables\0" as *const u8 as *const libc::c_char,
+                b"indices\0" as *const u8 as *const libc::c_char,
                 n as libc::c_ulong,
             ) == 0 as libc::c_int
-            || c == 'i' as i32
-                && (strncmp(
+                || strncmp(
                     azArg[0 as libc::c_int as usize],
-                    b"indices\0" as *const u8 as *const libc::c_char,
+                    b"indexes\0" as *const u8 as *const libc::c_char,
                     n as libc::c_ulong,
-                ) == 0 as libc::c_int
-                    || strncmp(
-                        azArg[0 as libc::c_int as usize],
-                        b"indexes\0" as *const u8 as *const libc::c_char,
-                        n as libc::c_ulong,
-                    ) == 0 as libc::c_int)
-        {
+                ) == 0 as libc::c_int)
+    {
         let mut pStmt_8: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
         let mut azResult: *mut *mut libc::c_char = 0 as *mut *mut libc::c_char;
         let mut nRow: libc::c_int = 0;
@@ -24982,7 +24831,7 @@ unsafe extern "C" fn do_meta_command(
                     1 as libc::c_int,
                     azArg[1 as libc::c_int as usize],
                     -(1 as libc::c_int),
-                    ::std::mem::transmute::<
+                    ::core::mem::transmute::<
                         libc::intptr_t,
                         sqlite3_destructor_type,
                     >(-(1 as libc::c_int) as libc::intptr_t),
@@ -25003,15 +24852,15 @@ unsafe extern "C" fn do_meta_command(
                         + 10 as libc::c_int;
                     azNew = sqlite3_realloc64(
                         azResult as *mut libc::c_void,
-                        (::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong)
+                        (::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong)
                             .wrapping_mul(n2_2 as libc::c_ulong) as sqlite3_uint64,
                     ) as *mut *mut libc::c_char;
                     shell_check_oom(azNew as *mut libc::c_void);
                     nAlloc = n2_2;
                     azResult = azNew;
                 }
-                let ref mut fresh278 = *azResult.offset(nRow as isize);
-                *fresh278 = sqlite3_mprintf(
+                let ref mut fresh88 = *azResult.offset(nRow as isize);
+                *fresh88 = sqlite3_mprintf(
                     b"%s\0" as *const u8 as *const libc::c_char,
                     sqlite3_column_text(pStmt_8, 0 as libc::c_int),
                 );
@@ -25075,14 +24924,14 @@ unsafe extern "C" fn do_meta_command(
             sqlite3_free(azResult as *mut libc::c_void);
         }
     } else if c == 't' as i32
-            && strcmp(
-                azArg[0 as libc::c_int as usize],
-                b"testcase\0" as *const u8 as *const libc::c_char,
-            ) == 0 as libc::c_int
-        {
+        && strcmp(
+            azArg[0 as libc::c_int as usize],
+            b"testcase\0" as *const u8 as *const libc::c_char,
+        ) == 0 as libc::c_int
+    {
         output_reset(p);
-        let ref mut fresh279 = (*p).out;
-        *fresh279 = output_file_open(
+        (*p)
+            .out = output_file_open(
             b"testcase-out.txt\0" as *const u8 as *const libc::c_char,
             0 as libc::c_int,
         );
@@ -25095,7 +24944,7 @@ unsafe extern "C" fn do_meta_command(
         }
         if nArg >= 2 as libc::c_int {
             sqlite3_snprintf(
-                ::std::mem::size_of::<[libc::c_char; 30]>() as libc::c_ulong
+                ::core::mem::size_of::<[libc::c_char; 30]>() as libc::c_ulong
                     as libc::c_int,
                 ((*p).zTestcase).as_mut_ptr(),
                 b"%s\0" as *const u8 as *const libc::c_char,
@@ -25103,19 +24952,19 @@ unsafe extern "C" fn do_meta_command(
             );
         } else {
             sqlite3_snprintf(
-                ::std::mem::size_of::<[libc::c_char; 30]>() as libc::c_ulong
+                ::core::mem::size_of::<[libc::c_char; 30]>() as libc::c_ulong
                     as libc::c_int,
                 ((*p).zTestcase).as_mut_ptr(),
                 b"?\0" as *const u8 as *const libc::c_char,
             );
         }
     } else if c == 't' as i32 && n >= 8 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"testctrl\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"testctrl\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         static mut aCtrl_0: [C2RustUnnamed_19; 16] = [
             {
                 let mut init = C2RustUnnamed_19 {
@@ -25297,9 +25146,9 @@ unsafe extern "C" fn do_meta_command(
             );
             i_17 = 0 as libc::c_int;
             while i_17
-                < (::std::mem::size_of::<[C2RustUnnamed_19; 16]>() as libc::c_ulong)
+                < (::core::mem::size_of::<[C2RustUnnamed_19; 16]>() as libc::c_ulong)
                     .wrapping_div(
-                        ::std::mem::size_of::<C2RustUnnamed_19>() as libc::c_ulong,
+                        ::core::mem::size_of::<C2RustUnnamed_19>() as libc::c_ulong,
                     ) as libc::c_int
             {
                 fprintf(
@@ -25316,12 +25165,12 @@ unsafe extern "C" fn do_meta_command(
             i_17 = 0 as libc::c_int;
             loop {
                 if !(i_17
-                    < (::std::mem::size_of::<[C2RustUnnamed_19; 16]>() as libc::c_ulong)
+                    < (::core::mem::size_of::<[C2RustUnnamed_19; 16]>() as libc::c_ulong)
                         .wrapping_div(
-                            ::std::mem::size_of::<C2RustUnnamed_19>() as libc::c_ulong,
+                            ::core::mem::size_of::<C2RustUnnamed_19>() as libc::c_ulong,
                         ) as libc::c_int)
                 {
-                    current_block = 1486434739292432794;
+                    current_block = 2793958312656670831;
                     break;
                 }
                 if strncmp(
@@ -25341,14 +25190,14 @@ unsafe extern "C" fn do_meta_command(
                             zCmd_1,
                         );
                         rc = 1 as libc::c_int;
-                        current_block = 10784143920802550123;
+                        current_block = 5240171864706220143;
                         break;
                     }
                 }
                 i_17 += 1;
             }
             match current_block {
-                10784143920802550123 => {}
+                5240171864706220143 => {}
                 _ => {
                     if testctrl < 0 as libc::c_int {
                         fprintf(
@@ -25358,8 +25207,8 @@ unsafe extern "C" fn do_meta_command(
                             zCmd_1,
                         );
                     } else if aCtrl_0[iCtrl_0 as usize].unSafe != 0
-                            && (*p).bSafeMode as libc::c_int != 0
-                        {
+                        && (*p).bSafeMode as libc::c_int != 0
+                    {
                         fprintf(
                             stderr,
                             b"line %d: \".testctrl %s\" may not be used in safe mode\n\0"
@@ -25413,7 +25262,7 @@ unsafe extern "C" fn do_meta_command(
                                         ) == 0 as libc::c_int
                                     {
                                         sqlite3_randomness(
-                                            ::std::mem::size_of::<libc::c_int>() as libc::c_ulong
+                                            ::core::mem::size_of::<libc::c_int>() as libc::c_ulong
                                                 as libc::c_int,
                                             &mut ii_2 as *mut libc::c_int as *mut libc::c_void,
                                         );
@@ -25529,12 +25378,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 't' as i32 && n > 4 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"timeout\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"timeout\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         open_db(p, 0 as libc::c_int);
         sqlite3_busy_timeout(
             (*p).db,
@@ -25545,12 +25394,12 @@ unsafe extern "C" fn do_meta_command(
             },
         );
     } else if c == 't' as i32 && n >= 5 as libc::c_int
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"timer\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"timer\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         if nArg == 2 as libc::c_int {
             enableTimer = booleanValue(azArg[1 as libc::c_int as usize]);
             if enableTimer != 0 && 1 as libc::c_int == 0 {
@@ -25569,19 +25418,19 @@ unsafe extern "C" fn do_meta_command(
             rc = 1 as libc::c_int;
         }
     } else if c == 't' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"trace\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"trace\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut mType: libc::c_int = 0 as libc::c_int;
         let mut jj: libc::c_int = 0;
         open_db(p, 0 as libc::c_int);
         jj = 1 as libc::c_int;
         loop {
             if !(jj < nArg) {
-                current_block = 607456330414161610;
+                current_block = 8721444885065720400;
                 break;
             }
             let mut z_11: *const libc::c_char = azArg[jj as usize];
@@ -25591,32 +25440,32 @@ unsafe extern "C" fn do_meta_command(
                 {
                     (*p).eTraceType = 1 as libc::c_int as u8_0;
                 } else if optionMatch(
-                        z_11,
-                        b"plain\0" as *const u8 as *const libc::c_char,
-                    ) != 0
-                    {
+                    z_11,
+                    b"plain\0" as *const u8 as *const libc::c_char,
+                ) != 0
+                {
                     (*p).eTraceType = 0 as libc::c_int as u8_0;
                 } else if optionMatch(
-                        z_11,
-                        b"profile\0" as *const u8 as *const libc::c_char,
-                    ) != 0
-                    {
+                    z_11,
+                    b"profile\0" as *const u8 as *const libc::c_char,
+                ) != 0
+                {
                     mType |= 0x2 as libc::c_int;
                 } else if optionMatch(z_11, b"row\0" as *const u8 as *const libc::c_char)
-                        != 0
-                    {
+                    != 0
+                {
                     mType |= 0x4 as libc::c_int;
                 } else if optionMatch(
-                        z_11,
-                        b"stmt\0" as *const u8 as *const libc::c_char,
-                    ) != 0
-                    {
+                    z_11,
+                    b"stmt\0" as *const u8 as *const libc::c_char,
+                ) != 0
+                {
                     mType |= 0x1 as libc::c_int;
                 } else if optionMatch(
-                        z_11,
-                        b"close\0" as *const u8 as *const libc::c_char,
-                    ) != 0
-                    {
+                    z_11,
+                    b"close\0" as *const u8 as *const libc::c_char,
+                ) != 0
+                {
                     mType |= 0x8 as libc::c_int;
                 } else {
                     fprintf(
@@ -25626,13 +25475,13 @@ unsafe extern "C" fn do_meta_command(
                         z_11,
                     );
                     rc = 1 as libc::c_int;
-                    current_block = 10784143920802550123;
+                    current_block = 5240171864706220143;
                     break;
                 }
             } else {
                 output_file_close((*p).traceOut);
-                let ref mut fresh280 = (*p).traceOut;
-                *fresh280 = output_file_open(
+                (*p)
+                    .traceOut = output_file_open(
                     azArg[1 as libc::c_int as usize],
                     0 as libc::c_int,
                 );
@@ -25640,7 +25489,7 @@ unsafe extern "C" fn do_meta_command(
             jj += 1;
         }
         match current_block {
-            10784143920802550123 => {}
+            5240171864706220143 => {}
             _ => {
                 if ((*p).traceOut).is_null() {
                     sqlite3_trace_v2(
@@ -25671,12 +25520,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'v' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"version\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"version\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         fprintf(
             (*p).out,
             b"SQLite %s %s\n\0" as *const u8 as *const libc::c_char,
@@ -25685,12 +25534,12 @@ unsafe extern "C" fn do_meta_command(
         );
         fprintf((*p).out, b"clang-10.0.0\n\0" as *const u8 as *const libc::c_char);
     } else if c == 'v' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"vfsinfo\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"vfsinfo\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut zDbName_0: *const libc::c_char = if nArg == 2 as libc::c_int {
             azArg[1 as libc::c_int as usize] as *const libc::c_char
         } else {
@@ -25728,12 +25577,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'v' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"vfslist\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"vfslist\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut pVfs_0: *mut sqlite3_vfs = 0 as *mut sqlite3_vfs;
         let mut pCurrent: *mut sqlite3_vfs = 0 as *mut sqlite3_vfs;
         if !((*p).db).is_null() {
@@ -25781,12 +25630,12 @@ unsafe extern "C" fn do_meta_command(
             pVfs_0 = (*pVfs_0).pNext;
         }
     } else if c == 'v' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"vfsname\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"vfsname\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut zDbName_1: *const libc::c_char = if nArg == 2 as libc::c_int {
             azArg[1 as libc::c_int as usize] as *const libc::c_char
         } else {
@@ -25810,12 +25659,12 @@ unsafe extern "C" fn do_meta_command(
             }
         }
     } else if c == 'w' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"wheretrace\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"wheretrace\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut x_6: libc::c_uint = if nArg >= 2 as libc::c_int {
             integerValue(azArg[1 as libc::c_int as usize]) as libc::c_uint
         } else {
@@ -25827,24 +25676,24 @@ unsafe extern "C" fn do_meta_command(
             &mut x_6 as *mut libc::c_uint,
         );
     } else if c == 'w' as i32
-            && strncmp(
-                azArg[0 as libc::c_int as usize],
-                b"width\0" as *const u8 as *const libc::c_char,
-                n as libc::c_ulong,
-            ) == 0 as libc::c_int
-        {
+        && strncmp(
+            azArg[0 as libc::c_int as usize],
+            b"width\0" as *const u8 as *const libc::c_char,
+            n as libc::c_ulong,
+        ) == 0 as libc::c_int
+    {
         let mut j_2: libc::c_int = 0;
         if nArg
-            <= (::std::mem::size_of::<[*mut libc::c_char; 52]>() as libc::c_ulong)
+            <= (::core::mem::size_of::<[*mut libc::c_char; 52]>() as libc::c_ulong)
                 .wrapping_div(
-                    ::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
+                    ::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong,
                 ) as libc::c_int
         {} else {
             __assert_fail(
                 b"nArg<=ArraySize(azArg)\0" as *const u8 as *const libc::c_char,
                 b"shell.c\0" as *const u8 as *const libc::c_char,
                 22446 as libc::c_int as libc::c_uint,
-                (*::std::mem::transmute::<
+                (*::core::mem::transmute::<
                     &[u8; 42],
                     &[libc::c_char; 42],
                 >(b"int do_meta_command(char *, ShellState *)\0"))
@@ -25852,19 +25701,19 @@ unsafe extern "C" fn do_meta_command(
             );
         }
         (*p).nWidth = nArg - 1 as libc::c_int;
-        let ref mut fresh281 = (*p).colWidth;
-        *fresh281 = realloc(
+        (*p)
+            .colWidth = realloc(
             (*p).colWidth as *mut libc::c_void,
             (((*p).nWidth + 1 as libc::c_int) as libc::c_ulong)
-                .wrapping_mul(::std::mem::size_of::<libc::c_int>() as libc::c_ulong)
+                .wrapping_mul(::core::mem::size_of::<libc::c_int>() as libc::c_ulong)
                 .wrapping_mul(2 as libc::c_int as libc::c_ulong),
         ) as *mut libc::c_int;
         if ((*p).colWidth).is_null() && (*p).nWidth > 0 as libc::c_int {
             shell_out_of_memory();
         }
         if (*p).nWidth != 0 {
-            let ref mut fresh282 = (*p).actualWidth;
-            *fresh282 = &mut *((*p).colWidth).offset((*p).nWidth as isize)
+            (*p)
+                .actualWidth = &mut *((*p).colWidth).offset((*p).nWidth as isize)
                 as *mut libc::c_int;
         }
         j_2 = 1 as libc::c_int;
@@ -25885,8 +25734,7 @@ unsafe extern "C" fn do_meta_command(
         rc = 1 as libc::c_int;
     }
     if (*p).outCount != 0 {
-        let ref mut fresh283 = (*p).outCount;
-        *fresh283 -= 1;
+        (*p).outCount -= 1;
         if (*p).outCount == 0 as libc::c_int {
             output_reset(p);
         }
@@ -25902,31 +25750,31 @@ unsafe extern "C" fn quickscan(
     let mut cin: libc::c_char = 0;
     let mut cWait: libc::c_char = qss as libc::c_char;
     if cWait as libc::c_int == 0 as libc::c_int {
-        current_block = 14891565670110455566;
+        current_block = 2772859450930607224;
     } else {
-        current_block = 16203760046146113240;
+        current_block = 5601891728916014340;
     }
-    'c_87884: loop {
+    '_PlainScan: loop {
         match current_block {
-            14891565670110455566 => {
+            2772859450930607224 => {
                 if cWait as libc::c_int == 0 as libc::c_int {} else {
                     __assert_fail(
                         b"cWait==0\0" as *const u8 as *const libc::c_char,
                         b"shell.c\0" as *const u8 as *const libc::c_char,
                         22497 as libc::c_int as libc::c_uint,
-                        (*::std::mem::transmute::<
+                        (*::core::mem::transmute::<
                             &[u8; 49],
                             &[libc::c_char; 49],
                         >(b"QuickScanState quickscan(char *, QuickScanState)\0"))
                             .as_ptr(),
                     );
                 }
-                's_19: loop {
-                    let fresh284 = zLine;
+                's_14: loop {
+                    let fresh89 = zLine;
                     zLine = zLine.offset(1);
-                    cin = *fresh284;
+                    cin = *fresh89;
                     if !(cin as libc::c_int != 0 as libc::c_int) {
-                        break 'c_87884;
+                        break '_PlainScan;
                     }
                     if *(*__ctype_b_loc())
                         .offset(cin as libc::c_uchar as libc::c_int as isize)
@@ -25938,7 +25786,7 @@ unsafe extern "C" fn quickscan(
                     match cin as libc::c_int {
                         45 => {
                             if *zLine as libc::c_int != '-' as i32 {
-                                current_block = 1109700713171191020;
+                                current_block = 2370887241019905314;
                             } else {
                                 loop {
                                     zLine = zLine.offset(1);
@@ -25947,15 +25795,15 @@ unsafe extern "C" fn quickscan(
                                         break;
                                     }
                                     if cin as libc::c_int == '\n' as i32 {
-                                        current_block = 14891565670110455566;
-                                        break 's_19;
+                                        current_block = 2772859450930607224;
+                                        break 's_14;
                                     }
                                 }
                                 return qss;
                             }
                         }
                         59 => {
-                            qss = ::std::mem::transmute::<
+                            qss = ::core::mem::transmute::<
                                 libc::c_uint,
                                 QuickScanState,
                             >(
@@ -25972,25 +25820,25 @@ unsafe extern "C" fn quickscan(
                                     | qss as libc::c_uint
                                         & QSS_ScanMask as libc::c_int as libc::c_uint)
                                     as QuickScanState;
-                                current_block = 16203760046146113240;
+                                current_block = 5601891728916014340;
                                 break;
                             } else {
-                                current_block = 1109700713171191020;
+                                current_block = 2370887241019905314;
                             }
                         }
                         91 => {
                             cin = ']' as i32 as libc::c_char;
-                            current_block = 4445374675186374489;
+                            current_block = 704277254677061422;
                         }
                         96 | 39 | 34 => {
-                            current_block = 4445374675186374489;
+                            current_block = 704277254677061422;
                         }
                         _ => {
-                            current_block = 1109700713171191020;
+                            current_block = 2370887241019905314;
                         }
                     }
                     match current_block {
-                        1109700713171191020 => {
+                        2370887241019905314 => {
                             qss = (qss as libc::c_uint
                                 & !(QSS_EndingSemi as libc::c_int) as libc::c_uint
                                 | QSS_HasDark as libc::c_int as libc::c_uint)
@@ -26000,27 +25848,27 @@ unsafe extern "C" fn quickscan(
                             cWait = cin;
                             qss = (QSS_HasDark as libc::c_int | cWait as libc::c_int)
                                 as QuickScanState;
-                            current_block = 16203760046146113240;
+                            current_block = 5601891728916014340;
                             break;
                         }
                     }
                 }
             }
             _ => {
-                let fresh285 = zLine;
+                let fresh90 = zLine;
                 zLine = zLine.offset(1);
-                cin = *fresh285;
+                cin = *fresh90;
                 if !(cin as libc::c_int != 0 as libc::c_int) {
                     break;
                 }
                 if !(cin as libc::c_int == cWait as libc::c_int) {
-                    current_block = 16203760046146113240;
+                    current_block = 5601891728916014340;
                     continue;
                 }
                 match cWait as libc::c_int {
                     42 => {
                         if *zLine as libc::c_int != '/' as i32 {
-                            current_block = 16203760046146113240;
+                            current_block = 5601891728916014340;
                             continue;
                         }
                         zLine = zLine.offset(1);
@@ -26029,13 +25877,13 @@ unsafe extern "C" fn quickscan(
                             | qss as libc::c_uint
                                 & QSS_ScanMask as libc::c_int as libc::c_uint)
                             as QuickScanState;
-                        current_block = 14891565670110455566;
+                        current_block = 2772859450930607224;
                         continue;
                     }
                     96 | 39 | 34 => {
                         if *zLine as libc::c_int == cWait as libc::c_int {
                             zLine = zLine.offset(1);
-                            current_block = 16203760046146113240;
+                            current_block = 5601891728916014340;
                             continue;
                         }
                     }
@@ -26045,13 +25893,13 @@ unsafe extern "C" fn quickscan(
                             b"0\0" as *const u8 as *const libc::c_char,
                             b"shell.c\0" as *const u8 as *const libc::c_char,
                             22554 as libc::c_int as libc::c_uint,
-                            (*::std::mem::transmute::<
+                            (*::core::mem::transmute::<
                                 &[u8; 49],
                                 &[libc::c_char; 49],
                             >(b"QuickScanState quickscan(char *, QuickScanState)\0"))
                                 .as_ptr(),
                         );
-                        current_block = 16203760046146113240;
+                        current_block = 5601891728916014340;
                         continue;
                     }
                 }
@@ -26059,7 +25907,7 @@ unsafe extern "C" fn quickscan(
                 qss = (0 as libc::c_int as libc::c_uint
                     | qss as libc::c_uint & QSS_ScanMask as libc::c_int as libc::c_uint)
                     as QuickScanState;
-                current_block = 14891565670110455566;
+                current_block = 2772859450930607224;
             }
         }
     }
@@ -26079,12 +25927,12 @@ unsafe extern "C" fn line_is_command_terminator(
     if *zLine.offset(0 as libc::c_int as isize) as libc::c_int == '/' as i32 {
         zLine = zLine.offset(1 as libc::c_int as isize);
     } else if tolower(
-            *zLine.offset(0 as libc::c_int as isize) as libc::c_uchar as libc::c_int,
-        ) as libc::c_char as libc::c_int == 'g' as i32
-            && tolower(
-                *zLine.offset(1 as libc::c_int as isize) as libc::c_uchar as libc::c_int,
-            ) as libc::c_char as libc::c_int == 'o' as i32
-        {
+        *zLine.offset(0 as libc::c_int as isize) as libc::c_uchar as libc::c_int,
+    ) as libc::c_char as libc::c_int == 'g' as i32
+        && tolower(
+            *zLine.offset(1 as libc::c_int as isize) as libc::c_uchar as libc::c_int,
+        ) as libc::c_char as libc::c_int == 'o' as i32
+    {
         zLine = zLine.offset(2 as libc::c_int as isize);
     } else {
         return 0 as libc::c_int
@@ -26134,20 +25982,20 @@ unsafe extern "C" fn runOneSqlLine(
             zErrorType = b"Error\0" as *const u8 as *const libc::c_char;
             zErrorTail = sqlite3_errmsg((*p).db);
         } else if strncmp(
-                zErrMsg,
-                b"in prepare, \0" as *const u8 as *const libc::c_char,
-                12 as libc::c_int as libc::c_ulong,
-            ) == 0 as libc::c_int
-            {
+            zErrMsg,
+            b"in prepare, \0" as *const u8 as *const libc::c_char,
+            12 as libc::c_int as libc::c_ulong,
+        ) == 0 as libc::c_int
+        {
             zErrorType = b"Parse error\0" as *const u8 as *const libc::c_char;
             zErrorTail = &mut *zErrMsg.offset(12 as libc::c_int as isize)
                 as *mut libc::c_char;
         } else if strncmp(
-                zErrMsg,
-                b"stepping, \0" as *const u8 as *const libc::c_char,
-                10 as libc::c_int as libc::c_ulong,
-            ) == 0 as libc::c_int
-            {
+            zErrMsg,
+            b"stepping, \0" as *const u8 as *const libc::c_char,
+            10 as libc::c_int as libc::c_ulong,
+        ) == 0 as libc::c_int
+        {
             zErrorType = b"Runtime error\0" as *const u8 as *const libc::c_char;
             zErrorTail = &mut *zErrMsg.offset(10 as libc::c_int as isize)
                 as *mut libc::c_char;
@@ -26157,7 +26005,7 @@ unsafe extern "C" fn runOneSqlLine(
         }
         if !in_0.is_null() || stdin_is_interactive == 0 {
             sqlite3_snprintf(
-                ::std::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
+                ::core::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
                     as libc::c_int,
                 zPrefix.as_mut_ptr(),
                 b"%s near line %d:\0" as *const u8 as *const libc::c_char,
@@ -26166,7 +26014,7 @@ unsafe extern "C" fn runOneSqlLine(
             );
         } else {
             sqlite3_snprintf(
-                ::std::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
+                ::core::mem::size_of::<[libc::c_char; 100]>() as libc::c_ulong
                     as libc::c_int,
                 zPrefix.as_mut_ptr(),
                 b"%s:\0" as *const u8 as *const libc::c_char,
@@ -26188,7 +26036,7 @@ unsafe extern "C" fn runOneSqlLine(
         {
             let mut zLineBuf: [libc::c_char; 2000] = [0; 2000];
             sqlite3_snprintf(
-                ::std::mem::size_of::<[libc::c_char; 2000]>() as libc::c_ulong
+                ::core::mem::size_of::<[libc::c_char; 2000]>() as libc::c_ulong
                     as libc::c_int,
                 zLineBuf.as_mut_ptr(),
                 b"changes: %lld   total_changes: %lld\0" as *const u8
@@ -26235,8 +26083,7 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
         );
         return 1 as libc::c_int;
     }
-    let ref mut fresh286 = (*p).inputNesting;
-    *fresh286 += 1;
+    (*p).inputNesting += 1;
     (*p).lineno = 0 as libc::c_int;
     while errCnt == 0 as libc::c_int || bail_on_error == 0
         || ((*p).in_0).is_null() && stdin_is_interactive != 0
@@ -26257,13 +26104,12 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
                 if !((*p).in_0).is_null() {
                     break;
                 }
-                ::std::ptr::write_volatile(
+                ::core::ptr::write_volatile(
                     &mut seenInterrupt as *mut libc::c_int,
                     0 as libc::c_int,
                 );
             }
-            let ref mut fresh287 = (*p).lineno;
-            *fresh287 += 1;
+            (*p).lineno += 1;
             if qss as libc::c_uint & QSS_CharMask as libc::c_int as libc::c_uint
                 == QSS_Start as libc::c_int as libc::c_uint
                 && line_is_command_terminator(zLine) != 0
@@ -26282,11 +26128,10 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
                 echo_group_input(p, zLine);
                 qss = QSS_Start;
             } else if !zLine.is_null()
-                    && (*zLine.offset(0 as libc::c_int as isize) as libc::c_int
-                        == '.' as i32
-                        || *zLine.offset(0 as libc::c_int as isize) as libc::c_int
-                            == '#' as i32) && nSql == 0 as libc::c_int
-                {
+                && (*zLine.offset(0 as libc::c_int as isize) as libc::c_int == '.' as i32
+                    || *zLine.offset(0 as libc::c_int as isize) as libc::c_int
+                        == '#' as i32) && nSql == 0 as libc::c_int
+            {
                 echo_group_input(p, zLine);
                 if *zLine.offset(0 as libc::c_int as isize) as libc::c_int == '.' as i32
                 {
@@ -26327,7 +26172,7 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
                             b"nAlloc>0 && zSql!=0\0" as *const u8 as *const libc::c_char,
                             b"shell.c\0" as *const u8 as *const libc::c_char,
                             22766 as libc::c_int as libc::c_uint,
-                            (*::std::mem::transmute::<
+                            (*::core::mem::transmute::<
                                 &[u8; 32],
                                 &[libc::c_char; 32],
                             >(b"int process_input(ShellState *)\0"))
@@ -26342,9 +26187,9 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
                     startline = (*p).lineno;
                     nSql = nLine - i;
                 } else {
-                    let fresh288 = nSql;
+                    let fresh91 = nSql;
                     nSql = nSql + 1;
-                    *zSql.offset(fresh288 as isize) = '\n' as i32 as libc::c_char;
+                    *zSql.offset(fresh91 as isize) = '\n' as i32 as libc::c_char;
                     memcpy(
                         zSql.offset(nSql as isize) as *mut libc::c_void,
                         zLine as *const libc::c_void,
@@ -26370,10 +26215,10 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
                     (*p).bSafeMode = (*p).bSafeModePersist;
                     qss = QSS_Start;
                 } else if nSql != 0
-                        && qss as libc::c_uint
-                            & !(QSS_EndingSemi as libc::c_int) as libc::c_uint
-                            == QSS_Start as libc::c_int as libc::c_uint
-                    {
+                    && qss as libc::c_uint
+                        & !(QSS_EndingSemi as libc::c_int) as libc::c_uint
+                        == QSS_Start as libc::c_int as libc::c_uint
+                {
                     echo_group_input(p, zSql);
                     nSql = 0 as libc::c_int;
                     qss = QSS_Start;
@@ -26387,8 +26232,7 @@ unsafe extern "C" fn process_input(mut p: *mut ShellState) -> libc::c_int {
     }
     free(zSql as *mut libc::c_void);
     free(zLine as *mut libc::c_void);
-    let ref mut fresh289 = (*p).inputNesting;
-    *fresh289 -= 1;
+    (*p).inputNesting -= 1;
     return (errCnt > 0 as libc::c_int) as libc::c_int;
 }
 unsafe extern "C" fn find_home_dir(mut clearFlag: libc::c_int) -> *mut libc::c_char {
@@ -26451,8 +26295,7 @@ unsafe extern "C" fn process_sqliterc(
         shell_check_oom(zBuf as *mut libc::c_void);
         sqliterc = zBuf;
     }
-    let ref mut fresh290 = (*p).in_0;
-    *fresh290 = fopen(sqliterc, b"rb\0" as *const u8 as *const libc::c_char);
+    (*p).in_0 = fopen(sqliterc, b"rb\0" as *const u8 as *const libc::c_char);
     if !((*p).in_0).is_null() {
         if stdin_is_interactive != 0 {
             fprintf(
@@ -26475,13 +26318,12 @@ unsafe extern "C" fn process_sqliterc(
             exit(1 as libc::c_int);
         }
     }
-    let ref mut fresh291 = (*p).in_0;
-    *fresh291 = inSaved;
+    (*p).in_0 = inSaved;
     (*p).lineno = savedLineno;
     sqlite3_free(zBuf as *mut libc::c_void);
 }
 static mut zOptions: [libc::c_char; 2043] = unsafe {
-    *::std::mem::transmute::<
+    *::core::mem::transmute::<
         &[u8; 2043],
         &[libc::c_char; 2043],
     >(
@@ -26523,16 +26365,14 @@ unsafe extern "C" fn main_init(mut data: *mut ShellState) {
     memset(
         data as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<ShellState>() as libc::c_ulong,
+        ::core::mem::size_of::<ShellState>() as libc::c_ulong,
     );
-    let ref mut fresh292 = (*data).mode;
-    *fresh292 = 2 as libc::c_int;
-    let ref mut fresh293 = (*data).cMode;
-    *fresh293 = *fresh292;
-    (*data).normalMode = *fresh293;
+    (*data).mode = 2 as libc::c_int;
+    (*data).cMode = (*data).mode;
+    (*data).normalMode = (*data).cMode;
     (*data).autoExplain = 1 as libc::c_int as u8_0;
-    let ref mut fresh294 = (*data).pAuxDb;
-    *fresh294 = &mut *((*data).aAuxDb).as_mut_ptr().offset(0 as libc::c_int as isize)
+    (*data)
+        .pAuxDb = &mut *((*data).aAuxDb).as_mut_ptr().offset(0 as libc::c_int as isize)
         as *mut AuxDb;
     memcpy(
         ((*data).colSeparator).as_mut_ptr() as *mut libc::c_void,
@@ -26562,12 +26402,12 @@ unsafe extern "C" fn main_init(mut data: *mut ShellState) {
     );
     sqlite3_config(2 as libc::c_int);
     sqlite3_snprintf(
-        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong as libc::c_int,
         mainPrompt.as_mut_ptr(),
         b"sqlite> \0" as *const u8 as *const libc::c_char,
     );
     sqlite3_snprintf(
-        ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong as libc::c_int,
+        ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong as libc::c_int,
         continuePrompt.as_mut_ptr(),
         b"   ...> \0" as *const u8 as *const libc::c_char,
     );
@@ -26726,7 +26566,7 @@ unsafe fn main_0(
             b"argc>=1 && argv && argv[0]\0" as *const u8 as *const libc::c_char,
             b"shell.c\0" as *const u8 as *const libc::c_char,
             23168 as libc::c_int as libc::c_uint,
-            (*::std::mem::transmute::<
+            (*::core::mem::transmute::<
                 &[u8; 23],
                 &[libc::c_char; 23],
             >(b"int main(int, char **)\0"))
@@ -26745,19 +26585,19 @@ unsafe fn main_0(
         z = *argv.offset(i as isize);
         if *z.offset(0 as libc::c_int as isize) as libc::c_int != '-' as i32 {
             if ((*(data.aAuxDb).as_mut_ptr()).zDbFilename).is_null() {
-                let ref mut fresh295 = (*(data.aAuxDb).as_mut_ptr()).zDbFilename;
-                *fresh295 = z;
+                let ref mut fresh92 = (*(data.aAuxDb).as_mut_ptr()).zDbFilename;
+                *fresh92 = z;
             } else {
                 readStdin = 0 as libc::c_int;
                 nCmd += 1;
                 azCmd = realloc(
                     azCmd as *mut libc::c_void,
-                    (::std::mem::size_of::<*mut libc::c_char>() as libc::c_ulong)
+                    (::core::mem::size_of::<*mut libc::c_char>() as libc::c_ulong)
                         .wrapping_mul(nCmd as libc::c_ulong),
                 ) as *mut *mut libc::c_char;
                 shell_check_oom(azCmd as *mut libc::c_void);
-                let ref mut fresh296 = *azCmd.offset((nCmd - 1 as libc::c_int) as isize);
-                *fresh296 = z;
+                let ref mut fresh93 = *azCmd.offset((nCmd - 1 as libc::c_int) as isize);
+                *fresh93 = z;
             }
         }
         if *z.offset(1 as libc::c_int as isize) as libc::c_int == '-' as i32 {
@@ -26775,22 +26615,22 @@ unsafe fn main_0(
             i += 1;
             cmdline_option_value(argc, argv, i);
         } else if strcmp(z, b"-init\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             i += 1;
             zInitFile = cmdline_option_value(argc, argv, i);
         } else if strcmp(z, b"-batch\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             stdin_is_interactive = 0 as libc::c_int;
         } else if strcmp(z, b"-heap\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             i += 1;
             cmdline_option_value(argc, argv, i);
         } else if strcmp(z, b"-pagecache\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             let mut n: sqlite3_int64 = 0;
             let mut sz: sqlite3_int64 = 0;
             i += 1;
@@ -26823,8 +26663,8 @@ unsafe fn main_0(
             );
             data.shellFlgs |= 0x1 as libc::c_int as libc::c_uint;
         } else if strcmp(z, b"-lookaside\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             let mut n_0: libc::c_int = 0;
             let mut sz_0: libc::c_int = 0;
             i += 1;
@@ -26842,8 +26682,8 @@ unsafe fn main_0(
                 data.shellFlgs &= !(0x2 as libc::c_int) as libc::c_uint;
             }
         } else if strcmp(z, b"-threadsafe\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             let mut n_1: libc::c_int = 0;
             i += 1;
             n_1 = integerValue(cmdline_option_value(argc, argv, i)) as libc::c_int;
@@ -26859,50 +26699,50 @@ unsafe fn main_0(
                 }
             }
         } else if strcmp(z, b"-mmap\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             i += 1;
             let mut sz_1: sqlite3_int64 = integerValue(
                 cmdline_option_value(argc, argv, i),
             );
             sqlite3_config(22 as libc::c_int, sz_1, sz_1);
         } else if strcmp(z, b"-vfs\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             i += 1;
             zVfs = cmdline_option_value(argc, argv, i);
         } else if strcmp(z, b"-append\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             data.openMode = 2 as libc::c_int as u8_0;
         } else if strcmp(z, b"-deserialize\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             data.openMode = 5 as libc::c_int as u8_0;
         } else if strcmp(z, b"-maxsize\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int && (i + 1 as libc::c_int) < argc
-            {
+            == 0 as libc::c_int && (i + 1 as libc::c_int) < argc
+        {
             i += 1;
             data.szMax = integerValue(*argv.offset(i as isize));
         } else if strcmp(z, b"-readonly\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             data.openMode = 4 as libc::c_int as u8_0;
         } else if strcmp(z, b"-nofollow\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             data.openFlags = 0x1000000 as libc::c_int;
         } else if strcmp(z, b"-memtrace\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             sqlite3MemTraceActivate(stderr);
         } else if strcmp(z, b"-bail\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             bail_on_error = 1 as libc::c_int;
         } else if strcmp(z, b"-nonce\0" as *const u8 as *const libc::c_char)
-                == 0 as libc::c_int
-            {
+            == 0 as libc::c_int
+        {
             free(data.zNonce as *mut libc::c_void);
             i += 1;
             data.zNonce = strdup(*argv.offset(i as isize));
@@ -26928,8 +26768,7 @@ unsafe fn main_0(
         }
     }
     if ((*data.pAuxDb).zDbFilename).is_null() {
-        let ref mut fresh297 = (*data.pAuxDb).zDbFilename;
-        *fresh297 = b":memory:\0" as *const u8 as *const libc::c_char;
+        (*data.pAuxDb).zDbFilename = b":memory:\0" as *const u8 as *const libc::c_char;
         warnInmemoryDb = (argc == 1 as libc::c_int) as libc::c_int;
     }
     data.out = stdout;
@@ -26954,56 +26793,56 @@ unsafe fn main_0(
             {
                 i += 1;
             } else if strcmp(z_0, b"-html\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 4 as libc::c_int;
             } else if strcmp(z_0, b"-list\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 2 as libc::c_int;
             } else if strcmp(z_0, b"-quote\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 6 as libc::c_int;
                 sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                    ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                         as libc::c_int,
                     (data.colSeparator).as_mut_ptr(),
                     b",\0" as *const u8 as *const libc::c_char,
                 );
                 sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                    ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                         as libc::c_int,
                     (data.rowSeparator).as_mut_ptr(),
                     b"\n\0" as *const u8 as *const libc::c_char,
                 );
             } else if strcmp(z_0, b"-line\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 0 as libc::c_int;
             } else if strcmp(z_0, b"-column\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 1 as libc::c_int;
             } else if strcmp(z_0, b"-json\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 13 as libc::c_int;
             } else if strcmp(z_0, b"-markdown\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 14 as libc::c_int;
             } else if strcmp(z_0, b"-table\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 15 as libc::c_int;
             } else if strcmp(z_0, b"-box\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 16 as libc::c_int;
             } else if strcmp(z_0, b"-csv\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 8 as libc::c_int;
                 memcpy(
                     (data.colSeparator).as_mut_ptr() as *mut libc::c_void,
@@ -27011,128 +26850,128 @@ unsafe fn main_0(
                     2 as libc::c_int as libc::c_ulong,
                 );
             } else if strcmp(z_0, b"-append\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.openMode = 2 as libc::c_int as u8_0;
             } else if strcmp(z_0, b"-deserialize\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.openMode = 5 as libc::c_int as u8_0;
             } else if strcmp(z_0, b"-maxsize\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int && (i + 1 as libc::c_int) < argc
-                {
+                == 0 as libc::c_int && (i + 1 as libc::c_int) < argc
+            {
                 i += 1;
                 data.szMax = integerValue(*argv.offset(i as isize));
             } else if strcmp(z_0, b"-readonly\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.openMode = 4 as libc::c_int as u8_0;
             } else if strcmp(z_0, b"-nofollow\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.openFlags |= 0x1000000 as libc::c_int;
             } else if strcmp(z_0, b"-ascii\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 10 as libc::c_int;
                 sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                    ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                         as libc::c_int,
                     (data.colSeparator).as_mut_ptr(),
                     b"\x1F\0" as *const u8 as *const libc::c_char,
                 );
                 sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                    ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                         as libc::c_int,
                     (data.rowSeparator).as_mut_ptr(),
                     b"\x1E\0" as *const u8 as *const libc::c_char,
                 );
             } else if strcmp(z_0, b"-tabs\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.mode = 2 as libc::c_int;
                 sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                    ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                         as libc::c_int,
                     (data.colSeparator).as_mut_ptr(),
                     b"\t\0" as *const u8 as *const libc::c_char,
                 );
                 sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                    ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                         as libc::c_int,
                     (data.rowSeparator).as_mut_ptr(),
                     b"\n\0" as *const u8 as *const libc::c_char,
                 );
             } else if strcmp(z_0, b"-separator\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 i += 1;
                 sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                    ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                         as libc::c_int,
                     (data.colSeparator).as_mut_ptr(),
                     b"%s\0" as *const u8 as *const libc::c_char,
                     cmdline_option_value(argc, argv, i),
                 );
             } else if strcmp(z_0, b"-newline\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 i += 1;
                 sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                    ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                         as libc::c_int,
                     (data.rowSeparator).as_mut_ptr(),
                     b"%s\0" as *const u8 as *const libc::c_char,
                     cmdline_option_value(argc, argv, i),
                 );
             } else if strcmp(z_0, b"-nullvalue\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 i += 1;
                 sqlite3_snprintf(
-                    ::std::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
+                    ::core::mem::size_of::<[libc::c_char; 20]>() as libc::c_ulong
                         as libc::c_int,
                     (data.nullValue).as_mut_ptr(),
                     b"%s\0" as *const u8 as *const libc::c_char,
                     cmdline_option_value(argc, argv, i),
                 );
             } else if strcmp(z_0, b"-header\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.showHeader = 1 as libc::c_int;
                 data.shellFlgs |= 0x80 as libc::c_int as libc::c_uint;
             } else if strcmp(z_0, b"-noheader\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.showHeader = 0 as libc::c_int;
                 data.shellFlgs |= 0x80 as libc::c_int as libc::c_uint;
             } else if strcmp(z_0, b"-echo\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.shellFlgs |= 0x40 as libc::c_int as libc::c_uint;
             } else if strcmp(z_0, b"-eqp\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.autoEQP = 1 as libc::c_int as u8_0;
             } else if strcmp(z_0, b"-eqpfull\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.autoEQP = 3 as libc::c_int as u8_0;
             } else if strcmp(z_0, b"-stats\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.statsOn = 1 as libc::c_int as libc::c_uint;
             } else if strcmp(z_0, b"-scanstats\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.scanstatsOn = 1 as libc::c_int as u8_0;
             } else if strcmp(z_0, b"-backslash\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int
-                {
+                == 0 as libc::c_int
+            {
                 data.shellFlgs |= 0x4 as libc::c_int as libc::c_uint;
             } else if !(strcmp(z_0, b"-bail\0" as *const u8 as *const libc::c_char)
-                    == 0 as libc::c_int)
-                {
+                == 0 as libc::c_int)
+            {
                 if strcmp(z_0, b"-version\0" as *const u8 as *const libc::c_char)
                     == 0 as libc::c_int
                 {
@@ -27143,60 +26982,60 @@ unsafe fn main_0(
                     );
                     return 0 as libc::c_int;
                 } else if strcmp(
-                        z_0,
-                        b"-interactive\0" as *const u8 as *const libc::c_char,
-                    ) == 0 as libc::c_int
-                    {
+                    z_0,
+                    b"-interactive\0" as *const u8 as *const libc::c_char,
+                ) == 0 as libc::c_int
+                {
                     stdin_is_interactive = 1 as libc::c_int;
                 } else if strcmp(z_0, b"-batch\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     stdin_is_interactive = 0 as libc::c_int;
                 } else if strcmp(z_0, b"-heap\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     i += 1;
                 } else if strcmp(
-                        z_0,
-                        b"-pagecache\0" as *const u8 as *const libc::c_char,
-                    ) == 0 as libc::c_int
-                    {
+                    z_0,
+                    b"-pagecache\0" as *const u8 as *const libc::c_char,
+                ) == 0 as libc::c_int
+                {
                     i += 2 as libc::c_int;
                 } else if strcmp(
-                        z_0,
-                        b"-lookaside\0" as *const u8 as *const libc::c_char,
-                    ) == 0 as libc::c_int
-                    {
+                    z_0,
+                    b"-lookaside\0" as *const u8 as *const libc::c_char,
+                ) == 0 as libc::c_int
+                {
                     i += 2 as libc::c_int;
                 } else if strcmp(
-                        z_0,
-                        b"-threadsafe\0" as *const u8 as *const libc::c_char,
-                    ) == 0 as libc::c_int
-                    {
+                    z_0,
+                    b"-threadsafe\0" as *const u8 as *const libc::c_char,
+                ) == 0 as libc::c_int
+                {
                     i += 2 as libc::c_int;
                 } else if strcmp(z_0, b"-nonce\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     i += 2 as libc::c_int;
                 } else if strcmp(z_0, b"-mmap\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     i += 1;
                 } else if strcmp(z_0, b"-memtrace\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     i += 1;
                 } else if strcmp(z_0, b"-vfs\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     i += 1;
                 } else if strcmp(z_0, b"-help\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     usage(1 as libc::c_int);
                 } else if strcmp(z_0, b"-cmd\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     if i == argc - 1 as libc::c_int {
                         break;
                     }
@@ -27242,8 +27081,8 @@ unsafe fn main_0(
                         }
                     }
                 } else if strcmp(z_0, b"-safe\0" as *const u8 as *const libc::c_char)
-                        == 0 as libc::c_int
-                    {
+                    == 0 as libc::c_int
+                {
                     data.bSafeModePersist = 1 as libc::c_int as u8_0;
                     data.bSafeMode = data.bSafeModePersist;
                 } else {
@@ -27357,8 +27196,9 @@ unsafe fn main_0(
     }
     i = 0 as libc::c_int;
     while i
-        < (::std::mem::size_of::<[AuxDb; 5]>() as libc::c_ulong)
-            .wrapping_div(::std::mem::size_of::<AuxDb>() as libc::c_ulong) as libc::c_int
+        < (::core::mem::size_of::<[AuxDb; 5]>() as libc::c_ulong)
+            .wrapping_div(::core::mem::size_of::<AuxDb>() as libc::c_ulong)
+            as libc::c_int
     {
         sqlite3_free(data.aAuxDb[i as usize].zFreeOnClose as *mut libc::c_void);
         if !(data.aAuxDb[i as usize].db).is_null() {
@@ -27375,7 +27215,7 @@ unsafe fn main_0(
     memset(
         &mut data as *mut ShellState as *mut libc::c_void,
         0 as libc::c_int,
-        ::std::mem::size_of::<ShellState>() as libc::c_ulong,
+        ::core::mem::size_of::<ShellState>() as libc::c_ulong,
     );
     return rc;
 }
@@ -27388,7 +27228,7 @@ pub fn main() {
                 .into_raw(),
         );
     }
-    args.push(::std::ptr::null_mut());
+    args.push(::core::ptr::null_mut());
     unsafe {
         ::std::process::exit(
             main_0(

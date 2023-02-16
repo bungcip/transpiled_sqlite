@@ -10,6 +10,7 @@
 #![register_tool(c2rust)]
 #![feature(io_safety)]
 #![feature(c_variadic, extern_types, label_break_value, register_tool)]
+#![feature(let_else)]
 
 /// helper macro to creating string from null terminated string
 macro_rules! cstr_to_string {
@@ -26,7 +27,7 @@ macro_rules! to_cstring {
 use ascii_utils;
 use ascii_utils::Check;
 use bstr::{io::BufReadExt, ByteSlice};
-use bstr::{BStr, B};
+use bstr::{BStr, BString, ByteVec, B};
 use const_format::concatcp;
 use memmem;
 use memmem::Searcher;
@@ -40,6 +41,7 @@ use strfmt::FmtError;
 use strfmt::{strfmt, strfmt_builder};
 
 use std::borrow::Cow;
+use std::f32::consts::E;
 use std::ffi::{CStr, CString};
 use std::fmt::{self, Write};
 use std::io::BufRead;
@@ -761,9 +763,6 @@ impl ShellText {
     pub fn as_str(&self) -> &str {
         &self.inner
     }
-    // pub unsafe fn as_c_str(&self) -> *const i8 {
-    //     to_cstring!(self.inner.as_str()) as *const u8 as *const i8
-    // }
 
     pub fn to_cstr(&mut self) -> *const i8 {
         self.inner.push('\0');
@@ -779,6 +778,366 @@ pub struct SHA3Context {
     pub nLoaded: u32,
     pub ixMask: u32,
 }
+
+impl SHA3Context {
+    pub fn new(iSize: i32) -> Self {
+        let nRate = if iSize >= 128 && iSize <= 512 {
+            (1600 - (iSize + 31 & !(31)) * 2) / 8
+        } else {
+            (1600 - 2 * 256) / 8
+        };
+
+        Self {
+            u: C2RustUnnamed_15 { s: [0; 25] },
+            nRate: nRate as u32,
+            nLoaded: 0,
+            ixMask: 0,
+        }
+    }
+
+    unsafe fn update(&mut self, aData: *const u8, nData: u32) {
+        if aData.is_null() {
+            return;
+        }
+
+        let mut i = 0;
+        if (self.nLoaded).wrapping_rem(8) == 0 && aData.offset_from(0 as *const u8) & 7 == 0 {
+            while i + 7 < nData {
+                self.u.s[((self.nLoaded) / 8) as usize] ^= *(&*aData.offset(i as isize) as *const u8 as *mut u64);
+                self.nLoaded += 8;
+                if self.nLoaded >= self.nRate {
+                    self.KeccakF1600Step();
+                    self.nLoaded = 0;
+                }
+                i += 8;
+            }
+        }
+
+        while i < nData {
+            self.u.x[self.nLoaded as usize] = (self.u.x[self.nLoaded as usize] as i32 ^ *aData.offset(i as isize) as i32) as u8;
+            self.nLoaded += 1;
+            if self.nLoaded == self.nRate {
+                self.KeccakF1600Step();
+                self.nLoaded = 0;
+            }
+            i += 1;
+        }
+    }
+
+    unsafe fn finalize(&mut self) -> *mut u8 {
+        if self.nLoaded == (self.nRate).wrapping_sub(1) {
+            let c1: u8 = 0x86 as u8;
+            self.update(&c1, 1);
+        } else {
+            let c2: u8 = 0x6 as u8;
+            let c3: u8 = 0x80 as u8;
+            self.update(&c2, 1);
+            self.nLoaded = (self.nRate).wrapping_sub(1);
+            self.update(&c3, 1);
+        }
+        for i in 0..self.nRate as u32 {
+            self.u.x[(i + self.nRate) as usize] = self.u.x[(i ^ self.ixMask) as usize];
+        }
+        return &mut *(self.u.x).as_mut_ptr().offset(self.nRate as isize) as *mut u8;
+    }
+
+    unsafe fn hash_step_vformat(&mut self, format: String) {
+        let n = std::cmp::min(50, format.len());
+        self.update(format.as_ptr() as _, n as u32);
+    }
+
+    unsafe fn KeccakF1600Step(&mut self) {
+        // let mut i: i32 = 0;
+        let mut b0: u64 = 0;
+        let mut b1: u64 = 0;
+        let mut b2: u64 = 0;
+        let mut b3: u64 = 0;
+        let mut b4: u64 = 0;
+        let mut c0: u64 = 0;
+        let mut c1: u64 = 0;
+        let mut c2: u64 = 0;
+        let mut c3: u64 = 0;
+        let mut c4: u64 = 0;
+        let mut d0: u64 = 0;
+        let mut d1: u64 = 0;
+        let mut d2: u64 = 0;
+        let mut d3: u64 = 0;
+        let mut d4: u64 = 0;
+        const RC: [u64; 24] = [
+            0x1 as u64,
+            0x8082 as u64,
+            0x800000000000808a as u64,
+            0x8000000080008000 as u64,
+            0x808b as u64,
+            0x80000001 as u64,
+            0x8000000080008081 as u64,
+            0x8000000000008009 as u64,
+            0x8a as u64,
+            0x88 as u64,
+            0x80008009 as u64,
+            0x8000000a as u64,
+            0x8000808b as u64,
+            0x800000000000008b as u64,
+            0x8000000000008089 as u64,
+            0x8000000000008003 as u64,
+            0x8000000000008002 as u64,
+            0x8000000000000080 as u64,
+            0x800a as u64,
+            0x800000008000000a as u64,
+            0x8000000080008081 as u64,
+            0x8000000000008080 as u64,
+            0x80000001 as u64,
+            0x8000000080008008 as u64,
+        ];
+        for i in (0..24).step_by(4) {
+            c0 = self.u.s[0] ^ self.u.s[5] ^ self.u.s[10] ^ self.u.s[15] ^ self.u.s[20];
+            c1 = self.u.s[1] ^ self.u.s[6] ^ self.u.s[11] ^ self.u.s[16] ^ self.u.s[21];
+            c2 = self.u.s[2] ^ self.u.s[7] ^ self.u.s[12] ^ self.u.s[17] ^ self.u.s[22];
+            c3 = self.u.s[3] ^ self.u.s[8] ^ self.u.s[13] ^ self.u.s[18] ^ self.u.s[23];
+            c4 = self.u.s[4] ^ self.u.s[9] ^ self.u.s[14] ^ self.u.s[19] ^ self.u.s[24];
+            d0 = c4 ^ (c1 << 1 | c1 >> 64 - 1);
+            d1 = c0 ^ (c2 << 1 | c2 >> 64 - 1);
+            d2 = c1 ^ (c3 << 1 | c3 >> 64 - 1);
+            d3 = c2 ^ (c4 << 1 | c4 >> 64 - 1);
+            d4 = c3 ^ (c0 << 1 | c0 >> 64 - 1);
+            b0 = self.u.s[0] ^ d0;
+            b1 = (self.u.s[6] ^ d1) << 44 as i32 | (self.u.s[6] ^ d1) >> 64 - 44 as i32;
+            b2 = (self.u.s[12] ^ d2) << 43 | (self.u.s[12] ^ d2) >> 64 - 43;
+            b3 = (self.u.s[18] ^ d3) << 21 | (self.u.s[18] ^ d3) >> 64 - 21;
+            b4 = (self.u.s[24] ^ d4) << 14 as i32 | (self.u.s[24] ^ d4) >> 64 - 14 as i32;
+            self.u.s[0] = b0 ^ !b1 & b2;
+            self.u.s[0] ^= RC[i as usize];
+            self.u.s[6] = b1 ^ !b2 & b3;
+            self.u.s[12] = b2 ^ !b3 & b4;
+            self.u.s[18] = b3 ^ !b4 & b0;
+            self.u.s[24] = b4 ^ !b0 & b1;
+            b2 = (self.u.s[10] ^ d0) << 3 | (self.u.s[10] ^ d0) >> 64 - 3;
+            b3 = (self.u.s[16] ^ d1) << 45 | (self.u.s[16] ^ d1) >> 64 - 45;
+            b4 = (self.u.s[22] ^ d2) << 61 | (self.u.s[22] ^ d2) >> 64 - 61;
+            b0 = (self.u.s[3] ^ d3) << 28 | (self.u.s[3] ^ d3) >> 64 - 28;
+            b1 = (self.u.s[9] ^ d4) << 20 | (self.u.s[9] ^ d4) >> 64 - 20;
+            self.u.s[10] = b0 ^ !b1 & b2;
+            self.u.s[16] = b1 ^ !b2 & b3;
+            self.u.s[22] = b2 ^ !b3 & b4;
+            self.u.s[3] = b3 ^ !b4 & b0;
+            self.u.s[9] = b4 ^ !b0 & b1;
+            b4 = (self.u.s[20] ^ d0) << 18 | (self.u.s[20] ^ d0) >> 64 - 18;
+            b0 = (self.u.s[1] ^ d1) << 1 | (self.u.s[1] ^ d1) >> 64 - 1;
+            b1 = (self.u.s[7] ^ d2) << 6 | (self.u.s[7] ^ d2) >> 64 - 6;
+            b2 = (self.u.s[13] ^ d3) << 25 | (self.u.s[13] ^ d3) >> 64 - 25;
+            b3 = (self.u.s[19] ^ d4) << 8 | (self.u.s[19] ^ d4) >> 64 - 8;
+            self.u.s[20] = b0 ^ !b1 & b2;
+            self.u.s[1] = b1 ^ !b2 & b3;
+            self.u.s[7] = b2 ^ !b3 & b4;
+            self.u.s[13] = b3 ^ !b4 & b0;
+            self.u.s[19] = b4 ^ !b0 & b1;
+            b1 = (self.u.s[5] ^ d0) << 36 | (self.u.s[5] ^ d0) >> 64 - 36;
+            b2 = (self.u.s[11] ^ d1) << 10 | (self.u.s[11] ^ d1) >> 64 - 10;
+            b3 = (self.u.s[17] ^ d2) << 15 | (self.u.s[17] ^ d2) >> 64 - 15;
+            b4 = (self.u.s[23] ^ d3) << 56 | (self.u.s[23] ^ d3) >> 64 - 56;
+            b0 = (self.u.s[4] ^ d4) << 27 | (self.u.s[4] ^ d4) >> 64 - 27;
+            self.u.s[5] = b0 ^ !b1 & b2;
+            self.u.s[11] = b1 ^ !b2 & b3;
+            self.u.s[17] = b2 ^ !b3 & b4;
+            self.u.s[23] = b3 ^ !b4 & b0;
+            self.u.s[4] = b4 ^ !b0 & b1;
+            b3 = (self.u.s[15] ^ d0) << 41 | (self.u.s[15] ^ d0) >> 64 - 41;
+            b4 = (self.u.s[21] ^ d1) << 2 | (self.u.s[21] ^ d1) >> 64 - 2;
+            b0 = (self.u.s[2] ^ d2) << 62 | (self.u.s[2] ^ d2) >> 64 - 62;
+            b1 = (self.u.s[8] ^ d3) << 55 | (self.u.s[8] ^ d3) >> 64 - 55;
+            b2 = (self.u.s[14] ^ d4) << 39 | (self.u.s[14] ^ d4) >> 64 - 39;
+            self.u.s[15] = b0 ^ !b1 & b2;
+            self.u.s[21] = b1 ^ !b2 & b3;
+            self.u.s[2] = b2 ^ !b3 & b4;
+            self.u.s[8] = b3 ^ !b4 & b0;
+            self.u.s[14] = b4 ^ !b0 & b1;
+            c0 = self.u.s[0] ^ self.u.s[10] ^ self.u.s[20] ^ self.u.s[5] ^ self.u.s[15];
+            c1 = self.u.s[6] ^ self.u.s[16] ^ self.u.s[1] ^ self.u.s[11] ^ self.u.s[21];
+            c2 = self.u.s[12] ^ self.u.s[22] ^ self.u.s[7] ^ self.u.s[17] ^ self.u.s[2];
+            c3 = self.u.s[18] ^ self.u.s[3] ^ self.u.s[13] ^ self.u.s[23] ^ self.u.s[8];
+            c4 = self.u.s[24] ^ self.u.s[9] ^ self.u.s[19] ^ self.u.s[4] ^ self.u.s[14];
+            d0 = c4 ^ (c1 << 1 | c1 >> 64 - 1);
+            d1 = c0 ^ (c2 << 1 | c2 >> 64 - 1);
+            d2 = c1 ^ (c3 << 1 | c3 >> 64 - 1);
+            d3 = c2 ^ (c4 << 1 | c4 >> 64 - 1);
+            d4 = c3 ^ (c0 << 1 | c0 >> 64 - 1);
+            b0 = self.u.s[0] ^ d0;
+            b1 = (self.u.s[16] ^ d1) << 44 as i32 | (self.u.s[16] ^ d1) >> 64 - 44 as i32;
+            b2 = (self.u.s[7] ^ d2) << 43 | (self.u.s[7] ^ d2) >> 64 - 43;
+            b3 = (self.u.s[23] ^ d3) << 21 | (self.u.s[23] ^ d3) >> 64 - 21;
+            b4 = (self.u.s[14] ^ d4) << 14 as i32 | (self.u.s[14] ^ d4) >> 64 - 14 as i32;
+            self.u.s[0] = b0 ^ !b1 & b2;
+            self.u.s[0] ^= RC[(i + 1) as usize];
+            self.u.s[16] = b1 ^ !b2 & b3;
+            self.u.s[7] = b2 ^ !b3 & b4;
+            self.u.s[23] = b3 ^ !b4 & b0;
+            self.u.s[14] = b4 ^ !b0 & b1;
+            b2 = (self.u.s[20] ^ d0) << 3 | (self.u.s[20] ^ d0) >> 64 - 3;
+            b3 = (self.u.s[11] ^ d1) << 45 | (self.u.s[11] ^ d1) >> 64 - 45;
+            b4 = (self.u.s[2] ^ d2) << 61 | (self.u.s[2] ^ d2) >> 64 - 61;
+            b0 = (self.u.s[18] ^ d3) << 28 | (self.u.s[18] ^ d3) >> 64 - 28;
+            b1 = (self.u.s[9] ^ d4) << 20 | (self.u.s[9] ^ d4) >> 64 - 20;
+            self.u.s[20] = b0 ^ !b1 & b2;
+            self.u.s[11] = b1 ^ !b2 & b3;
+            self.u.s[2] = b2 ^ !b3 & b4;
+            self.u.s[18] = b3 ^ !b4 & b0;
+            self.u.s[9] = b4 ^ !b0 & b1;
+            b4 = (self.u.s[15] ^ d0) << 18 | (self.u.s[15] ^ d0) >> 64 - 18;
+            b0 = (self.u.s[6] ^ d1) << 1 | (self.u.s[6] ^ d1) >> 64 - 1;
+            b1 = (self.u.s[22] ^ d2) << 6 | (self.u.s[22] ^ d2) >> 64 - 6;
+            b2 = (self.u.s[13] ^ d3) << 25 | (self.u.s[13] ^ d3) >> 64 - 25;
+            b3 = (self.u.s[4] ^ d4) << 8 | (self.u.s[4] ^ d4) >> 64 - 8;
+            self.u.s[15] = b0 ^ !b1 & b2;
+            self.u.s[6] = b1 ^ !b2 & b3;
+            self.u.s[22] = b2 ^ !b3 & b4;
+            self.u.s[13] = b3 ^ !b4 & b0;
+            self.u.s[4] = b4 ^ !b0 & b1;
+            b1 = (self.u.s[10] ^ d0) << 36 | (self.u.s[10] ^ d0) >> 64 - 36;
+            b2 = (self.u.s[1] ^ d1) << 10 | (self.u.s[1] ^ d1) >> 64 - 10;
+            b3 = (self.u.s[17] ^ d2) << 15 | (self.u.s[17] ^ d2) >> 64 - 15;
+            b4 = (self.u.s[8] ^ d3) << 56 | (self.u.s[8] ^ d3) >> 64 - 56;
+            b0 = (self.u.s[24] ^ d4) << 27 | (self.u.s[24] ^ d4) >> 64 - 27;
+            self.u.s[10] = b0 ^ !b1 & b2;
+            self.u.s[1] = b1 ^ !b2 & b3;
+            self.u.s[17] = b2 ^ !b3 & b4;
+            self.u.s[8] = b3 ^ !b4 & b0;
+            self.u.s[24] = b4 ^ !b0 & b1;
+            b3 = (self.u.s[5] ^ d0) << 41 | (self.u.s[5] ^ d0) >> 64 - 41;
+            b4 = (self.u.s[21] ^ d1) << 2 | (self.u.s[21] ^ d1) >> 64 - 2;
+            b0 = (self.u.s[12] ^ d2) << 62 | (self.u.s[12] ^ d2) >> 64 - 62;
+            b1 = (self.u.s[3] ^ d3) << 55 | (self.u.s[3] ^ d3) >> 64 - 55;
+            b2 = (self.u.s[19] ^ d4) << 39 | (self.u.s[19] ^ d4) >> 64 - 39;
+            self.u.s[5] = b0 ^ !b1 & b2;
+            self.u.s[21] = b1 ^ !b2 & b3;
+            self.u.s[12] = b2 ^ !b3 & b4;
+            self.u.s[3] = b3 ^ !b4 & b0;
+            self.u.s[19] = b4 ^ !b0 & b1;
+            c0 = self.u.s[0] ^ self.u.s[20] ^ self.u.s[15] ^ self.u.s[10] ^ self.u.s[5];
+            c1 = self.u.s[16] ^ self.u.s[11] ^ self.u.s[6] ^ self.u.s[1] ^ self.u.s[21];
+            c2 = self.u.s[7] ^ self.u.s[2] ^ self.u.s[22] ^ self.u.s[17] ^ self.u.s[12];
+            c3 = self.u.s[23] ^ self.u.s[18] ^ self.u.s[13] ^ self.u.s[8] ^ self.u.s[3];
+            c4 = self.u.s[14] ^ self.u.s[9] ^ self.u.s[4] ^ self.u.s[24] ^ self.u.s[19];
+            d0 = c4 ^ (c1 << 1 | c1 >> 64 - 1);
+            d1 = c0 ^ (c2 << 1 | c2 >> 64 - 1);
+            d2 = c1 ^ (c3 << 1 | c3 >> 64 - 1);
+            d3 = c2 ^ (c4 << 1 | c4 >> 64 - 1);
+            d4 = c3 ^ (c0 << 1 | c0 >> 64 - 1);
+            b0 = self.u.s[0] ^ d0;
+            b1 = (self.u.s[11] ^ d1) << 44 as i32 | (self.u.s[11] ^ d1) >> 64 - 44 as i32;
+            b2 = (self.u.s[22] ^ d2) << 43 | (self.u.s[22] ^ d2) >> 64 - 43;
+            b3 = (self.u.s[8] ^ d3) << 21 | (self.u.s[8] ^ d3) >> 64 - 21;
+            b4 = (self.u.s[19] ^ d4) << 14 as i32 | (self.u.s[19] ^ d4) >> 64 - 14 as i32;
+            self.u.s[0] = b0 ^ !b1 & b2;
+            self.u.s[0] ^= RC[(i + 2) as usize];
+            self.u.s[11] = b1 ^ !b2 & b3;
+            self.u.s[22] = b2 ^ !b3 & b4;
+            self.u.s[8] = b3 ^ !b4 & b0;
+            self.u.s[19] = b4 ^ !b0 & b1;
+            b2 = (self.u.s[15] ^ d0) << 3 | (self.u.s[15] ^ d0) >> 64 - 3;
+            b3 = (self.u.s[1] ^ d1) << 45 | (self.u.s[1] ^ d1) >> 64 - 45;
+            b4 = (self.u.s[12] ^ d2) << 61 | (self.u.s[12] ^ d2) >> 64 - 61;
+            b0 = (self.u.s[23] ^ d3) << 28 | (self.u.s[23] ^ d3) >> 64 - 28;
+            b1 = (self.u.s[9] ^ d4) << 20 | (self.u.s[9] ^ d4) >> 64 - 20;
+            self.u.s[15] = b0 ^ !b1 & b2;
+            self.u.s[1] = b1 ^ !b2 & b3;
+            self.u.s[12] = b2 ^ !b3 & b4;
+            self.u.s[23] = b3 ^ !b4 & b0;
+            self.u.s[9] = b4 ^ !b0 & b1;
+            b4 = (self.u.s[5] ^ d0) << 18 | (self.u.s[5] ^ d0) >> 64 - 18;
+            b0 = (self.u.s[16] ^ d1) << 1 | (self.u.s[16] ^ d1) >> 64 - 1;
+            b1 = (self.u.s[2] ^ d2) << 6 | (self.u.s[2] ^ d2) >> 64 - 6;
+            b2 = (self.u.s[13] ^ d3) << 25 | (self.u.s[13] ^ d3) >> 64 - 25;
+            b3 = (self.u.s[24] ^ d4) << 8 | (self.u.s[24] ^ d4) >> 64 - 8;
+            self.u.s[5] = b0 ^ !b1 & b2;
+            self.u.s[16] = b1 ^ !b2 & b3;
+            self.u.s[2] = b2 ^ !b3 & b4;
+            self.u.s[13] = b3 ^ !b4 & b0;
+            self.u.s[24] = b4 ^ !b0 & b1;
+            b1 = (self.u.s[20] ^ d0) << 36 | (self.u.s[20] ^ d0) >> 64 - 36;
+            b2 = (self.u.s[6] ^ d1) << 10 | (self.u.s[6] ^ d1) >> 64 - 10;
+            b3 = (self.u.s[17] ^ d2) << 15 | (self.u.s[17] ^ d2) >> 64 - 15;
+            b4 = (self.u.s[3] ^ d3) << 56 | (self.u.s[3] ^ d3) >> 64 - 56;
+            b0 = (self.u.s[14] ^ d4) << 27 | (self.u.s[14] ^ d4) >> 64 - 27;
+            self.u.s[20] = b0 ^ !b1 & b2;
+            self.u.s[6] = b1 ^ !b2 & b3;
+            self.u.s[17] = b2 ^ !b3 & b4;
+            self.u.s[3] = b3 ^ !b4 & b0;
+            self.u.s[14] = b4 ^ !b0 & b1;
+            b3 = (self.u.s[10] ^ d0) << 41 | (self.u.s[10] ^ d0) >> 64 - 41;
+            b4 = (self.u.s[21] ^ d1) << 2 | (self.u.s[21] ^ d1) >> 64 - 2;
+            b0 = (self.u.s[7] ^ d2) << 62 | (self.u.s[7] ^ d2) >> 64 - 62;
+            b1 = (self.u.s[18] ^ d3) << 55 | (self.u.s[18] ^ d3) >> 64 - 55;
+            b2 = (self.u.s[4] ^ d4) << 39 | (self.u.s[4] ^ d4) >> 64 - 39;
+            self.u.s[10] = b0 ^ !b1 & b2;
+            self.u.s[21] = b1 ^ !b2 & b3;
+            self.u.s[7] = b2 ^ !b3 & b4;
+            self.u.s[18] = b3 ^ !b4 & b0;
+            self.u.s[4] = b4 ^ !b0 & b1;
+            c0 = self.u.s[0] ^ self.u.s[15] ^ self.u.s[5] ^ self.u.s[20] ^ self.u.s[10];
+            c1 = self.u.s[11] ^ self.u.s[1] ^ self.u.s[16] ^ self.u.s[6] ^ self.u.s[21];
+            c2 = self.u.s[22] ^ self.u.s[12] ^ self.u.s[2] ^ self.u.s[17] ^ self.u.s[7];
+            c3 = self.u.s[8] ^ self.u.s[23] ^ self.u.s[13] ^ self.u.s[3] ^ self.u.s[18];
+            c4 = self.u.s[19] ^ self.u.s[9] ^ self.u.s[24] ^ self.u.s[14] ^ self.u.s[4];
+            d0 = c4 ^ (c1 << 1 | c1 >> 64 - 1);
+            d1 = c0 ^ (c2 << 1 | c2 >> 64 - 1);
+            d2 = c1 ^ (c3 << 1 | c3 >> 64 - 1);
+            d3 = c2 ^ (c4 << 1 | c4 >> 64 - 1);
+            d4 = c3 ^ (c0 << 1 | c0 >> 64 - 1);
+            b0 = self.u.s[0] ^ d0;
+            b1 = (self.u.s[1] ^ d1) << 44 as i32 | (self.u.s[1] ^ d1) >> 64 - 44 as i32;
+            b2 = (self.u.s[2] ^ d2) << 43 | (self.u.s[2] ^ d2) >> 64 - 43;
+            b3 = (self.u.s[3] ^ d3) << 21 | (self.u.s[3] ^ d3) >> 64 - 21;
+            b4 = (self.u.s[4] ^ d4) << 14 as i32 | (self.u.s[4] ^ d4) >> 64 - 14 as i32;
+            self.u.s[0] = b0 ^ !b1 & b2;
+            self.u.s[0] ^= RC[(i + 3) as usize];
+            self.u.s[1] = b1 ^ !b2 & b3;
+            self.u.s[2] = b2 ^ !b3 & b4;
+            self.u.s[3] = b3 ^ !b4 & b0;
+            self.u.s[4] = b4 ^ !b0 & b1;
+            b2 = (self.u.s[5] ^ d0) << 3 | (self.u.s[5] ^ d0) >> 64 - 3;
+            b3 = (self.u.s[6] ^ d1) << 45 | (self.u.s[6] ^ d1) >> 64 - 45;
+            b4 = (self.u.s[7] ^ d2) << 61 | (self.u.s[7] ^ d2) >> 64 - 61;
+            b0 = (self.u.s[8] ^ d3) << 28 | (self.u.s[8] ^ d3) >> 64 - 28;
+            b1 = (self.u.s[9] ^ d4) << 20 | (self.u.s[9] ^ d4) >> 64 - 20;
+            self.u.s[5] = b0 ^ !b1 & b2;
+            self.u.s[6] = b1 ^ !b2 & b3;
+            self.u.s[7] = b2 ^ !b3 & b4;
+            self.u.s[8] = b3 ^ !b4 & b0;
+            self.u.s[9] = b4 ^ !b0 & b1;
+            b4 = (self.u.s[10] ^ d0) << 18 | (self.u.s[10] ^ d0) >> 64 - 18;
+            b0 = (self.u.s[11] ^ d1) << 1 | (self.u.s[11] ^ d1) >> 64 - 1;
+            b1 = (self.u.s[12] ^ d2) << 6 | (self.u.s[12] ^ d2) >> 64 - 6;
+            b2 = (self.u.s[13] ^ d3) << 25 | (self.u.s[13] ^ d3) >> 64 - 25;
+            b3 = (self.u.s[14] ^ d4) << 8 | (self.u.s[14] ^ d4) >> 64 - 8;
+            self.u.s[10] = b0 ^ !b1 & b2;
+            self.u.s[11] = b1 ^ !b2 & b3;
+            self.u.s[12] = b2 ^ !b3 & b4;
+            self.u.s[13] = b3 ^ !b4 & b0;
+            self.u.s[14] = b4 ^ !b0 & b1;
+            b1 = (self.u.s[15] ^ d0) << 36 | (self.u.s[15] ^ d0) >> 64 - 36;
+            b2 = (self.u.s[16] ^ d1) << 10 | (self.u.s[16] ^ d1) >> 64 - 10;
+            b3 = (self.u.s[17] ^ d2) << 15 | (self.u.s[17] ^ d2) >> 64 - 15;
+            b4 = (self.u.s[18] ^ d3) << 56 | (self.u.s[18] ^ d3) >> 64 - 56;
+            b0 = (self.u.s[19] ^ d4) << 27 | (self.u.s[19] ^ d4) >> 64 - 27;
+            self.u.s[15] = b0 ^ !b1 & b2;
+            self.u.s[16] = b1 ^ !b2 & b3;
+            self.u.s[17] = b2 ^ !b3 & b4;
+            self.u.s[18] = b3 ^ !b4 & b0;
+            self.u.s[19] = b4 ^ !b0 & b1;
+            b3 = (self.u.s[20] ^ d0) << 41 | (self.u.s[20] ^ d0) >> 64 - 41;
+            b4 = (self.u.s[21] ^ d1) << 2 | (self.u.s[21] ^ d1) >> 64 - 2;
+            b0 = (self.u.s[22] ^ d2) << 62 | (self.u.s[22] ^ d2) >> 64 - 62;
+            b1 = (self.u.s[23] ^ d3) << 55 | (self.u.s[23] ^ d3) >> 64 - 55;
+            b2 = (self.u.s[24] ^ d4) << 39 | (self.u.s[24] ^ d4) >> 64 - 39;
+            self.u.s[20] = b0 ^ !b1 & b2;
+            self.u.s[21] = b1 ^ !b2 & b3;
+            self.u.s[22] = b2 ^ !b3 & b4;
+            self.u.s[23] = b3 ^ !b4 & b0;
+            self.u.s[24] = b4 ^ !b0 & b1;
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub union C2RustUnnamed_15 {
@@ -1082,11 +1441,11 @@ impl EQPGraph {
 pub struct ColModeOpts {
     pub iWrap: i32,
     pub bQuote: u8,
-    pub bWordWrap: u8,
+    pub bWordWrap: bool,
 }
 
 impl ColModeOpts {
-    pub fn new(iWrap: i32, bQuote: u8, bWordWrap: u8) -> Self {
+    pub fn new(iWrap: i32, bQuote: u8, bWordWrap: bool) -> Self {
         Self { iWrap, bQuote, bWordWrap }
     }
 }
@@ -1194,7 +1553,7 @@ impl Default for ShellState {
             eTraceType: 0,
             bSafeMode: 0,
             bSafeModePersist: 0,
-            cmOpts: ColModeOpts::new(0, 0, 0),
+            cmOpts: ColModeOpts::new(0, 0, false),
             statsOn: 0,
             mEqpLines: 0,
             inputNesting: 0,
@@ -1281,13 +1640,13 @@ pub struct C2RustUnnamed_20 {
     pub zLimitName: &'static str,
     pub limitCode: i32,
 }
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 #[repr(C)]
 pub struct ImportCtx {
-    pub zFile: *const i8,
+    pub zFile: String,
     pub in_0: *mut FILE,
     pub xCloser: Option<unsafe extern "C" fn(*mut FILE) -> i32>,
-    pub z: *mut i8,
+    pub z: String,
     pub n: i32,
     pub nAlloc: i32,
     pub nLine: i32,
@@ -1298,6 +1657,27 @@ pub struct ImportCtx {
     pub cColSep: i32,
     pub cRowSep: i32,
 }
+
+impl ImportCtx {
+    pub fn new() -> Self {
+        ImportCtx {
+            zFile: String::new(),
+            in_0: 0 as *mut FILE,
+            xCloser: None,
+            z: String::new(),
+            n: 0,
+            nAlloc: 0,
+            nLine: 0,
+            nRow: 0,
+            nErr: 0,
+            bNotFirst: 0,
+            cTerm: 0,
+            cColSep: 0,
+            cRowSep: 0,
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 pub struct C2RustUnnamed_21 {
@@ -1434,8 +1814,7 @@ fn shell_check_oom(p: *const libc::c_void) {
 ** since with %*.*s the width is measured in bytes, not characters.
 */
 fn utf8_width_print(w: i32, zUtf: &str) {
-    let aw: i32 = if w < 0 { -w } else { w };
-
+    let aw: i32 = w.abs();
     let len = w.abs() as usize;
     let s: String = zUtf.chars().take(len).collect();
 
@@ -1725,357 +2104,8 @@ unsafe extern "C" fn shellAddSchemaName(mut pCtx: *mut sqlite3_context, mut nVal
     }
     sqlite3_result_value(pCtx, *apVal.offset(0));
 }
-unsafe extern "C" fn KeccakF1600Step(mut p: *mut SHA3Context) {
-    let mut i: i32 = 0;
-    let mut b0: u64 = 0;
-    let mut b1: u64 = 0;
-    let mut b2: u64 = 0;
-    let mut b3: u64 = 0;
-    let mut b4: u64 = 0;
-    let mut c0: u64 = 0;
-    let mut c1: u64 = 0;
-    let mut c2: u64 = 0;
-    let mut c3: u64 = 0;
-    let mut c4: u64 = 0;
-    let mut d0: u64 = 0;
-    let mut d1: u64 = 0;
-    let mut d2: u64 = 0;
-    let mut d3: u64 = 0;
-    let mut d4: u64 = 0;
-    const RC: [u64; 24] = [
-        0x1 as u64,
-        0x8082 as u64,
-        0x800000000000808a as u64,
-        0x8000000080008000 as u64,
-        0x808b as u64,
-        0x80000001 as u64,
-        0x8000000080008081 as u64,
-        0x8000000000008009 as u64,
-        0x8a as u64,
-        0x88 as u64,
-        0x80008009 as u64,
-        0x8000000a as u64,
-        0x8000808b as u64,
-        0x800000000000008b as u64,
-        0x8000000000008089 as u64,
-        0x8000000000008003 as u64,
-        0x8000000000008002 as u64,
-        0x8000000000000080 as u64,
-        0x800a as u64,
-        0x800000008000000a as u64,
-        0x8000000080008081 as u64,
-        0x8000000000008080 as u64,
-        0x80000001 as u64,
-        0x8000000080008008 as u64,
-    ];
-    for i in (0..24).step_by(4) {
-        c0 = (*p).u.s[0] ^ (*p).u.s[5] ^ (*p).u.s[10] ^ (*p).u.s[15] ^ (*p).u.s[20];
-        c1 = (*p).u.s[1] ^ (*p).u.s[6] ^ (*p).u.s[11] ^ (*p).u.s[16] ^ (*p).u.s[21];
-        c2 = (*p).u.s[2] ^ (*p).u.s[7] ^ (*p).u.s[12] ^ (*p).u.s[17] ^ (*p).u.s[22];
-        c3 = (*p).u.s[3] ^ (*p).u.s[8] ^ (*p).u.s[13] ^ (*p).u.s[18] ^ (*p).u.s[23];
-        c4 = (*p).u.s[4] ^ (*p).u.s[9] ^ (*p).u.s[14] ^ (*p).u.s[19] ^ (*p).u.s[24];
-        d0 = c4 ^ (c1 << 1 | c1 >> 64 as i32 - 1);
-        d1 = c0 ^ (c2 << 1 | c2 >> 64 as i32 - 1);
-        d2 = c1 ^ (c3 << 1 | c3 >> 64 as i32 - 1);
-        d3 = c2 ^ (c4 << 1 | c4 >> 64 as i32 - 1);
-        d4 = c3 ^ (c0 << 1 | c0 >> 64 as i32 - 1);
-        b0 = (*p).u.s[0] ^ d0;
-        b1 = ((*p).u.s[6] ^ d1) << 44 as i32 | ((*p).u.s[6] ^ d1) >> 64 as i32 - 44 as i32;
-        b2 = ((*p).u.s[12] ^ d2) << 43 | ((*p).u.s[12] ^ d2) >> 64 as i32 - 43;
-        b3 = ((*p).u.s[18] ^ d3) << 21 | ((*p).u.s[18] ^ d3) >> 64 as i32 - 21;
-        b4 = ((*p).u.s[24] ^ d4) << 14 as i32 | ((*p).u.s[24] ^ d4) >> 64 as i32 - 14 as i32;
-        (*p).u.s[0] = b0 ^ !b1 & b2;
-        (*p).u.s[0] ^= RC[i as usize];
-        (*p).u.s[6] = b1 ^ !b2 & b3;
-        (*p).u.s[12] = b2 ^ !b3 & b4;
-        (*p).u.s[18] = b3 ^ !b4 & b0;
-        (*p).u.s[24] = b4 ^ !b0 & b1;
-        b2 = ((*p).u.s[10] ^ d0) << 3 | ((*p).u.s[10] ^ d0) >> 64 as i32 - 3;
-        b3 = ((*p).u.s[16] ^ d1) << 45 | ((*p).u.s[16] ^ d1) >> 64 as i32 - 45;
-        b4 = ((*p).u.s[22] ^ d2) << 61 | ((*p).u.s[22] ^ d2) >> 64 as i32 - 61;
-        b0 = ((*p).u.s[3] ^ d3) << 28 | ((*p).u.s[3] ^ d3) >> 64 as i32 - 28;
-        b1 = ((*p).u.s[9] ^ d4) << 20 | ((*p).u.s[9] ^ d4) >> 64 as i32 - 20;
-        (*p).u.s[10] = b0 ^ !b1 & b2;
-        (*p).u.s[16] = b1 ^ !b2 & b3;
-        (*p).u.s[22] = b2 ^ !b3 & b4;
-        (*p).u.s[3] = b3 ^ !b4 & b0;
-        (*p).u.s[9] = b4 ^ !b0 & b1;
-        b4 = ((*p).u.s[20] ^ d0) << 18 | ((*p).u.s[20] ^ d0) >> 64 as i32 - 18;
-        b0 = ((*p).u.s[1] ^ d1) << 1 | ((*p).u.s[1] ^ d1) >> 64 as i32 - 1;
-        b1 = ((*p).u.s[7] ^ d2) << 6 | ((*p).u.s[7] ^ d2) >> 64 as i32 - 6;
-        b2 = ((*p).u.s[13] ^ d3) << 25 | ((*p).u.s[13] ^ d3) >> 64 as i32 - 25;
-        b3 = ((*p).u.s[19] ^ d4) << 8 | ((*p).u.s[19] ^ d4) >> 64 as i32 - 8;
-        (*p).u.s[20] = b0 ^ !b1 & b2;
-        (*p).u.s[1] = b1 ^ !b2 & b3;
-        (*p).u.s[7] = b2 ^ !b3 & b4;
-        (*p).u.s[13] = b3 ^ !b4 & b0;
-        (*p).u.s[19] = b4 ^ !b0 & b1;
-        b1 = ((*p).u.s[5] ^ d0) << 36 | ((*p).u.s[5] ^ d0) >> 64 as i32 - 36;
-        b2 = ((*p).u.s[11] ^ d1) << 10 | ((*p).u.s[11] ^ d1) >> 64 as i32 - 10;
-        b3 = ((*p).u.s[17] ^ d2) << 15 | ((*p).u.s[17] ^ d2) >> 64 as i32 - 15;
-        b4 = ((*p).u.s[23] ^ d3) << 56 | ((*p).u.s[23] ^ d3) >> 64 as i32 - 56;
-        b0 = ((*p).u.s[4] ^ d4) << 27 as i32 | ((*p).u.s[4] ^ d4) >> 64 as i32 - 27 as i32;
-        (*p).u.s[5] = b0 ^ !b1 & b2;
-        (*p).u.s[11] = b1 ^ !b2 & b3;
-        (*p).u.s[17] = b2 ^ !b3 & b4;
-        (*p).u.s[23] = b3 ^ !b4 & b0;
-        (*p).u.s[4] = b4 ^ !b0 & b1;
-        b3 = ((*p).u.s[15] ^ d0) << 41 | ((*p).u.s[15] ^ d0) >> 64 as i32 - 41;
-        b4 = ((*p).u.s[21] ^ d1) << 2 | ((*p).u.s[21] ^ d1) >> 64 as i32 - 2;
-        b0 = ((*p).u.s[2] ^ d2) << 62 | ((*p).u.s[2] ^ d2) >> 64 as i32 - 62;
-        b1 = ((*p).u.s[8] ^ d3) << 55 | ((*p).u.s[8] ^ d3) >> 64 as i32 - 55;
-        b2 = ((*p).u.s[14] ^ d4) << 39 | ((*p).u.s[14] ^ d4) >> 64 as i32 - 39;
-        (*p).u.s[15] = b0 ^ !b1 & b2;
-        (*p).u.s[21] = b1 ^ !b2 & b3;
-        (*p).u.s[2] = b2 ^ !b3 & b4;
-        (*p).u.s[8] = b3 ^ !b4 & b0;
-        (*p).u.s[14] = b4 ^ !b0 & b1;
-        c0 = (*p).u.s[0] ^ (*p).u.s[10] ^ (*p).u.s[20] ^ (*p).u.s[5] ^ (*p).u.s[15];
-        c1 = (*p).u.s[6] ^ (*p).u.s[16] ^ (*p).u.s[1] ^ (*p).u.s[11] ^ (*p).u.s[21];
-        c2 = (*p).u.s[12] ^ (*p).u.s[22] ^ (*p).u.s[7] ^ (*p).u.s[17] ^ (*p).u.s[2];
-        c3 = (*p).u.s[18] ^ (*p).u.s[3] ^ (*p).u.s[13] ^ (*p).u.s[23] ^ (*p).u.s[8];
-        c4 = (*p).u.s[24] ^ (*p).u.s[9] ^ (*p).u.s[19] ^ (*p).u.s[4] ^ (*p).u.s[14];
-        d0 = c4 ^ (c1 << 1 | c1 >> 64 as i32 - 1);
-        d1 = c0 ^ (c2 << 1 | c2 >> 64 as i32 - 1);
-        d2 = c1 ^ (c3 << 1 | c3 >> 64 as i32 - 1);
-        d3 = c2 ^ (c4 << 1 | c4 >> 64 as i32 - 1);
-        d4 = c3 ^ (c0 << 1 | c0 >> 64 as i32 - 1);
-        b0 = (*p).u.s[0] ^ d0;
-        b1 = ((*p).u.s[16] ^ d1) << 44 as i32 | ((*p).u.s[16] ^ d1) >> 64 as i32 - 44 as i32;
-        b2 = ((*p).u.s[7] ^ d2) << 43 | ((*p).u.s[7] ^ d2) >> 64 as i32 - 43;
-        b3 = ((*p).u.s[23] ^ d3) << 21 | ((*p).u.s[23] ^ d3) >> 64 as i32 - 21;
-        b4 = ((*p).u.s[14] ^ d4) << 14 as i32 | ((*p).u.s[14] ^ d4) >> 64 as i32 - 14 as i32;
-        (*p).u.s[0] = b0 ^ !b1 & b2;
-        (*p).u.s[0] ^= RC[(i + 1) as usize];
-        (*p).u.s[16] = b1 ^ !b2 & b3;
-        (*p).u.s[7] = b2 ^ !b3 & b4;
-        (*p).u.s[23] = b3 ^ !b4 & b0;
-        (*p).u.s[14] = b4 ^ !b0 & b1;
-        b2 = ((*p).u.s[20] ^ d0) << 3 | ((*p).u.s[20] ^ d0) >> 64 as i32 - 3;
-        b3 = ((*p).u.s[11] ^ d1) << 45 | ((*p).u.s[11] ^ d1) >> 64 as i32 - 45;
-        b4 = ((*p).u.s[2] ^ d2) << 61 | ((*p).u.s[2] ^ d2) >> 64 as i32 - 61;
-        b0 = ((*p).u.s[18] ^ d3) << 28 | ((*p).u.s[18] ^ d3) >> 64 as i32 - 28;
-        b1 = ((*p).u.s[9] ^ d4) << 20 | ((*p).u.s[9] ^ d4) >> 64 as i32 - 20;
-        (*p).u.s[20] = b0 ^ !b1 & b2;
-        (*p).u.s[11] = b1 ^ !b2 & b3;
-        (*p).u.s[2] = b2 ^ !b3 & b4;
-        (*p).u.s[18] = b3 ^ !b4 & b0;
-        (*p).u.s[9] = b4 ^ !b0 & b1;
-        b4 = ((*p).u.s[15] ^ d0) << 18 | ((*p).u.s[15] ^ d0) >> 64 as i32 - 18;
-        b0 = ((*p).u.s[6] ^ d1) << 1 | ((*p).u.s[6] ^ d1) >> 64 as i32 - 1;
-        b1 = ((*p).u.s[22] ^ d2) << 6 | ((*p).u.s[22] ^ d2) >> 64 as i32 - 6;
-        b2 = ((*p).u.s[13] ^ d3) << 25 | ((*p).u.s[13] ^ d3) >> 64 as i32 - 25;
-        b3 = ((*p).u.s[4] ^ d4) << 8 | ((*p).u.s[4] ^ d4) >> 64 as i32 - 8;
-        (*p).u.s[15] = b0 ^ !b1 & b2;
-        (*p).u.s[6] = b1 ^ !b2 & b3;
-        (*p).u.s[22] = b2 ^ !b3 & b4;
-        (*p).u.s[13] = b3 ^ !b4 & b0;
-        (*p).u.s[4] = b4 ^ !b0 & b1;
-        b1 = ((*p).u.s[10] ^ d0) << 36 | ((*p).u.s[10] ^ d0) >> 64 as i32 - 36;
-        b2 = ((*p).u.s[1] ^ d1) << 10 | ((*p).u.s[1] ^ d1) >> 64 as i32 - 10;
-        b3 = ((*p).u.s[17] ^ d2) << 15 | ((*p).u.s[17] ^ d2) >> 64 as i32 - 15;
-        b4 = ((*p).u.s[8] ^ d3) << 56 | ((*p).u.s[8] ^ d3) >> 64 as i32 - 56;
-        b0 = ((*p).u.s[24] ^ d4) << 27 as i32 | ((*p).u.s[24] ^ d4) >> 64 as i32 - 27 as i32;
-        (*p).u.s[10] = b0 ^ !b1 & b2;
-        (*p).u.s[1] = b1 ^ !b2 & b3;
-        (*p).u.s[17] = b2 ^ !b3 & b4;
-        (*p).u.s[8] = b3 ^ !b4 & b0;
-        (*p).u.s[24] = b4 ^ !b0 & b1;
-        b3 = ((*p).u.s[5] ^ d0) << 41 | ((*p).u.s[5] ^ d0) >> 64 as i32 - 41;
-        b4 = ((*p).u.s[21] ^ d1) << 2 | ((*p).u.s[21] ^ d1) >> 64 as i32 - 2;
-        b0 = ((*p).u.s[12] ^ d2) << 62 | ((*p).u.s[12] ^ d2) >> 64 as i32 - 62;
-        b1 = ((*p).u.s[3] ^ d3) << 55 | ((*p).u.s[3] ^ d3) >> 64 as i32 - 55;
-        b2 = ((*p).u.s[19] ^ d4) << 39 | ((*p).u.s[19] ^ d4) >> 64 as i32 - 39;
-        (*p).u.s[5] = b0 ^ !b1 & b2;
-        (*p).u.s[21] = b1 ^ !b2 & b3;
-        (*p).u.s[12] = b2 ^ !b3 & b4;
-        (*p).u.s[3] = b3 ^ !b4 & b0;
-        (*p).u.s[19] = b4 ^ !b0 & b1;
-        c0 = (*p).u.s[0] ^ (*p).u.s[20] ^ (*p).u.s[15] ^ (*p).u.s[10] ^ (*p).u.s[5];
-        c1 = (*p).u.s[16] ^ (*p).u.s[11] ^ (*p).u.s[6] ^ (*p).u.s[1] ^ (*p).u.s[21];
-        c2 = (*p).u.s[7] ^ (*p).u.s[2] ^ (*p).u.s[22] ^ (*p).u.s[17] ^ (*p).u.s[12];
-        c3 = (*p).u.s[23] ^ (*p).u.s[18] ^ (*p).u.s[13] ^ (*p).u.s[8] ^ (*p).u.s[3];
-        c4 = (*p).u.s[14] ^ (*p).u.s[9] ^ (*p).u.s[4] ^ (*p).u.s[24] ^ (*p).u.s[19];
-        d0 = c4 ^ (c1 << 1 | c1 >> 64 as i32 - 1);
-        d1 = c0 ^ (c2 << 1 | c2 >> 64 as i32 - 1);
-        d2 = c1 ^ (c3 << 1 | c3 >> 64 as i32 - 1);
-        d3 = c2 ^ (c4 << 1 | c4 >> 64 as i32 - 1);
-        d4 = c3 ^ (c0 << 1 | c0 >> 64 as i32 - 1);
-        b0 = (*p).u.s[0] ^ d0;
-        b1 = ((*p).u.s[11] ^ d1) << 44 as i32 | ((*p).u.s[11] ^ d1) >> 64 as i32 - 44 as i32;
-        b2 = ((*p).u.s[22] ^ d2) << 43 | ((*p).u.s[22] ^ d2) >> 64 as i32 - 43;
-        b3 = ((*p).u.s[8] ^ d3) << 21 | ((*p).u.s[8] ^ d3) >> 64 as i32 - 21;
-        b4 = ((*p).u.s[19] ^ d4) << 14 as i32 | ((*p).u.s[19] ^ d4) >> 64 as i32 - 14 as i32;
-        (*p).u.s[0] = b0 ^ !b1 & b2;
-        (*p).u.s[0] ^= RC[(i + 2) as usize];
-        (*p).u.s[11] = b1 ^ !b2 & b3;
-        (*p).u.s[22] = b2 ^ !b3 & b4;
-        (*p).u.s[8] = b3 ^ !b4 & b0;
-        (*p).u.s[19] = b4 ^ !b0 & b1;
-        b2 = ((*p).u.s[15] ^ d0) << 3 | ((*p).u.s[15] ^ d0) >> 64 as i32 - 3;
-        b3 = ((*p).u.s[1] ^ d1) << 45 | ((*p).u.s[1] ^ d1) >> 64 as i32 - 45;
-        b4 = ((*p).u.s[12] ^ d2) << 61 | ((*p).u.s[12] ^ d2) >> 64 as i32 - 61;
-        b0 = ((*p).u.s[23] ^ d3) << 28 | ((*p).u.s[23] ^ d3) >> 64 as i32 - 28;
-        b1 = ((*p).u.s[9] ^ d4) << 20 | ((*p).u.s[9] ^ d4) >> 64 as i32 - 20;
-        (*p).u.s[15] = b0 ^ !b1 & b2;
-        (*p).u.s[1] = b1 ^ !b2 & b3;
-        (*p).u.s[12] = b2 ^ !b3 & b4;
-        (*p).u.s[23] = b3 ^ !b4 & b0;
-        (*p).u.s[9] = b4 ^ !b0 & b1;
-        b4 = ((*p).u.s[5] ^ d0) << 18 | ((*p).u.s[5] ^ d0) >> 64 as i32 - 18;
-        b0 = ((*p).u.s[16] ^ d1) << 1 | ((*p).u.s[16] ^ d1) >> 64 as i32 - 1;
-        b1 = ((*p).u.s[2] ^ d2) << 6 | ((*p).u.s[2] ^ d2) >> 64 as i32 - 6;
-        b2 = ((*p).u.s[13] ^ d3) << 25 | ((*p).u.s[13] ^ d3) >> 64 as i32 - 25;
-        b3 = ((*p).u.s[24] ^ d4) << 8 | ((*p).u.s[24] ^ d4) >> 64 as i32 - 8;
-        (*p).u.s[5] = b0 ^ !b1 & b2;
-        (*p).u.s[16] = b1 ^ !b2 & b3;
-        (*p).u.s[2] = b2 ^ !b3 & b4;
-        (*p).u.s[13] = b3 ^ !b4 & b0;
-        (*p).u.s[24] = b4 ^ !b0 & b1;
-        b1 = ((*p).u.s[20] ^ d0) << 36 | ((*p).u.s[20] ^ d0) >> 64 as i32 - 36;
-        b2 = ((*p).u.s[6] ^ d1) << 10 | ((*p).u.s[6] ^ d1) >> 64 as i32 - 10;
-        b3 = ((*p).u.s[17] ^ d2) << 15 | ((*p).u.s[17] ^ d2) >> 64 as i32 - 15;
-        b4 = ((*p).u.s[3] ^ d3) << 56 | ((*p).u.s[3] ^ d3) >> 64 as i32 - 56;
-        b0 = ((*p).u.s[14] ^ d4) << 27 as i32 | ((*p).u.s[14] ^ d4) >> 64 as i32 - 27 as i32;
-        (*p).u.s[20] = b0 ^ !b1 & b2;
-        (*p).u.s[6] = b1 ^ !b2 & b3;
-        (*p).u.s[17] = b2 ^ !b3 & b4;
-        (*p).u.s[3] = b3 ^ !b4 & b0;
-        (*p).u.s[14] = b4 ^ !b0 & b1;
-        b3 = ((*p).u.s[10] ^ d0) << 41 | ((*p).u.s[10] ^ d0) >> 64 as i32 - 41;
-        b4 = ((*p).u.s[21] ^ d1) << 2 | ((*p).u.s[21] ^ d1) >> 64 as i32 - 2;
-        b0 = ((*p).u.s[7] ^ d2) << 62 | ((*p).u.s[7] ^ d2) >> 64 as i32 - 62;
-        b1 = ((*p).u.s[18] ^ d3) << 55 | ((*p).u.s[18] ^ d3) >> 64 as i32 - 55;
-        b2 = ((*p).u.s[4] ^ d4) << 39 | ((*p).u.s[4] ^ d4) >> 64 as i32 - 39;
-        (*p).u.s[10] = b0 ^ !b1 & b2;
-        (*p).u.s[21] = b1 ^ !b2 & b3;
-        (*p).u.s[7] = b2 ^ !b3 & b4;
-        (*p).u.s[18] = b3 ^ !b4 & b0;
-        (*p).u.s[4] = b4 ^ !b0 & b1;
-        c0 = (*p).u.s[0] ^ (*p).u.s[15] ^ (*p).u.s[5] ^ (*p).u.s[20] ^ (*p).u.s[10];
-        c1 = (*p).u.s[11] ^ (*p).u.s[1] ^ (*p).u.s[16] ^ (*p).u.s[6] ^ (*p).u.s[21];
-        c2 = (*p).u.s[22] ^ (*p).u.s[12] ^ (*p).u.s[2] ^ (*p).u.s[17] ^ (*p).u.s[7];
-        c3 = (*p).u.s[8] ^ (*p).u.s[23] ^ (*p).u.s[13] ^ (*p).u.s[3] ^ (*p).u.s[18];
-        c4 = (*p).u.s[19] ^ (*p).u.s[9] ^ (*p).u.s[24] ^ (*p).u.s[14] ^ (*p).u.s[4];
-        d0 = c4 ^ (c1 << 1 | c1 >> 64 as i32 - 1);
-        d1 = c0 ^ (c2 << 1 | c2 >> 64 as i32 - 1);
-        d2 = c1 ^ (c3 << 1 | c3 >> 64 as i32 - 1);
-        d3 = c2 ^ (c4 << 1 | c4 >> 64 as i32 - 1);
-        d4 = c3 ^ (c0 << 1 | c0 >> 64 as i32 - 1);
-        b0 = (*p).u.s[0] ^ d0;
-        b1 = ((*p).u.s[1] ^ d1) << 44 as i32 | ((*p).u.s[1] ^ d1) >> 64 as i32 - 44 as i32;
-        b2 = ((*p).u.s[2] ^ d2) << 43 | ((*p).u.s[2] ^ d2) >> 64 as i32 - 43;
-        b3 = ((*p).u.s[3] ^ d3) << 21 | ((*p).u.s[3] ^ d3) >> 64 as i32 - 21;
-        b4 = ((*p).u.s[4] ^ d4) << 14 as i32 | ((*p).u.s[4] ^ d4) >> 64 as i32 - 14 as i32;
-        (*p).u.s[0] = b0 ^ !b1 & b2;
-        (*p).u.s[0] ^= RC[(i + 3) as usize];
-        (*p).u.s[1] = b1 ^ !b2 & b3;
-        (*p).u.s[2] = b2 ^ !b3 & b4;
-        (*p).u.s[3] = b3 ^ !b4 & b0;
-        (*p).u.s[4] = b4 ^ !b0 & b1;
-        b2 = ((*p).u.s[5] ^ d0) << 3 | ((*p).u.s[5] ^ d0) >> 64 as i32 - 3;
-        b3 = ((*p).u.s[6] ^ d1) << 45 | ((*p).u.s[6] ^ d1) >> 64 as i32 - 45;
-        b4 = ((*p).u.s[7] ^ d2) << 61 | ((*p).u.s[7] ^ d2) >> 64 as i32 - 61;
-        b0 = ((*p).u.s[8] ^ d3) << 28 | ((*p).u.s[8] ^ d3) >> 64 as i32 - 28;
-        b1 = ((*p).u.s[9] ^ d4) << 20 | ((*p).u.s[9] ^ d4) >> 64 as i32 - 20;
-        (*p).u.s[5] = b0 ^ !b1 & b2;
-        (*p).u.s[6] = b1 ^ !b2 & b3;
-        (*p).u.s[7] = b2 ^ !b3 & b4;
-        (*p).u.s[8] = b3 ^ !b4 & b0;
-        (*p).u.s[9] = b4 ^ !b0 & b1;
-        b4 = ((*p).u.s[10] ^ d0) << 18 | ((*p).u.s[10] ^ d0) >> 64 as i32 - 18;
-        b0 = ((*p).u.s[11] ^ d1) << 1 | ((*p).u.s[11] ^ d1) >> 64 as i32 - 1;
-        b1 = ((*p).u.s[12] ^ d2) << 6 | ((*p).u.s[12] ^ d2) >> 64 as i32 - 6;
-        b2 = ((*p).u.s[13] ^ d3) << 25 | ((*p).u.s[13] ^ d3) >> 64 as i32 - 25;
-        b3 = ((*p).u.s[14] ^ d4) << 8 | ((*p).u.s[14] ^ d4) >> 64 as i32 - 8;
-        (*p).u.s[10] = b0 ^ !b1 & b2;
-        (*p).u.s[11] = b1 ^ !b2 & b3;
-        (*p).u.s[12] = b2 ^ !b3 & b4;
-        (*p).u.s[13] = b3 ^ !b4 & b0;
-        (*p).u.s[14] = b4 ^ !b0 & b1;
-        b1 = ((*p).u.s[15] ^ d0) << 36 | ((*p).u.s[15] ^ d0) >> 64 as i32 - 36;
-        b2 = ((*p).u.s[16] ^ d1) << 10 | ((*p).u.s[16] ^ d1) >> 64 as i32 - 10;
-        b3 = ((*p).u.s[17] ^ d2) << 15 | ((*p).u.s[17] ^ d2) >> 64 as i32 - 15;
-        b4 = ((*p).u.s[18] ^ d3) << 56 | ((*p).u.s[18] ^ d3) >> 64 as i32 - 56;
-        b0 = ((*p).u.s[19] ^ d4) << 27 as i32 | ((*p).u.s[19] ^ d4) >> 64 as i32 - 27 as i32;
-        (*p).u.s[15] = b0 ^ !b1 & b2;
-        (*p).u.s[16] = b1 ^ !b2 & b3;
-        (*p).u.s[17] = b2 ^ !b3 & b4;
-        (*p).u.s[18] = b3 ^ !b4 & b0;
-        (*p).u.s[19] = b4 ^ !b0 & b1;
-        b3 = ((*p).u.s[20] ^ d0) << 41 | ((*p).u.s[20] ^ d0) >> 64 as i32 - 41;
-        b4 = ((*p).u.s[21] ^ d1) << 2 | ((*p).u.s[21] ^ d1) >> 64 as i32 - 2;
-        b0 = ((*p).u.s[22] ^ d2) << 62 | ((*p).u.s[22] ^ d2) >> 64 as i32 - 62;
-        b1 = ((*p).u.s[23] ^ d3) << 55 | ((*p).u.s[23] ^ d3) >> 64 as i32 - 55;
-        b2 = ((*p).u.s[24] ^ d4) << 39 | ((*p).u.s[24] ^ d4) >> 64 as i32 - 39;
-        (*p).u.s[20] = b0 ^ !b1 & b2;
-        (*p).u.s[21] = b1 ^ !b2 & b3;
-        (*p).u.s[22] = b2 ^ !b3 & b4;
-        (*p).u.s[23] = b3 ^ !b4 & b0;
-        (*p).u.s[24] = b4 ^ !b0 & b1;
-    }
-}
-unsafe extern "C" fn SHA3Init(mut p: *mut SHA3Context, mut iSize: i32) {
-    memset(p as *mut libc::c_void, 0, ::std::mem::size_of::<SHA3Context>() as u64);
-    if iSize >= 128 && iSize <= 512 {
-        (*p).nRate = ((1600 - (iSize + 31 & !(31)) * 2) / 8) as u32;
-    } else {
-        (*p).nRate = ((1600 - 2 * 256) / 8) as u32;
-    };
-}
-unsafe extern "C" fn SHA3Update(p: *mut SHA3Context, aData: *const u8, nData: u32) {
-    let mut i: u32 = 0;
-    if aData.is_null() {
-        return;
-    }
-    if ((*p).nLoaded).wrapping_rem(8) == 0
-        && aData.offset_from(0 as *const u8) as libc::c_long & 7 as i32 as libc::c_long == 0 as libc::c_long
-    {
-        while i + 7 < nData {
-            (*p).u.s[(((*p).nLoaded) / 8) as usize] ^= *(&*aData.offset(i as isize) as *const u8 as *mut u64);
-            (*p).nLoaded += 8;
-            if (*p).nLoaded >= (*p).nRate {
-                KeccakF1600Step(p);
-                (*p).nLoaded = 0;
-            }
-            i += 8;
-        }
-    }
 
-    while i < nData {
-        (*p).u.x[(*p).nLoaded as usize] = ((*p).u.x[(*p).nLoaded as usize] as i32 ^ *aData.offset(i as isize) as i32) as u8;
-        (*p).nLoaded += 1;
-        if (*p).nLoaded == (*p).nRate {
-            KeccakF1600Step(p);
-            (*p).nLoaded = 0;
-        }
-        i += 1;
-    }
-}
-
-unsafe extern "C" fn SHA3Final(mut p: *mut SHA3Context) -> *mut u8 {
-    if (*p).nLoaded == ((*p).nRate).wrapping_sub(1) {
-        let c1: u8 = 0x86 as u8;
-        SHA3Update(p, &c1, 1);
-    } else {
-        let c2: u8 = 0x6 as u8;
-        let c3: u8 = 0x80 as u8;
-        SHA3Update(p, &c2, 1);
-        (*p).nLoaded = ((*p).nRate).wrapping_sub(1);
-        SHA3Update(p, &c3, 1);
-    }
-    for i in 0..(*p).nRate as u32 {
-        (*p).u.x[(i + (*p).nRate) as usize] = (*p).u.x[(i ^ (*p).ixMask) as usize];
-    }
-    return &mut *((*p).u.x).as_mut_ptr().offset((*p).nRate as isize) as *mut u8;
-}
 unsafe extern "C" fn sha3Func(mut context: *mut sqlite3_context, mut argc: i32, mut argv: *mut *mut sqlite3_value) {
-    let mut cx: SHA3Context = SHA3Context {
-        u: C2RustUnnamed_15 { s: [0; 25] },
-        nRate: 0,
-        nLoaded: 0,
-        ixMask: 0,
-    };
     let mut eType: i32 = sqlite3_value_type(*argv.offset(0));
     let mut nByte: i32 = sqlite3_value_bytes(*argv.offset(0));
     let mut iSize: i32 = 0;
@@ -2095,54 +2125,34 @@ unsafe extern "C" fn sha3Func(mut context: *mut sqlite3_context, mut argc: i32, 
     if eType == 5 {
         return;
     }
-    SHA3Init(&mut cx, iSize);
+    let mut cx: SHA3Context = SHA3Context::new(iSize);
     if eType == 4 {
-        SHA3Update(&mut cx, sqlite3_value_blob(*argv.offset(0)) as *const u8, nByte as u32);
+        cx.update(sqlite3_value_blob(*argv.offset(0)) as *const u8, nByte as u32);
     } else {
-        SHA3Update(&mut cx, sqlite3_value_text(*argv.offset(0)), nByte as u32);
+        cx.update(sqlite3_value_text(*argv.offset(0)), nByte as u32);
     }
     sqlite3_result_blob(
         context,
-        SHA3Final(&mut cx) as *const libc::c_void,
+        cx.finalize() as *const libc::c_void,
         iSize / 8,
         ::std::mem::transmute::<libc::intptr_t, sqlite3_destructor_type>(-1 as libc::intptr_t),
     );
 }
-unsafe extern "C" fn hash_step_vformat(mut p: *mut SHA3Context, mut zFormat: *const i8, mut args: ...) {
-    let mut ap: ::std::ffi::VaListImpl;
-    let mut n: i32 = 0;
-    let mut zBuf: [i8; 50] = [0; 50];
-    ap = args.clone();
-    sqlite3_vsnprintf(
-        ::std::mem::size_of::<[i8; 50]>() as u64 as i32,
-        zBuf.as_mut_ptr(),
-        zFormat,
-        ap.as_va_list(),
-    );
-    n = strlen(zBuf.as_mut_ptr()) as i32;
-    SHA3Update(p, zBuf.as_mut_ptr() as *mut u8, n as u32);
-}
+
 unsafe extern "C" fn sha3QueryFunc(mut context: *mut sqlite3_context, mut argc: i32, mut argv: *mut *mut sqlite3_value) {
     let mut db: *mut sqlite3 = sqlite3_context_db_handle(context);
     let mut zSql: *const i8 = sqlite3_value_text(*argv.offset(0)) as *const i8;
     let mut pStmt: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
     let mut nCol: i32 = 0;
-    let mut i: i32 = 0;
     let mut rc: i32 = 0;
     let mut n: i32 = 0;
     let mut z: *const i8 = 0 as *const i8;
-    let mut cx: SHA3Context = SHA3Context {
-        u: C2RustUnnamed_15 { s: [0; 25] },
-        nRate: 0,
-        nLoaded: 0,
-        ixMask: 0,
-    };
     let mut iSize: i32 = 0;
     if argc == 1 {
         iSize = 256;
     } else {
         iSize = sqlite3_value_int(*argv.offset(1));
-        if iSize != 224 && iSize != 256 && iSize != 384 as i32 && iSize != 512 {
+        if iSize != 224 && iSize != 256 && iSize != 384 && iSize != 512 {
             sqlite3_result_error(
                 context,
                 b"SHA3 size should be one of: 224 256 384 512\0" as *const u8 as *const i8,
@@ -2154,7 +2164,7 @@ unsafe extern "C" fn sha3QueryFunc(mut context: *mut sqlite3_context, mut argc: 
     if zSql.is_null() {
         return;
     }
-    SHA3Init(&mut cx, iSize);
+    let mut cx: SHA3Context = SHA3Context::new(iSize);
     while *zSql.offset(0) != 0 {
         rc = sqlite3_prepare_v2(db, zSql, -1, &mut pStmt, &mut zSql);
         if rc != 0 {
@@ -2179,15 +2189,15 @@ unsafe extern "C" fn sha3QueryFunc(mut context: *mut sqlite3_context, mut argc: 
         z = sqlite3_sql(pStmt);
         if !z.is_null() {
             n = strlen(z) as i32;
-            hash_step_vformat(&mut cx as *mut SHA3Context, b"S%d:\0" as *const u8 as *const i8, n);
-            SHA3Update(&mut cx, z as *mut u8, n as u32);
+            cx.hash_step_vformat(format!("S{}:", n));
+            cx.update(z as *mut u8, n as u32);
         }
         while 100 == sqlite3_step(pStmt) {
-            SHA3Update(&mut cx, b"R\0" as *const u8 as *const i8 as *const u8, 1);
+            cx.update(b"R\0" as *const u8 as *const i8 as *const u8, 1);
             for i in 0..nCol {
                 match sqlite3_column_type(pStmt, i) {
                     5 => {
-                        SHA3Update(&mut cx, b"N\0" as *const u8 as *const i8 as *const u8, 1);
+                        cx.update(b"N\0" as *const u8 as *const i8 as *const u8, 1);
                     }
                     1 => {
                         let mut u: u64 = 0;
@@ -2206,7 +2216,7 @@ unsafe extern "C" fn sha3QueryFunc(mut context: *mut sqlite3_context, mut argc: 
                             j -= 1;
                         }
                         x[0] = 'I' as i32 as u8;
-                        SHA3Update(&mut cx, x.as_mut_ptr(), 9 as u32);
+                        cx.update(x.as_mut_ptr(), 9 as u32);
                     }
                     2 => {
                         let mut u_0: u64 = 0;
@@ -2225,19 +2235,19 @@ unsafe extern "C" fn sha3QueryFunc(mut context: *mut sqlite3_context, mut argc: 
                             j_0 -= 1;
                         }
                         x_0[0] = 'F' as i32 as u8;
-                        SHA3Update(&mut cx, x_0.as_mut_ptr(), 9 as u32);
+                        cx.update(x_0.as_mut_ptr(), 9 as u32);
                     }
                     3 => {
-                        let mut n2: i32 = sqlite3_column_bytes(pStmt, i);
-                        let mut z2: *const u8 = sqlite3_column_text(pStmt, i);
-                        hash_step_vformat(&mut cx as *mut SHA3Context, b"T%d:\0" as *const u8 as *const i8, n2);
-                        SHA3Update(&mut cx, z2, n2 as u32);
+                        let n2 = sqlite3_column_bytes(pStmt, i);
+                        let z2 = sqlite3_column_text(pStmt, i);
+                        cx.hash_step_vformat(format!("T{}:", n2));
+                        cx.update(z2, n2 as u32);
                     }
                     4 => {
-                        let mut n2_0: i32 = sqlite3_column_bytes(pStmt, i);
-                        let mut z2_0: *const u8 = sqlite3_column_blob(pStmt, i) as *const u8;
-                        hash_step_vformat(&mut cx as *mut SHA3Context, b"B%d:\0" as *const u8 as *const i8, n2_0);
-                        SHA3Update(&mut cx, z2_0, n2_0 as u32);
+                        let n2 = sqlite3_column_bytes(pStmt, i);
+                        let z2 = sqlite3_column_blob(pStmt, i) as *const u8;
+                        cx.hash_step_vformat(format!("B{}:", n2));
+                        cx.update(z2, n2 as u32);
                     }
                     _ => {}
                 }
@@ -2247,7 +2257,7 @@ unsafe extern "C" fn sha3QueryFunc(mut context: *mut sqlite3_context, mut argc: 
     }
     sqlite3_result_blob(
         context,
-        SHA3Final(&mut cx) as *const libc::c_void,
+        cx.finalize() as *const libc::c_void,
         iSize / 8,
         ::std::mem::transmute::<libc::intptr_t, sqlite3_destructor_type>(-1 as libc::intptr_t),
     );
@@ -2435,7 +2445,7 @@ unsafe extern "C" fn writeFile(
             }
         }
         fclose(out);
-        if rc == 0 && mode != 0 && chmod(zFile, mode & 0o777 as i32 as u32) != 0 {
+        if rc == 0 && mode != 0 && chmod(zFile, mode & 0o777 as u32) != 0 {
             rc = 1;
         }
         if rc != 0 {
@@ -2538,7 +2548,7 @@ unsafe extern "C" fn fsdirConnect(
     if rc == 0 {
         pNew = sqlite3_malloc(::std::mem::size_of::<fsdir_tab>() as u64 as i32) as *mut fsdir_tab;
         if pNew.is_null() {
-            return 7 as i32;
+            return 7;
         }
         memset(pNew as *mut libc::c_void, 0, ::std::mem::size_of::<fsdir_tab>() as u64);
         sqlite3_vtab_config(db, 3);
@@ -2554,7 +2564,7 @@ unsafe extern "C" fn fsdirOpen(mut p: *mut sqlite3_vtab, mut ppCursor: *mut *mut
     let mut pCur: *mut fsdir_cursor = 0 as *mut fsdir_cursor;
     pCur = sqlite3_malloc(::std::mem::size_of::<fsdir_cursor>() as u64 as i32) as *mut fsdir_cursor;
     if pCur.is_null() {
-        return 7 as i32;
+        return 7;
     }
     memset(pCur as *mut libc::c_void, 0, ::std::mem::size_of::<fsdir_cursor>() as u64);
     (*pCur).iLvl = -1;
@@ -2603,7 +2613,7 @@ unsafe extern "C" fn fsdirNext(mut cur: *mut sqlite3_vtab_cursor) -> i32 {
             let mut nByte: i64 = (nNew as u64).wrapping_mul(::std::mem::size_of::<FsdirLevel>() as u64) as i64;
             let mut aNew: *mut FsdirLevel = sqlite3_realloc64((*pCur).aLvl as *mut libc::c_void, nByte as u64) as *mut FsdirLevel;
             if aNew.is_null() {
-                return 7 as i32;
+                return 7;
             }
             memset(
                 &mut *aNew.offset((*pCur).nLvl as isize) as *mut FsdirLevel as *mut libc::c_void,
@@ -2642,7 +2652,7 @@ unsafe extern "C" fn fsdirNext(mut cur: *mut sqlite3_vtab_cursor) -> i32 {
                 ((*pEntry).d_name).as_mut_ptr(),
             );
             if ((*pCur).zPath).is_null() {
-                return 7 as i32;
+                return 7;
             }
             if fileLinkStat((*pCur).zPath, &mut (*pCur).sStat) != 0 {
                 fsdirSetErrmsg(pCur, b"cannot stat file: %s\0" as *const u8 as *const i8, (*pCur).zPath);
@@ -2685,7 +2695,7 @@ unsafe extern "C" fn fsdirColumn(mut cur: *mut sqlite3_vtab_cursor, mut ctx: *mu
             } else if m & 0o170000 == 0o120000 {
                 let mut aStatic: [i8; 64] = [0; 64];
                 let mut aBuf: *mut i8 = aStatic.as_mut_ptr();
-                let mut nBuf: i64 = 64 as i32 as i64;
+                let mut nBuf: i64 = 64 as i64;
                 let mut n: i32 = 0;
                 loop {
                     n = readlink((*pCur).zPath, aBuf, nBuf as size_t) as i32;
@@ -2699,7 +2709,7 @@ unsafe extern "C" fn fsdirColumn(mut cur: *mut sqlite3_vtab_cursor, mut ctx: *mu
                     aBuf = sqlite3_malloc64(nBuf as u64) as *mut i8;
                     if aBuf.is_null() {
                         sqlite3_result_error_nomem(ctx);
-                        return 7 as i32;
+                        return 7;
                     }
                 }
                 sqlite3_result_text(
@@ -2761,7 +2771,7 @@ unsafe extern "C" fn fsdirFilter(
         (*pCur).zPath = sqlite3_mprintf(b"%s\0" as *const u8 as *const i8, zDir);
     }
     if ((*pCur).zPath).is_null() {
-        return 7 as i32;
+        return 7;
     }
     if fileLinkStat((*pCur).zPath, &mut (*pCur).sStat) != 0 {
         fsdirSetErrmsg(pCur, b"cannot stat file: %s\0" as *const u8 as *const i8, (*pCur).zPath);
@@ -2922,7 +2932,7 @@ unsafe extern "C" fn completionConnect(
         pNew = sqlite3_malloc(::std::mem::size_of::<completion_vtab>() as u64 as i32) as *mut completion_vtab;
         *ppVtab = pNew as *mut sqlite3_vtab;
         if pNew.is_null() {
-            return 7 as i32;
+            return 7;
         }
         memset(pNew as *mut libc::c_void, 0, ::std::mem::size_of::<completion_vtab>() as u64);
         (*pNew).db = db;
@@ -2937,7 +2947,7 @@ unsafe extern "C" fn completionOpen(mut p: *mut sqlite3_vtab, mut ppCursor: *mut
     let mut pCur: *mut completion_cursor = 0 as *mut completion_cursor;
     pCur = sqlite3_malloc(::std::mem::size_of::<completion_cursor>() as u64 as i32) as *mut completion_cursor;
     if pCur.is_null() {
-        return 7 as i32;
+        return 7;
     }
     memset(pCur as *mut libc::c_void, 0, ::std::mem::size_of::<completion_cursor>() as u64);
     (*pCur).db = (*(p as *mut completion_vtab)).db;
@@ -2972,7 +2982,7 @@ unsafe extern "C" fn completionNext(mut cur: *mut sqlite3_vtab_cursor) -> i32 {
             1 => {
                 if (*pCur).j >= sqlite3_keyword_count() {
                     (*pCur).zCurrentRow = 0 as *const i8;
-                    (*pCur).ePhase = 7 as i32;
+                    (*pCur).ePhase = 7;
                 } else {
                     sqlite3_keyword_name((*pCur).j, &mut (*pCur).zCurrentRow, &mut (*pCur).szRow);
                     (*pCur).j += 1;
@@ -3013,7 +3023,7 @@ unsafe extern "C" fn completionNext(mut cur: *mut sqlite3_vtab_cursor) -> i32 {
                             zDb,
                         );
                         if zSql.is_null() {
-                            return 7 as i32;
+                            return 7;
                         }
                         zSep = b" UNION \0" as *const u8 as *const i8;
                     }
@@ -3047,7 +3057,7 @@ unsafe extern "C" fn completionNext(mut cur: *mut sqlite3_vtab_cursor) -> i32 {
                             zDb_0,
                         );
                         if zSql_0.is_null() {
-                            return 7 as i32;
+                            return 7;
                         }
                         zSep_0 = b" UNION \0" as *const u8 as *const i8;
                     }
@@ -3147,7 +3157,7 @@ unsafe extern "C" fn completionFilter(
         if (*pCur).nPrefix > 0 {
             (*pCur).zPrefix = sqlite3_mprintf(b"%s\0" as *const u8 as *const i8, sqlite3_value_text(*argv.offset(iArg as isize)));
             if ((*pCur).zPrefix).is_null() {
-                return 7 as i32;
+                return 7;
             }
         }
         iArg = 1;
@@ -3157,7 +3167,7 @@ unsafe extern "C" fn completionFilter(
         if (*pCur).nLine > 0 {
             (*pCur).zLine = sqlite3_mprintf(b"%s\0" as *const u8 as *const i8, sqlite3_value_text(*argv.offset(iArg as isize)));
             if ((*pCur).zLine).is_null() {
-                return 7 as i32;
+                return 7;
             }
         }
     }
@@ -3177,7 +3187,7 @@ unsafe extern "C" fn completionFilter(
                 ((*pCur).zLine).offset(i as isize),
             );
             if ((*pCur).zPrefix).is_null() {
-                return 7 as i32;
+                return 7;
             }
         }
     }
@@ -4603,7 +4613,7 @@ unsafe extern "C" fn ieee754func(mut context: *mut sqlite3_context, mut argc: i3
         }
         e_0 += 1075 as i64;
         if e_0 <= 0 {
-            if 1 as i64 - e_0 >= 64 as i32 as i64 {
+            if 1 as i64 - e_0 >= 64 as i64 {
                 m_0 = 0;
             } else {
                 m_0 >>= 1 as i64 - e_0;
@@ -4739,7 +4749,7 @@ unsafe extern "C" fn seriesConnect(
         *ppVtab = sqlite3_malloc(::std::mem::size_of::<sqlite3_vtab>() as u64 as i32) as *mut sqlite3_vtab;
         pNew = *ppVtab;
         if pNew.is_null() {
-            return 7 as i32;
+            return 7;
         }
         memset(pNew as *mut libc::c_void, 0, ::std::mem::size_of::<sqlite3_vtab>() as u64);
         sqlite3_vtab_config(db, 2);
@@ -4754,7 +4764,7 @@ unsafe extern "C" fn seriesOpen(mut pUnused: *mut sqlite3_vtab, mut ppCursor: *m
     let mut pCur: *mut series_cursor = 0 as *mut series_cursor;
     pCur = sqlite3_malloc(::std::mem::size_of::<series_cursor>() as u64 as i32) as *mut series_cursor;
     if pCur.is_null() {
-        return 7 as i32;
+        return 7;
     }
     memset(pCur as *mut libc::c_void, 0, ::std::mem::size_of::<series_cursor>() as u64);
     *ppCursor = &mut (*pCur).base;
@@ -4915,7 +4925,7 @@ unsafe extern "C" fn seriesBestIndex(mut pVTab: *mut sqlite3_vtab, mut pIdxInfo:
             (*pIdxInfo).orderByConsumed = 1;
         }
     } else {
-        (*pIdxInfo).estimatedRows = 2147483647 as i32 as i64;
+        (*pIdxInfo).estimatedRows = 2147483647 as i64;
     }
     (*pIdxInfo).idxNum = idxNum;
     return 0;
@@ -5010,7 +5020,7 @@ unsafe extern "C" fn re_next_char(mut p: *mut ReInput) -> u32 {
             && *((*p).z).offset(((*p).i + 1) as isize) as i32 & 0xc0 == 0x80
             && *((*p).z).offset(((*p).i + 2) as isize) as i32 & 0xc0 == 0x80
         {
-            c = (c & 0x7 as i32 as u32) << 18
+            c = (c & 0x7 as u32) << 18
                 | ((*((*p).z).offset((*p).i as isize) as i32 & 0x3f as i32) << 12) as u32
                 | ((*((*p).z).offset(((*p).i + 1) as isize) as i32 & 0x3f as i32) << 6) as u32
                 | (*((*p).z).offset(((*p).i + 2) as isize) as i32 & 0x3f as i32) as u32;
@@ -5508,7 +5518,7 @@ unsafe extern "C" fn re_subcompile_string(mut p: *mut ReCompiled) -> *const i8 {
                     re_append(p, 8, 0);
                     (*p).sIn.i += 1;
                 } else {
-                    re_append(p, 7 as i32, 0);
+                    re_append(p, 7, 0);
                 }
                 loop {
                     c = ((*p).xNextChar).expect("non-null function pointer")(&mut (*p).sIn);
@@ -5641,7 +5651,7 @@ unsafe extern "C" fn sqlite3re_compile(mut ppRe: *mut *mut ReCompiled, mut zIn: 
         i = 1;
         while j < ::std::mem::size_of::<[u8; 12]>() as u64 as i32 - 2 && *((*pRe).aOp).offset(i as isize) as i32 == 1 {
             let mut x: u32 = *((*pRe).aArg).offset(i as isize) as u32;
-            if x <= 127 as i32 as u32 {
+            if x <= 127 as u32 {
                 (*pRe).zInit[j as usize] = x as u8;
                 j += 1;
             } else if x <= 0xfff as i32 as u32 {
@@ -5748,7 +5758,7 @@ unsafe extern "C" fn idxMalloc(mut pRc: *mut i32, mut nByte: i32) -> *mut libc::
     if !pRet.is_null() {
         memset(pRet, 0, nByte as u64);
     } else {
-        *pRc = 7 as i32;
+        *pRc = 7;
     }
     return pRet;
 }
@@ -5813,15 +5823,14 @@ unsafe extern "C" fn idxHashAdd(mut pRc: *mut i32, mut pHash: *mut IdxHash, mut 
     }
     return 0;
 }
-unsafe extern "C" fn idxHashFind(mut pHash: *mut IdxHash, mut zKey: *const i8, mut nKey: i32) -> *mut IdxHashEntry {
-    let mut iHash: i32 = 0;
-    let mut pEntry: *mut IdxHashEntry = 0 as *mut IdxHashEntry;
+
+unsafe fn idxHashFind(mut pHash: *mut IdxHash, mut zKey: *const i8, mut nKey: i32) -> *mut IdxHashEntry {
     if nKey < 0 {
         nKey = strlen(zKey) as i32;
     }
-    iHash = idxHashString(zKey, nKey);
+    let iHash = idxHashString(zKey, nKey);
     assert!(iHash >= 0);
-    pEntry = (*pHash).aHash[iHash as usize];
+    let mut pEntry = (*pHash).aHash[iHash as usize];
     while !pEntry.is_null() {
         if strlen((*pEntry).zKey) as i32 == nKey
             && 0 == memcmp((*pEntry).zKey as *const libc::c_void, zKey as *const libc::c_void, nKey as u64)
@@ -5884,7 +5893,7 @@ unsafe extern "C" fn idxPrintfPrepareStmt(
     ap = args.clone();
     zSql = sqlite3_vmprintf(zFmt, ap.as_va_list());
     if zSql.is_null() {
-        rc = 7 as i32;
+        rc = 7;
     } else {
         rc = idxPrepareStmt(db, ppStmt, pzErrmsg, zSql);
         sqlite3_free(zSql as *mut libc::c_void);
@@ -5941,7 +5950,7 @@ unsafe extern "C" fn expertConnect(
             }
             sqlite3_free(zCreateTable as *mut libc::c_void);
         } else {
-            rc = 7 as i32;
+            rc = 7;
         }
     }
     *ppVtab = p as *mut sqlite3_vtab;
@@ -6279,7 +6288,7 @@ unsafe extern "C" fn idxAppendText(mut pRc: *mut i32, mut zIn: *mut i8, mut zFmt
         } else {
             sqlite3_free(zRet as *mut libc::c_void);
             zRet = std::ptr::null_mut();
-            *pRc = 7 as i32;
+            *pRc = 7;
         }
         sqlite3_free(zAppend as *mut libc::c_void);
         sqlite3_free(zIn as *mut libc::c_void);
@@ -6496,7 +6505,7 @@ unsafe extern "C" fn idxCreateFromCons(
             if collisions != 0 {
                 rc = 5 | (3) << 8;
             } else if zName.is_null() {
-                rc = 7 as i32;
+                rc = 7;
             } else {
                 if quoteTable != 0 {
                     zFmt = b"CREATE INDEX \"%w\" ON \"%w\"(%s)\0" as *const u8 as *const i8;
@@ -6505,7 +6514,7 @@ unsafe extern "C" fn idxCreateFromCons(
                 }
                 zIdx = sqlite3_mprintf(zFmt, zName, zTable, zCols);
                 if zIdx.is_null() {
-                    rc = 7 as i32;
+                    rc = 7;
                 } else {
                     rc = sqlite3_exec(dbm, zIdx, None, std::ptr::null_mut(), (*p).pzErrmsg);
                     if rc != 0 {
@@ -6779,7 +6788,7 @@ unsafe extern "C" fn idxProcessOneTrigger(mut p: *mut sqlite3expert, mut pWrite:
     if rc == 0 {
         let mut z: *mut i8 = sqlite3_mprintf(b"ALTER TABLE temp.%Q RENAME TO %Q\0" as *const u8 as *const i8, zTab, zInt);
         if z.is_null() {
-            rc = 7 as i32;
+            rc = 7;
         } else {
             rc = sqlite3_exec((*p).dbv, z, None, std::ptr::null_mut(), pzErr);
             sqlite3_free(z as *mut libc::c_void);
@@ -6828,7 +6837,7 @@ unsafe extern "C" fn idxProcessOneTrigger(mut p: *mut sqlite3expert, mut pWrite:
             if rc == 0 {
                 zWrite = sqlite3_mprintf(b"DELETE FROM %Q\0" as *const u8 as *const i8, zInt);
                 if zWrite.is_null() {
-                    rc = 7 as i32;
+                    rc = 7;
                 }
             }
         }
@@ -7116,7 +7125,7 @@ unsafe extern "C" fn idxPopulateOneStat1(
             let mut s0: i32 = *aStat.offset(0);
             zStat = sqlite3_mprintf(b"%d\0" as *const u8 as *const i8, s0);
             if zStat.is_null() {
-                rc = 7 as i32;
+                rc = 7;
             }
             for i in 1..=nCol {
                 if rc != 0 {
@@ -7167,7 +7176,7 @@ unsafe extern "C" fn idxBuildSampleTable(mut p: *mut sqlite3expert, mut zTab: *c
         zTab,
     );
     if zSql.is_null() {
-        return 7 as i32;
+        return 7;
     }
     rc = sqlite3_exec((*p).dbv, zSql, None, std::ptr::null_mut(), 0 as *mut *mut i8);
     sqlite3_free(zSql as *mut libc::c_void);
@@ -7558,141 +7567,147 @@ unsafe fn failIfSafeMode(p: *const ShellState, zErrMsg: &str) {
 }
 
 unsafe extern "C" fn editFunc(mut context: *mut sqlite3_context, mut argc: i32, mut argv: *mut *mut sqlite3_value) {
-    let mut zEditor: *const i8 = 0 as *const i8;
-    let mut zTempFile: *mut i8 = std::ptr::null_mut();
-    let mut db: *mut sqlite3 = 0 as *mut sqlite3;
-    let mut zCmd: *mut i8 = std::ptr::null_mut();
-    let mut bBin: i32 = 0;
-    let mut rc: i32 = 0;
-    let mut hasCRNL: i32 = 0;
-    let mut f: *mut FILE = 0 as *mut FILE;
-    let mut sz: i64 = 0;
-    let mut x: i64 = 0;
-    let mut p: *mut u8 = 0 as *mut u8;
-    if argc == 2 {
-        zEditor = sqlite3_value_text(*argv.offset(1)) as *const i8;
+    // let mut zEditor: *const i8 = 0 as *const i8;
+    // let mut zTempFile: *mut i8 = std::ptr::null_mut();
+    // let mut db: *mut sqlite3 = 0 as *mut sqlite3;
+    // let mut zCmd: *mut i8 = std::ptr::null_mut();
+    // let mut bBin: i32 = 0;
+    // let mut rc: i32 = 0;
+    // let mut f: *mut FILE = 0 as *mut FILE;
+    // let mut sz: i64 = 0;
+    // let mut x: i64 = 0;
+    // let mut p: *mut u8 = 0 as *mut u8;
+
+    let zEditor = if argc == 2 {
+        cstr_to_string!(sqlite3_value_text(*argv.offset(1)))
     } else {
-        zEditor = getenv(b"VISUAL\0" as *const u8 as *const i8);
-    }
-    if zEditor.is_null() {
-        sqlite3_result_error(context, b"no editor for edit()\0" as *const u8 as *const i8, -1);
+        match std::env::var("VISUAL") {
+            Ok(value) => Cow::Owned(value),
+            Err(err) => Cow::Borrowed(""),
+        }
+    };
+
+    if zEditor.is_empty() {
+        sqlite3_result_error(context, b"no editor for edit()\0".as_ptr() as _, -1);
         return;
     }
+
     if sqlite3_value_type(*argv.offset(0)) == 5 {
-        sqlite3_result_error(context, b"NULL input to edit()\0" as *const u8 as *const i8, -1);
+        sqlite3_result_error(context, b"NULL input to edit()\0".as_ptr() as _, -1);
         return;
     }
-    db = sqlite3_context_db_handle(context);
-    zTempFile = std::ptr::null_mut();
-    sqlite3_file_control(db, 0 as *const i8, 16, &mut zTempFile as *mut *mut i8 as *mut libc::c_void);
-    if zTempFile.is_null() {
-        let mut r: u64 = 0;
-        sqlite3_randomness(::std::mem::size_of::<u64>() as u64 as i32, &mut r as *mut u64 as *mut libc::c_void);
-        zTempFile = sqlite3_mprintf(b"temp%llx\0" as *const u8 as *const i8, r);
-        if zTempFile.is_null() {
+
+    let mut db = sqlite3_context_db_handle(context);
+    let zTempFile = {
+        let mut result = 0 as *mut u8;
+        sqlite3_file_control(db, std::ptr::null(), 16, &mut result as *mut *mut u8 as *mut libc::c_void);
+        if result.is_null() {
+            let mut r: u64 = 0;
+            sqlite3_randomness(::std::mem::size_of::<u64>() as u64 as i32, &mut r as *mut u64 as *mut libc::c_void);
+            Cow::Owned(format!("temp{}", r))
+        } else {
+            cstr_to_string!(result)
+        }
+    };
+
+    let bBin = sqlite3_value_type(*argv.offset(0)) == 4;
+    let mut f = match File::create(&*zTempFile) {
+        Err(e) => {
+            sqlite3_result_error(context, b"edit() cannot open temp file\0".as_ptr() as _, -1);
+            return;
+        }
+        Ok(handle) => handle,
+    };
+
+    // let f = fopen(
+    //     zTempFile,
+    //     if bBin {
+    //         b"wb\0" as *const u8 as *const i8
+    //     } else {
+    //         b"w\0" as *const u8 as *const i8
+    //     },
+    // );
+    // if f.is_null() {
+    // }
+
+    let mut hasCRNL: i32 = 0;
+    let sz = sqlite3_value_bytes(*argv.offset(0)) as usize;
+    let result = if bBin {
+        let buf_ptr = sqlite3_value_blob(*argv.offset(0)) as *const u8;
+        let buf = std::slice::from_raw_parts(buf_ptr, sz);
+        f.write_all(buf)
+    } else {
+        let mut z = sqlite3_value_text(*argv.offset(0)) as *const i8;
+        if !z.is_null() && !(strstr(z, b"\r\n\0".as_ptr() as _)).is_null() {
+            hasCRNL = 1;
+        }
+
+        let buf_ptr = sqlite3_value_text(*argv.offset(0)) as *const u8;
+        let buf = std::slice::from_raw_parts(buf_ptr, sz);
+        f.write_all(buf)
+    };
+    drop(f);
+
+    if let Err(e) = result {
+        sqlite3_result_error(context, b"edit() could not write the whole file\0".as_ptr() as _, -1);
+        return;
+    }
+
+    let result = std::process::Command::new(&*zEditor).arg(&*zTempFile).status();
+
+    let status = match result {
+        Err(_) => {
             sqlite3_result_error_nomem(context);
             return;
         }
+        Ok(status) => status,
+    };
+
+    if status.success() == false {
+        sqlite3_result_error(context, b"EDITOR returned non-zero\0".as_ptr() as _, -1);
+        return;
     }
-    bBin = (sqlite3_value_type(*argv.offset(0)) == 4) as i32;
-    f = fopen(
-        zTempFile,
-        if bBin != 0 {
-            b"wb\0" as *const u8 as *const i8
-        } else {
-            b"w\0" as *const u8 as *const i8
-        },
-    );
-    if f.is_null() {
-        sqlite3_result_error(context, b"edit() cannot open temp file\0" as *const u8 as *const i8, -1);
+
+    let mut f = match File::open(&*zTempFile) {
+        Err(_) => {
+            sqlite3_result_error(context, b"edit() cannot reopen temp file after edit\0".as_ptr() as _, -1);
+            return;
+        }
+        Ok(handle) => handle,
+    };
+
+    let mut sz = f.seek(SeekFrom::End(0)).unwrap() as usize;
+    f.seek(SeekFrom::Start(0)).unwrap();
+    let mut p = Vec::with_capacity(sz + 1);
+    f.read_to_end(&mut p).unwrap();
+
+    if bBin {
+        // FIXME: leaking memory!! find a way to replace Some(sqlite_free with rust equivalent
+        sqlite3_result_blob64(context, p.as_ptr() as _, sz as u64, None);
+        std::mem::forget(p);
     } else {
-        sz = sqlite3_value_bytes(*argv.offset(0)) as i64;
-        if bBin != 0 {
-            x = fwrite(sqlite3_value_blob(*argv.offset(0)), 1 as u64, sz as size_t, f) as i64;
-        } else {
-            let mut z: *const i8 = sqlite3_value_text(*argv.offset(0)) as *const i8;
-            if !z.is_null() && !(strstr(z, b"\r\n\0" as *const u8 as *const i8)).is_null() {
-                hasCRNL = 1;
-            }
-            x = fwrite(
-                sqlite3_value_text(*argv.offset(0)) as *const libc::c_void,
-                1 as u64,
-                sz as size_t,
-                f,
-            ) as i64;
-        }
-        fclose(f);
-        f = 0 as *mut FILE;
-        if x != sz {
-            sqlite3_result_error(context, b"edit() could not write the whole file\0" as *const u8 as *const i8, -1);
-        } else {
-            zCmd = sqlite3_mprintf(b"%s \"%s\"\0" as *const u8 as *const i8, zEditor, zTempFile);
-            if zCmd.is_null() {
-                sqlite3_result_error_nomem(context);
-            } else {
-                rc = system(zCmd);
-                sqlite3_free(zCmd as *mut libc::c_void);
-                if rc != 0 {
-                    sqlite3_result_error(context, b"EDITOR returned non-zero\0" as *const u8 as *const i8, -1);
-                } else {
-                    f = fopen(zTempFile, b"rb\0" as *const u8 as *const i8);
-                    if f.is_null() {
-                        sqlite3_result_error(
-                            context,
-                            b"edit() cannot reopen temp file after edit\0" as *const u8 as *const i8,
-                            -1,
-                        );
-                    } else {
-                        fseek(f, 0 as libc::c_long, 2);
-                        sz = ftell(f) as i64;
-                        rewind(f);
-                        p = sqlite3_malloc64((sz + 1 as i64) as u64) as *mut u8;
-                        if p.is_null() {
-                            sqlite3_result_error_nomem(context);
-                        } else {
-                            x = fread(p as *mut libc::c_void, 1 as u64, sz as size_t, f) as i64;
-                            fclose(f);
-                            f = 0 as *mut FILE;
-                            if x != sz {
-                                sqlite3_result_error(context, b"could not read back the whole file\0" as *const u8 as *const i8, -1);
-                            } else {
-                                if bBin != 0 {
-                                    sqlite3_result_blob64(context, p as *const libc::c_void, sz as u64, Some(sqlite3_free));
-                                } else {
-                                    if !(hasCRNL != 0) {
-                                        let mut i: i64 = 0;
-                                        let mut j: i64 = 0;
-                                        j = 0;
-                                        i = j;
-                                        while i < sz {
-                                            if *p.offset(i as isize) as i32 == '\r' as i32
-                                                && *p.offset((i + 1 as i64) as isize) as i32 == '\n' as i32
-                                            {
-                                                i += 1;
-                                            }
-                                            *p.offset(j as isize) = *p.offset(i as isize);
-                                            j += 1;
-                                            i += 1;
-                                        }
-                                        sz = j;
-                                        *p.offset(sz as isize) = 0;
-                                    }
-                                    sqlite3_result_text64(context, p as *const i8, sz as u64, Some(sqlite3_free), 1);
-                                }
-                                p = 0 as *mut u8;
-                            }
-                        }
-                    }
+        if !(hasCRNL != 0) {
+            let mut i = 0;
+            let mut j = 0;
+            j = 0;
+            i = j;
+            while i < sz {
+                if p[i] == b'\r' && p[(i + 1)] == b'\n' {
+                    i += 1;
                 }
+                p[j] = p[i];
+                j += 1;
+                i += 1;
             }
+            sz = j;
+            p[sz] = 0;
         }
+        // FIXME: leaking memory!! find a way to replace Some(sqlite_free with rust equivalent
+        sqlite3_result_text64(context, p.as_ptr() as _, sz as u64, None, 1);
+        std::mem::forget(p);
     }
-    if !f.is_null() {
-        fclose(f);
-    }
-    unlink(zTempFile);
-    sqlite3_free(zTempFile as *mut libc::c_void);
-    sqlite3_free(p as *mut libc::c_void);
+
+    std::fs::remove_file(&*zTempFile).unwrap();
 }
 
 fn outputModePush(p: &mut ShellState) {
@@ -8042,15 +8057,9 @@ unsafe extern "C" fn safeModeAuth(
             failIfSafeMode(p, "cannot run ATTACH in safe mode");
         }
         31 => {
-            for i in 0..7 {
-                if sqlite3_stricmp(zA1, azProhibitedFunctions[i as usize]) == 0 {
-                    failIfSafeMode(
-                        p,
-                        &format!(
-                            "cannot use the {}() function in safe mode",
-                            cstr_to_string!(azProhibitedFunctions[i as usize])
-                        ),
-                    );
+            for z in azProhibitedFunctions {
+                if sqlite3_stricmp(zA1, z) == 0 {
+                    failIfSafeMode(p, &format!("cannot use the {}() function in safe mode", cstr_to_string!(z)));
                 }
             }
         }
@@ -8104,16 +8113,12 @@ unsafe extern "C" fn shellAuth(
         "SAVEPOINT",
         "RECURSIVE",
     ];
-    let mut az: [*const i8; 4] = [0 as *const i8; 4];
-    az[0] = zA1;
-    az[1] = zA2;
-    az[2] = zA3;
-    az[3] = zA4;
+    let mut az: [*const i8; 4] = [zA1, zA2, zA3, zA4];
     print!("authorizer: {}", azAction[op as usize]);
-    for i in 0..4 {
+    for z in az {
         print!(" ");
-        if !(az[i as usize]).is_null() {
-            output_c_string(&cstr_to_string!(az[i as usize]));
+        if z.is_null() == false {
+            output_c_string(&cstr_to_string!(z));
         } else {
             print!("NULL");
         }
@@ -8295,31 +8300,26 @@ unsafe fn shell_callback(
 
     match (*p).cMode {
         0 => {
-            let mut w: i32 = 5;
-            if razArg.len() > 0 {
-                for i in 0..nArg {
-                    let len: i32 = razCol[i as usize].len() as i32;
-                    if len > w {
-                        w = len;
-                    }
-                }
-                if (*p).cnt > 0 {
-                    print!("{}", (*p).rowSeparator);
-                }
-                (*p).cnt += 1;
+            if razArg.len() == 0 {
+                return 0;
+            }
+            let w = razCol.iter().map(|z| z.len()).max().unwrap_or(5);
+            if (*p).cnt > 0 {
+                print!("{}", (*p).rowSeparator);
+            }
+            (*p).cnt += 1;
 
-                for i in 0..nArg as usize {
-                    print!(
-                        "{p:width$} = {pp}{ppp}",
-                        width = w as usize,
-                        p = razCol[i],
-                        pp = match &razArg[i] {
-                            Some(x) => &x,
-                            None => (*p).nullValue.as_str(),
-                        },
-                        ppp = &(*p).rowSeparator,
-                    );
-                }
+            for i in 0..nArg as usize {
+                print!(
+                    "{p:width$} = {pp}{ppp}",
+                    width = w,
+                    p = razCol[i],
+                    pp = match &razArg[i] {
+                        Some(x) => &x,
+                        None => (*p).nullValue.as_str(),
+                    },
+                    ppp = &(*p).rowSeparator,
+                );
             }
         }
         9 => {
@@ -8349,46 +8349,48 @@ unsafe fn shell_callback(
             }
             (*p).cnt += 1;
 
-            if razArg.len() > 0 {
-                for i in 0..nArg as usize {
-                    if i == 1 && !((*p).aiIndent).is_empty() && !((*p).pStmt).is_null() {
-                        if (*p).iIndent < (*p).nIndent {
-                            print!(
-                                "{content:>width$}",
-                                width = (*p).aiIndent[(*p).iIndent as usize] as usize,
-                                content = " "
-                            );
-                        }
-                        (*p).iIndent += 1;
+            if razArg.len() == 0 {
+                return 0;
+            }
+
+            for i in 0..nArg as usize {
+                if i == 1 && !((*p).aiIndent).is_empty() && !((*p).pStmt).is_null() {
+                    if (*p).iIndent < (*p).nIndent {
+                        print!(
+                            "{content:>width$}",
+                            width = (*p).aiIndent[(*p).iIndent as usize] as usize,
+                            content = " "
+                        );
                     }
+                    (*p).iIndent += 1;
+                }
 
-                    let mut w_2 = aExplainWidth[i] as usize;
-                    if i == nArg as usize - 1 {
-                        w_2 = 0;
-                    }
+                let mut w_2 = aExplainWidth[i] as usize;
+                if i == nArg as usize - 1 {
+                    w_2 = 0;
+                }
 
-                    let len = match &razArg[i] {
-                        None => 0,
-                        Some(x) => x.chars().count(),
-                    };
+                let len = match &razArg[i] {
+                    None => 0,
+                    Some(x) => x.chars().count(),
+                };
 
-                    if len > w_2 {
-                        w_2 = len;
-                    }
+                if len > w_2 {
+                    w_2 = len;
+                }
 
-                    utf8_width_print(
-                        w_2 as i32,
-                        match &razArg[i] {
-                            Some(x) => &x,
-                            None => (*p).nullValue.as_str(),
-                        },
-                    );
+                utf8_width_print(
+                    w_2 as i32,
+                    match &razArg[i] {
+                        Some(x) => &x,
+                        None => (*p).nullValue.as_str(),
+                    },
+                );
 
-                    if i == nArg as usize - 1 {
-                        println!();
-                    } else {
-                        print!("  ");
-                    }
+                if i == nArg as usize - 1 {
+                    println!();
+                } else {
+                    print!("  ");
                 }
             }
         }
@@ -8403,98 +8405,100 @@ unsafe fn shell_callback(
             let mut nLine: i32 = 0;
             assert!(nArg == 1);
 
-            if let Some(arg) = &razArg[0] {
-                if sqrite::strlike("CREATE VIEW%", &arg, '\0') || sqrite::strlike("CREATE TRIG%", &arg, '\0') {
-                    print!("{}", arg);
-                } else {
-                    let mut rz = arg.to_string();
-                    let mut i = 0;
+            let Some(arg) = &razArg[0] else {
+                return 0
+            };
 
-                    for ch in rz.as_bytes() {
-                        if ch.is_ascii_whitespace() {
-                            i += 1;
-                        } else {
-                            break;
+            if sqrite::strlike("CREATE VIEW%", &arg, '\0') || sqrite::strlike("CREATE TRIG%", &arg, '\0') {
+                print!("{}", arg);
+                return 0;
+            }
+            let mut rz = arg.to_string();
+            let mut i = 0;
+
+            for ch in rz.as_bytes() {
+                if ch.is_ascii_whitespace() {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+
+            let mut z = unsafe { rz.as_bytes_mut() };
+            let mut c: u8;
+            let mut j = 0;
+            for ii in i..z.len() {
+                c = z[ii];
+
+                if c.is_ascii_whitespace() {
+                    if z[j - 1].is_ascii_whitespace() || z[j - 1] == b'(' {
+                        continue;
+                    }
+                } else if (c == b'(' || c == b')') && j > 0 && z[j - 1].is_ascii_whitespace() {
+                    j -= 1;
+                }
+
+                z[j] = c;
+                j += 1;
+                i += 1;
+            }
+
+            while j > 0 && z[j - 1].is_ascii_whitespace() {
+                j -= 1;
+            }
+
+            // z[j] = 0;
+            let mut rz = &mut rz[..j];
+            if rz.chars().count() >= 79 {
+                let mut z = rz.as_bytes_mut();
+                let mut j = 0;
+                let mut i = j;
+                while i < z.len() {
+                    c = z[i];
+
+                    if c == cEnd {
+                        cEnd = 0;
+                    } else if c == b'"' || c == b'\'' || c == b'`' {
+                        cEnd = c;
+                    } else if c == b'[' {
+                        cEnd = b']';
+                    } else if c == b'-' && z[(i + 1)] == b'-' {
+                        cEnd = b'\n';
+                    } else if c == b'(' {
+                        nParen += 1;
+                    } else if c == b')' {
+                        nParen -= 1;
+                        if nLine > 0 && nParen == 0 && j > 0 {
+                            let cloned = z[..j].to_str_unchecked();
+                            printSchemaLine(&cloned, "\n");
+                            j = 0;
                         }
                     }
-
-                    let mut z = unsafe { rz.as_bytes_mut() };
-                    let mut c: u8;
-                    let mut j = 0;
-                    for ii in i..z.len() {
-                        c = z[ii];
-
-                        if c.is_ascii_whitespace() {
-                            if z[j - 1].is_ascii_whitespace() || z[j - 1] == b'(' {
-                                continue;
-                            }
-                        } else if (c == b'(' || c == b')') && j > 0 && z[j - 1].is_ascii_whitespace() {
+                    z[j] = c;
+                    j += 1;
+                    if nParen == 1 && cEnd == 0 && (c == b'(' || c == b'\n' || c == b',' && wsToEol(&z[(i + 1)..]) == false) {
+                        if c == b'\n' {
                             j -= 1;
                         }
 
-                        z[j] = c;
-                        j += 1;
-                        i += 1;
-                    }
-
-                    while j > 0 && z[j - 1].is_ascii_whitespace() {
-                        j -= 1;
-                    }
-
-                    // z[j] = 0;
-                    let mut rz = &mut rz[..j];
-                    if rz.chars().count() >= 79 {
-                        let mut z = rz.as_bytes_mut();
-                        let mut j = 0;
-                        let mut i = j;
-                        while i < z.len() {
-                            c = z[i];
-
-                            if c == cEnd {
-                                cEnd = 0;
-                            } else if c == b'"' || c == b'\'' || c == b'`' {
-                                cEnd = c;
-                            } else if c == b'[' {
-                                cEnd = b']';
-                            } else if c == b'-' && z[(i + 1)] == b'-' {
-                                cEnd = b'\n';
-                            } else if c == b'(' {
-                                nParen += 1;
-                            } else if c == b')' {
-                                nParen -= 1;
-                                if nLine > 0 && nParen == 0 && j > 0 {
-                                    let cloned = z[..j].to_str_unchecked();
-                                    printSchemaLine(&cloned, "\n");
-                                    j = 0;
-                                }
-                            }
-                            z[j] = c;
-                            j += 1;
-                            if nParen == 1 && cEnd == 0 && (c == b'(' || c == b'\n' || c == b',' && wsToEol(&z[(i + 1)..]) == false) {
-                                if c == b'\n' {
-                                    j -= 1;
-                                }
-
-                                {
-                                    let cloned = z[..j].to_str_unchecked();
-                                    printSchemaLine(&cloned, "\n  ");
-                                }
-
-                                j = 0;
-                                nLine += 1;
-                                while z[i + 1].is_ascii_whitespace() {
-                                    i += 1;
-                                }
-                            }
-
-                            i += 1;
+                        {
+                            let cloned = z[..j].to_str_unchecked();
+                            printSchemaLine(&cloned, "\n  ");
                         }
 
-                        rz = &mut rz[..j];
+                        j = 0;
+                        nLine += 1;
+                        while z[i + 1].is_ascii_whitespace() {
+                            i += 1;
+                        }
                     }
-                    printSchemaLine(rz, ";\n");
+
+                    i += 1;
                 }
+
+                rz = &mut rz[..j];
             }
+            printSchemaLine(rz, ";\n");
         }
         2 => {
             if (*p).cnt == 0 && (*p).showHeader != 0 {
@@ -9100,7 +9104,7 @@ unsafe fn display_stats(mut db: *mut sqlite3, pArg: *mut ShellState, bReset: i32
     }
     displayStatLine("Number of Pcache Overflow Bytes:", "{iCur} (max {iHiwtr}) bytes", 2, bReset);
     displayStatLine("Largest Allocation:", "{iHiwtr} bytes", 5, bReset);
-    displayStatLine("Largest Pcache Allocation:", "{iHiwtr} bytes", 7 as i32, bReset);
+    displayStatLine("Largest Pcache Allocation:", "{iHiwtr} bytes", 7, bReset);
     if !db.is_null() {
         if (*pArg).shellFlgs & 0x2 as u32 != 0 {
             iCur = -1;
@@ -9120,7 +9124,7 @@ unsafe fn display_stats(mut db: *mut sqlite3, pArg: *mut ShellState, bReset: i32
         println!("Pager Heap Usage:                    {} bytes", iCur);
         iCur = -1;
         iHiwtr = iCur;
-        sqlite3_db_status(db, 7 as i32, &mut iCur, &mut iHiwtr, 1);
+        sqlite3_db_status(db, 7, &mut iCur, &mut iHiwtr, 1);
         println!("Page cache hits:                     {}", iCur);
         iCur = -1;
         iHiwtr = iCur;
@@ -9153,7 +9157,7 @@ unsafe fn display_stats(mut db: *mut sqlite3, pArg: *mut ShellState, bReset: i32
         iCur = sqlite3_stmt_status((*pArg).pStmt, 3, bReset);
         println!("Autoindex Inserts:                   {}", iCur);
         iHit = sqlite3_stmt_status((*pArg).pStmt, 8, bReset);
-        iMiss = sqlite3_stmt_status((*pArg).pStmt, 7 as i32, bReset);
+        iMiss = sqlite3_stmt_status((*pArg).pStmt, 7, bReset);
         if iHit != 0 || iMiss != 0 {
             println!("Bloom filter bypass taken:           {}/{}", iHit, iHit + iMiss,);
         }
@@ -9204,7 +9208,7 @@ unsafe fn explain_data_prepare(p: *mut ShellState, pSql: *mut sqlite3_stmt) {
     {
         z = z.offset(1);
     }
-    if sqlite3_strnicmp(z, b"explain\0" as *const u8 as *const i8, 7 as i32) != 0 {
+    if sqlite3_strnicmp(z, b"explain\0" as *const u8 as *const i8, 7) != 0 {
         (*p).cMode = (*p).mode;
         return;
     }
@@ -9395,55 +9399,52 @@ fn print_box_row_separator(p: &ShellState, nArg: i32, zSep1: char, zSep2: char, 
 ** Write anything to display on the next line into *pzTail.  If this is
 ** the last line, write a NULL into *pzTail. (*pzTail is not allocated.)
 */
-unsafe fn translateForDisplayAndDup(
-    mut z: *const u8,           /* Input text to be transformed */
-    mut pzTail: *mut *const u8, /* OUT: Tail of the input for next line */
-    mxWidth: i32,               /* Max width.  0 means no limit */
-    bWordWrap: u8,              /* If true, avoid breaking mid-word */
-) -> *mut i8 {
-    let mut i: i32 = 0;
-    let mut j: i32 = 0;
-    let mut k: i32 = 0;
-    let mut n: i32 = 0;
-    let mut zOut: *mut u8 = 0 as *mut u8;
-    if z.is_null() {
-        *pzTail = std::ptr::null();
-        return std::ptr::null_mut();
+fn translateForDisplayAndDup<'a>(
+    rz: &'a str,     /* Input text to be transformed */
+    mxWidth: i32,    /* Max width.  0 means no limit */
+    bWordWrap: bool, /* If true, avoid breaking mid-word */
+) -> (String, &'a str) {
+    if rz.is_empty() {
+        return (String::new(), "");
     }
+
     let mxWidth = mxWidth.abs();
     let mxWidth = if mxWidth == 0 { 1000000 } else { mxWidth };
 
-    n = 0;
-    j = n;
-    i = j;
+    let mut i = 0;
+    let mut j = 0;
+    let mut k = 0;
+    let mut n = 0;
+
+    let mut z = rz.as_bytes();
     while n < mxWidth {
-        if *z.offset(i as isize) >= b' ' {
+        if z[i] >= b' ' {
             n += 1;
             loop {
                 i += 1;
                 j += 1;
-                if !(*z.offset(i as isize) as i32 & 0xc0 == 0x80) {
+                if !(z[i] & 0xc0 == 0x80) {
                     break;
                 }
             }
         } else {
-            if !(*z.offset(i as isize) == b'\t') {
+            if !(z[i] == b'\t') {
                 break;
             }
             loop {
                 n += 1;
                 j += 1;
-                if !(n & 7 as i32 != 0 && n < mxWidth) {
+                if !(n & 7 != 0 && n < mxWidth) {
                     break;
                 }
             }
             i += 1;
         }
     }
-    if n >= mxWidth && bWordWrap != 0 {
+    if n >= mxWidth && bWordWrap {
         k = i;
         while k > i / 2 {
-            if (*z.offset((k - 1) as isize)).is_ascii_whitespace() {
+            if (z[(k - 1)]).is_ascii_whitespace() {
                 break;
             }
             k -= 1;
@@ -9451,9 +9452,7 @@ unsafe fn translateForDisplayAndDup(
         if k <= i / 2 {
             k = i;
             while k > i / 2 {
-                if (*z.offset((k - 1) as isize)).is_ascii_alphanumeric() != (*z.offset(k as isize)).is_ascii_alphabetic()
-                    && *z.offset(k as isize) & 0xc0 != 0x80
-                {
+                if z[(k - 1)].is_ascii_alphanumeric() != z[k].is_ascii_alphabetic() && z[k] & 0xc0 != 0x80 {
                     break;
                 }
                 k -= 1;
@@ -9463,69 +9462,70 @@ unsafe fn translateForDisplayAndDup(
             k = i;
         } else {
             i = k;
-            while *z.offset(i as isize) == b' ' {
+            while z[i] == b' ' {
                 i += 1;
             }
         }
     } else {
         k = i;
     }
-    if n >= mxWidth && *z.offset(i as isize) as i32 >= ' ' as i32 {
-        *pzTail = &*z.offset(i as isize) as *const u8;
-    } else if *z.offset(i as isize) as i32 == '\r' as i32 && *z.offset((i + 1) as isize) as i32 == '\n' as i32 {
-        *pzTail = if *z.offset((i + 2) as isize) as i32 != 0 {
-            &*z.offset((i + 2) as isize) as *const u8
-        } else {
-            std::ptr::null()
-        };
-    } else if *z.offset(i as isize) as i32 == 0 || *z.offset((i + 1) as isize) as i32 == 0 {
-        *pzTail = std::ptr::null();
+
+    let pzTail: &'a str;
+    if n >= mxWidth && z[i] >= b' ' {
+        pzTail = &rz[i..];
+    } else if z[i] == b'\r' && z[i + 1] == b'\n' {
+        pzTail = if i + 2 < z.len() { &rz[(i + 2)..] } else { "" };
+    } else if i == z.len() || i + 1 == z.len() {
+        pzTail = "";
     } else {
-        *pzTail = &*z.offset((i + 1) as isize) as *const u8;
+        pzTail = &rz[(i + 1)..];
     }
-    zOut = malloc((j + 1) as u64) as *mut u8;
-    shell_check_oom(zOut as *mut libc::c_void);
-    n = 0;
-    j = n;
-    i = j;
+
+    let mut zOut = Vec::with_capacity(j);
+    zOut.resize((j + 1) as usize, 0u8);
+
+    let mut n = 0;
+    let mut j = n;
+    let mut i = j;
     while i < k {
-        if *z.offset(i as isize) as i32 >= ' ' as i32 {
+        if z[i] >= b' ' {
             n += 1;
             loop {
-                *zOut.offset(j as isize) = *z.offset(i as isize);
+                zOut[j] = z[i];
                 i += 1;
                 j += 1;
-                if !(*z.offset(i as isize) as i32 & 0xc0 == 0x80) {
+                if !(z[i] & 0xc0 == 0x80) {
                     break;
                 }
             }
         } else {
-            if !(*z.offset(i as isize) as i32 == '\t' as i32) {
+            if !(z[i] == b'\t') {
                 break;
             }
             loop {
                 n += 1;
-                *zOut.offset(j as isize) = ' ' as i32 as u8;
+                zOut[j] = b' ';
                 j += 1;
-                if !(n & 7 as i32 != 0 && n < mxWidth) {
+                if !(n & 7 != 0 && n < mxWidth as usize) {
                     break;
                 }
             }
             i += 1;
         }
     }
-    *zOut.offset(j as isize) = 0;
-    return zOut as *mut i8;
+    // zOut[j as usize] = 0;
+    return (BString::from(zOut).to_string(), pzTail);
 }
 
-unsafe extern "C" fn quoted_column(mut pStmt: *mut sqlite3_stmt, mut i: i32) -> *mut i8 {
+unsafe fn quoted_column(pStmt: *mut sqlite3_stmt, i: i32) -> String {
     match sqlite3_column_type(pStmt, i) {
-        5 => return sqlite3_mprintf(b"NULL\0" as *const u8 as *const i8),
+        5 => return String::from("NULL"),
         1 | 2 => {
-            return sqlite3_mprintf(b"%s\0" as *const u8 as *const i8, sqlite3_column_text(pStmt, i));
+            return cstr_to_string!(sqlite3_column_text(pStmt, i)).to_string();
         }
         3 => {
-            return sqlite3_mprintf(b"%Q\0" as *const u8 as *const i8, sqlite3_column_text(pStmt, i));
+            // FIXME: need quote '%Q'
+            return cstr_to_string!(sqlite3_column_text(pStmt, i)).to_string();
         }
         4 => {
             let mut pStr: *mut sqlite3_str = sqlite3_str_new(0 as *mut sqlite3);
@@ -9536,320 +9536,292 @@ unsafe extern "C" fn quoted_column(mut pStmt: *mut sqlite3_stmt, mut i: i32) -> 
                 sqlite3_str_appendf(pStr, b"%02x\0" as *const u8 as *const i8, *a.offset(j as isize) as i32);
             }
             sqlite3_str_append(pStr, b"'\0" as *const u8 as *const i8, 1);
-            return sqlite3_str_finish(pStr);
+            let result = sqlite3_str_finish(pStr);
+            return cstr_to_string!(result).to_string();
         }
         _ => {}
     }
-    return std::ptr::null_mut();
+    return String::new();
 }
-unsafe extern "C" fn exec_prepared_stmt_columnar(mut p: *mut ShellState, mut pStmt: *mut sqlite3_stmt) {
-    let mut current_block: u64;
-    let mut nRow: i64 = 0;
-    let mut nColumn: i32 = 0;
-    let mut nAlloc: i64 = 0;
-    let mut uz: *const u8 = std::ptr::null();
-    let mut z: *const i8 = 0 as *const i8;
-    let mut rc: i32 = 0;
-    let mut nData: i64 = 0;
-    let mut j: i32 = 0;
-    let mut w: i32 = 0;
-    let mut n: i32 = 0;
+
+unsafe fn exec_prepared_stmt_columnar(p: *mut ShellState, pStmt: *mut sqlite3_stmt) {
     let mut colSep = "";
     let mut rowSep = "";
-    let mut bNextLine: i32 = 0;
-    let mut bMultiLineRowExists: i32 = 0;
-    let mut bw: i32 = (*p).cmOpts.bWordWrap as i32;
-    let mut zEmpty: *const i8 = b"\0" as *const u8 as *const i8;
-    let mut zShowNull: *const i8 = to_cstring!(((*p).nullValue).as_str());
-    rc = sqlite3_step(pStmt);
+    let mut bMultiLineRowExists: bool = false;
+    let bw = (*p).cmOpts.bWordWrap;
+
+    let mut rc = sqlite3_step(pStmt);
     if rc != 100 {
         return;
     }
-    nColumn = sqlite3_column_count(pStmt);
-    nAlloc = (nColumn * 4) as i64;
-    if nAlloc <= 0 {
-        nAlloc = 1 as i64;
-    }
-
+    let nColumn = sqlite3_column_count(pStmt) as usize;
+    let mut nAlloc = std::cmp::max(1, nColumn * 4);
     let mut azNextLine = Vec::new();
 
-    let mut azData = Vec::with_capacity(nAlloc as usize);
-    azNextLine.resize(nColumn as usize, 0 as *const u8);
+    let mut azData = Vec::with_capacity(nAlloc);
+    azNextLine.resize(nColumn, String::new());
 
     let mut azQuoted = Vec::new();
     if (*p).cmOpts.bQuote != 0 {
-        azQuoted.resize(nColumn as usize, 0 as *mut i8);
+        azQuoted.resize(nColumn, String::new());
     }
+    let mut abRowDiv = Vec::with_capacity(nAlloc / nColumn);
 
-    let mut abRowDiv = Vec::with_capacity((nAlloc / nColumn as i64) as usize);
-
-    if nColumn > (*p).nWidth {
-        (*p).colWidth.resize(((nColumn + 1) * 2) as usize, 0);
-        (*p).nWidth = nColumn;
-        (*p).actualWidth = vec![0; nColumn as usize];
+    if nColumn > (*p).nWidth as usize {
+        (*p).colWidth.resize((nColumn + 1) * 2, 0);
+        (*p).nWidth = nColumn as i32;
+        (*p).actualWidth = vec![0; nColumn];
     }
 
     for i in 0..nColumn as usize {
-        w = (*p).colWidth[i];
-        if w < 0 {
-            w = -w;
-        }
+        let w = (*p).colWidth[i];
+        let w = w.abs();
         (*p).actualWidth[i] = w;
     }
 
     for i in 0..nColumn as usize {
-        let mut zNotUsed: *const u8 = std::ptr::null();
         let mut wx: i32 = (*p).colWidth[i];
         if wx == 0 {
             wx = (*p).cmOpts.iWrap;
         }
-        if wx < 0 {
-            wx = -wx;
-        }
-        uz = sqlite3_column_name(pStmt, i as i32) as *const u8;
-        azData.push(translateForDisplayAndDup(uz, &mut zNotUsed, wx, bw as u8));
+        let wx = wx.abs();
+        let uz = cstr_to_string!(sqlite3_column_name(pStmt, i as i32));
+        let (uz, _) = translateForDisplayAndDup(&uz, wx, bw);
+        azData.push(uz);
     }
 
+    let zEmpty = "";
+    let zShowNull = ((*p).nullValue).as_str();
+    let mut nRow = 0;
+    let mut bNextLine: bool = false;
     loop {
-        let mut useNextLine: i32 = bNextLine;
-        bNextLine = 0;
-        if (nRow + 2) * nColumn as i64 >= nAlloc {
-            nAlloc *= 2 as i64;
-            azData.resize(nAlloc as usize, 0 as *mut i8);
-            abRowDiv.resize((nAlloc / nColumn as i64) as usize, 0);
+        let useNextLine = bNextLine;
+        bNextLine = false;
+        if (nRow + 2) * nColumn >= nAlloc {
+            nAlloc *= 2;
+            azData.resize(nAlloc, String::new());
+            abRowDiv.resize((nAlloc / nColumn) as usize, 0);
         }
 
         abRowDiv[nRow as usize] = 1;
         nRow += 1;
+        let mut temp = Cow::from("");
         for i in 0..nColumn as usize {
             let mut wx_0: i32 = (*p).colWidth[i];
             if wx_0 == 0 {
                 wx_0 = (*p).cmOpts.iWrap;
             }
-            if wx_0 < 0 {
-                wx_0 = -wx_0;
-            }
-            if useNextLine != 0 {
-                uz = azNextLine[i];
-                if uz.is_null() {
-                    uz = zEmpty as *mut u8;
+            wx_0 = wx_0.abs();
+
+            let uz = if useNextLine {
+                let uz = &azNextLine[i];
+                if uz.is_empty() {
+                    Cow::from(zEmpty)
+                } else {
+                    Cow::from(uz.as_str())
                 }
             } else if (*p).cmOpts.bQuote != 0 {
-                sqlite3_free(azQuoted[i] as _);
                 azQuoted[i] = quoted_column(pStmt, i as i32);
-                uz = azQuoted[i] as *const u8;
+                Cow::from(azQuoted[i].as_str())
             } else {
-                uz = sqlite3_column_text(pStmt, i as i32);
-                if uz.is_null() {
-                    uz = zShowNull as *mut u8;
+                let result = sqlite3_column_text(pStmt, i as i32);
+                if result.is_null() {
+                    Cow::from(zShowNull)
+                } else {
+                    temp = cstr_to_string!(result);
+                    temp
                 }
-            }
-            azData[(nRow as usize * nColumn as usize + i) as usize] = translateForDisplayAndDup(uz, &mut azNextLine[i], wx_0, bw as u8);
-            if (azNextLine[i]).is_null() == false {
-                bNextLine = 1;
+            };
+
+            let (az, rest) = translateForDisplayAndDup(&uz, wx_0, bw);
+            azData[(nRow * nColumn + i)] = az;
+            azNextLine[i] = rest.to_string();
+
+            if (azNextLine[i]).is_empty() == false {
+                bNextLine = true;
                 abRowDiv[(nRow - 1) as usize] = 0;
-                bMultiLineRowExists = 1;
+                bMultiLineRowExists = true;
             }
         }
 
-        if !(bNextLine != 0 || sqlite3_step(pStmt) == 100) {
+        if !(bNextLine || sqlite3_step(pStmt) == 100) {
             break;
         }
     }
 
-    let nTotal = (nColumn as i64 * (nRow + 1)) as i32;
-    for i in 0..nTotal as usize {
-        z = azData[i];
-        if z.is_null() {
-            z = zEmpty as *mut i8;
+    let nTotal = nColumn * (nRow + 1);
+
+    for i in 0..nTotal {
+        let mut z = azData[i].as_str();
+        if z.is_empty() {
+            z = zEmpty;
         }
-        n = strlenChar(z);
-        j = (i as i64 % nColumn as i64) as i32;
-        if n > (*p).actualWidth[j as usize] {
-            (*p).actualWidth[j as usize] = n;
-        }
-    }
-
-    if !(seenInterrupt != 0) {
-        if !(nColumn == 0) {
-            match (*p).cMode {
-                1 => {
-                    colSep = "  ";
-                    rowSep = "\n";
-                    if (*p).showHeader != 0 {
-                        let nColumn = nColumn as usize;
-                        for i in 0..nColumn {
-                            w = (*p).actualWidth[i];
-                            if (*p).colWidth[i] < 0 {
-                                w = -w;
-                            }
-                            utf8_width_print(w, &cstr_to_string!(azData[i]));
-                            if i == (nColumn - 1) {
-                                println!();
-                            } else {
-                                print!("  ");
-                            }
-                        }
-
-                        for i in 0..nColumn {
-                            print_dashes((*p).actualWidth[i]);
-                            if i == (nColumn - 1) {
-                                println!();
-                            } else {
-                                print!("  ");
-                            }
-                        }
-                    }
-                }
-                15 => {
-                    colSep = " | ";
-                    rowSep = " |\n";
-                    print_row_separator(&*p, nColumn, '+');
-                    print!("| ");
-                    for i in 0..nColumn as usize {
-                        let nColumn = nColumn as usize;
-                        w = (*p).actualWidth[i];
-                        n = strlenChar(azData[i]);
-                        print!(
-                            "{content1:width1$}{content2}{content3:width3$}",
-                            width1 = ((w - n) / 2) as usize,
-                            content1 = " ",
-                            content2 = cstr_to_string!(azData[i]),
-                            width3 = ((w - n + 1) / 2) as usize,
-                            content3 = " ",
-                        );
-                        if i == (nColumn - 1) {
-                            println!(" |");
-                        } else {
-                            print!(" | ");
-                        }
-                    }
-
-                    print_row_separator(&*p, nColumn, '+');
-                }
-                14 => {
-                    colSep = " | ";
-                    rowSep = " |\n";
-                    print!("| ");
-
-                    for i in 0..nColumn as usize {
-                        let nColumn = nColumn as usize;
-                        w = (*p).actualWidth[i];
-                        n = strlenChar(azData[i]);
-                        println!(
-                            "{content1:width1$}{content2}{content3:width3$}",
-                            width1 = ((w - n) / 2) as usize,
-                            content1 = " ",
-                            content2 = cstr_to_string!(azData[i]),
-                            width3 = ((w - n + 1) / 2) as usize,
-                            content3 = " ",
-                        );
-                        if i == (nColumn - 1) {
-                            println!(" |");
-                        } else {
-                            print!(" | ");
-                        }
-                    }
-                    print_row_separator(&*p, nColumn, '|');
-                }
-                16 => {
-                    colSep = concatcp!(" ", BOX_13, " ");
-                    rowSep = concatcp!(" ", BOX_13, "\n");
-                    print_box_row_separator(&*p, nColumn, BOX_23, BOX_234, BOX_34);
-                    print!("{} ", BOX_13);
-                    for i in 0..nColumn as usize {
-                        let nColumn = nColumn as usize;
-                        w = (*p).actualWidth[i];
-                        n = strlenChar(azData[i]);
-
-                        print!(
-                            "{content1:width1$}{content2}{content3:width3$}{content4}",
-                            width1 = ((w - n) / 2) as usize,
-                            content1 = " ",
-                            content2 = cstr_to_string!(azData[i]),
-                            width3 = ((w - n + 1) / 2) as usize,
-                            content3 = " ",
-                            content4 = if i == (nColumn - 1) {
-                                concatcp!(" ", BOX_13, "\n")
-                            } else {
-                                concatcp!(" ", BOX_13, " ")
-                            },
-                        );
-                    }
-                    print_box_row_separator(&*p, nColumn, BOX_123, BOX_1234, BOX_134);
-                }
-                _ => {}
-            }
-
-            let mut i = nColumn as usize;
-            let mut j: isize = 0;
-            let nColumn = nColumn as usize;
-            loop {
-                if !(i < nTotal as usize) {
-                    current_block = 16107425721173356396;
-                    break;
-                }
-                if j == 0 && (*p).cMode != 1 {
-                    print!("{}", if (*p).cMode == 16 { concatcp!(BOX_13, " ") } else { "| " },);
-                }
-                z = azData[i];
-                if z.is_null() {
-                    z = to_cstring!((*p).nullValue.as_str());
-                }
-                w = (*p).actualWidth[j as usize];
-                if (*p).colWidth[j as usize] < 0 {
-                    w = -w;
-                }
-                utf8_width_print(w, &cstr_to_string!(z));
-                if j as usize == nColumn - 1 {
-                    print!("{}", rowSep);
-                    if bMultiLineRowExists != 0 && abRowDiv[(i / nColumn - 1)] != 0 && (i + 1) < nTotal as usize {
-                        if (*p).cMode == 15 {
-                            print_row_separator(&*p, nColumn as i32, '+');
-                        } else if (*p).cMode == 16 {
-                            print_box_row_separator(&*p, nColumn as i32, BOX_123, BOX_1234, BOX_134);
-                        } else if (*p).cMode == 1 {
-                            println!();
-                        }
-                    }
-                    j = -1;
-                    if seenInterrupt != 0 {
-                        current_block = 3475906965431124488;
-                        break;
-                    }
-                } else {
-                    print!("{}", colSep);
-                }
-                i += 1;
-                j += 1;
-            }
-            match current_block {
-                3475906965431124488 => {}
-                _ => {
-                    if (*p).cMode == 15 {
-                        print_row_separator(&*p, nColumn as i32, '+');
-                    } else if (*p).cMode == 16 {
-                        print_box_row_separator(&*p, nColumn as i32, BOX_12, BOX_124, BOX_14);
-                    }
-                }
-            }
+        let n = z.chars().count() as i32;
+        let j = i % nColumn;
+        if n > (*p).actualWidth[j] {
+            (*p).actualWidth[j] = n;
         }
     }
+
     if seenInterrupt != 0 {
         println!("Interrupt");
-    }
-    nData = (nRow + 1) * nColumn as i64;
-    for i in 0..nData as usize {
-        z = azData[i];
-        if z != zEmpty && z != zShowNull {
-            free(azData[i] as _);
-        }
+        return;
     }
 
-    if !azQuoted.is_empty() {
-        for i in 0..nColumn as usize {
-            sqlite3_free(azQuoted[i] as *mut libc::c_void);
+    if nColumn == 0 {
+        return;
+    }
+
+    match (*p).cMode {
+        1 => {
+            colSep = "  ";
+            rowSep = "\n";
+            if (*p).showHeader != 0 {
+                for i in 0..nColumn {
+                    let mut w = (*p).actualWidth[i];
+                    if (*p).colWidth[i] < 0 {
+                        w = -w;
+                    }
+                    utf8_width_print(w, &azData[i]);
+                    if i == (nColumn - 1) {
+                        println!();
+                    } else {
+                        print!("  ");
+                    }
+                }
+
+                for i in 0..nColumn {
+                    print_dashes((*p).actualWidth[i]);
+                    if i == (nColumn - 1) {
+                        println!();
+                    } else {
+                        print!("  ");
+                    }
+                }
+            }
         }
+        15 => {
+            colSep = " | ";
+            rowSep = " |\n";
+            print_row_separator(&*p, nColumn as i32, '+');
+            print!("| ");
+            for i in 0..nColumn {
+                let w = (*p).actualWidth[i] as usize;
+                let n = azData[i].chars().count();
+                print!(
+                    "{content1:width1$}{content2}{content3:width3$}",
+                    width1 = ((w - n) / 2),
+                    content1 = " ",
+                    content2 = &azData[i],
+                    width3 = ((w - n + 1) / 2),
+                    content3 = " ",
+                );
+                if i == (nColumn - 1) {
+                    println!(" |");
+                } else {
+                    print!(" | ");
+                }
+            }
+
+            print_row_separator(&*p, nColumn as i32, '+');
+        }
+        14 => {
+            colSep = " | ";
+            rowSep = " |\n";
+            print!("| ");
+
+            for i in 0..nColumn {
+                let w = (*p).actualWidth[i] as usize;
+                let n = azData[i].chars().count();
+                println!(
+                    "{content1:width1$}{content2}{content3:width3$}",
+                    width1 = ((w - n) / 2),
+                    content1 = " ",
+                    content2 = &azData[i],
+                    width3 = ((w - n + 1) / 2),
+                    content3 = " ",
+                );
+                if i == (nColumn - 1) {
+                    println!(" |");
+                } else {
+                    print!(" | ");
+                }
+            }
+            print_row_separator(&*p, nColumn as i32, '|');
+        }
+        16 => {
+            colSep = concatcp!(" ", BOX_13, " ");
+            rowSep = concatcp!(" ", BOX_13, "\n");
+            print_box_row_separator(&*p, nColumn as i32, BOX_23, BOX_234, BOX_34);
+            print!("{} ", BOX_13);
+            for i in 0..nColumn {
+                let w = (*p).actualWidth[i] as usize;
+                let n = azData[i].chars().count();
+
+                print!(
+                    "{content1:width1$}{content2}{content3:width3$}{content4}",
+                    width1 = ((w - n) / 2),
+                    content1 = " ",
+                    content2 = &azData[i],
+                    width3 = ((w - n + 1) / 2),
+                    content3 = " ",
+                    content4 = if i == (nColumn - 1) {
+                        concatcp!(" ", BOX_13, "\n")
+                    } else {
+                        concatcp!(" ", BOX_13, " ")
+                    },
+                );
+            }
+            print_box_row_separator(&*p, nColumn as i32, BOX_123, BOX_1234, BOX_134);
+        }
+        _ => {}
+    }
+
+    let mut i = nColumn as usize;
+    let mut j: isize = 0;
+    let nColumn = nColumn as usize;
+    loop {
+        if !(i < nTotal as usize) {
+            break;
+        }
+        if j == 0 && (*p).cMode != 1 {
+            print!("{}", if (*p).cMode == 16 { concatcp!(BOX_13, " ") } else { "| " },);
+        }
+        let mut z = azData[i].as_str();
+        if z.is_empty() {
+            z = (*p).nullValue.as_str();
+        }
+        let mut w = (*p).actualWidth[j as usize];
+        if (*p).colWidth[j as usize] < 0 {
+            w = -w;
+        }
+        utf8_width_print(w, z);
+        if j as usize == nColumn - 1 {
+            print!("{}", rowSep);
+            if bMultiLineRowExists && abRowDiv[(i / nColumn - 1)] != 0 && (i + 1) < nTotal {
+                if (*p).cMode == 15 {
+                    print_row_separator(&*p, nColumn as i32, '+');
+                } else if (*p).cMode == 16 {
+                    print_box_row_separator(&*p, nColumn as i32, BOX_123, BOX_1234, BOX_134);
+                } else if (*p).cMode == 1 {
+                    println!();
+                }
+            }
+            j = -1;
+            if seenInterrupt != 0 {
+                return;
+            }
+        } else {
+            print!("{}", colSep);
+        }
+        i += 1;
+        j += 1;
+    }
+
+    if (*p).cMode == 15 {
+        print_row_separator(&*p, nColumn as i32, '+');
+    } else if (*p).cMode == 16 {
+        print_box_row_separator(&*p, nColumn as i32, BOX_12, BOX_124, BOX_14);
     }
 }
 
@@ -9859,63 +9831,65 @@ unsafe fn exec_prepared_stmt(pArg: *mut ShellState, pStmt: *mut sqlite3_stmt) {
         return;
     }
     let mut rc = sqlite3_step(pStmt);
-    if 100 == rc {
-        let mut nCol = sqlite3_column_count(pStmt) as usize;
+    if rc != 100 {
+        return;
+    }
 
-        let mut azCols = Vec::new();
-        azCols.resize(nCol, 0 as *mut i8);
+    let mut nCol = sqlite3_column_count(pStmt) as usize;
 
-        let mut azVals = Vec::new();
-        azVals.resize(nCol, 0 as *mut i8);
+    let mut azCols = Vec::new();
+    azCols.resize(nCol, 0 as *mut i8);
 
-        let mut aiTypes = Vec::new();
-        aiTypes.resize(nCol, 0);
+    let mut azVals = Vec::new();
+    azVals.resize(nCol, 0 as *mut i8);
 
-        assert!(::std::mem::size_of::<i32>() as u64 <= ::std::mem::size_of::<*mut i8>() as u64);
+    let mut aiTypes = Vec::new();
+    aiTypes.resize(nCol, 0);
 
+    assert!(::std::mem::size_of::<i32>() as u64 <= ::std::mem::size_of::<*mut i8>() as u64);
+
+    for i in 0..nCol {
+        azCols[i] = sqlite3_column_name(pStmt, i as i32) as *mut i8;
+    }
+
+    let mut nRow: u64 = 0;
+    loop {
+        nRow += 1;
         for i in 0..nCol {
-            azCols[i] = sqlite3_column_name(pStmt, i as i32) as *mut i8;
-        }
-
-        let mut nRow: u64 = 0;
-        loop {
-            nRow += 1;
-            for i in 0..nCol {
-                let x = sqlite3_column_type(pStmt, i as i32);
-                aiTypes[i] = x;
-                if x == 4 && !pArg.is_null() && ((*pArg).cMode == 5 || (*pArg).cMode == 6) {
-                    azVals[i] = b"\0" as *const u8 as *const i8 as *mut i8;
-                } else {
-                    azVals[i] = sqlite3_column_text(pStmt, i as i32) as *mut i8;
-                }
-                if azVals[i].is_null() && aiTypes[i] != 5 {
-                    rc = 7;
-                    break;
-                }
+            let x = sqlite3_column_type(pStmt, i as i32);
+            aiTypes[i] = x;
+            if x == 4 && !pArg.is_null() && ((*pArg).cMode == 5 || (*pArg).cMode == 6) {
+                azVals[i] = b"\0" as *const u8 as *const i8 as *mut i8;
+            } else {
+                azVals[i] = sqlite3_column_text(pStmt, i as i32) as *mut i8;
             }
-            if 100 == rc {
-                if shell_callback(
-                    pArg as *mut libc::c_void,
-                    nCol as i32,
-                    azVals.as_mut_ptr(),
-                    azCols.as_mut_ptr(),
-                    aiTypes.as_mut_ptr(),
-                ) != 0
-                {
-                    rc = 4;
-                } else {
-                    rc = sqlite3_step(pStmt);
-                }
-            }
-            if !(100 == rc) {
+            if azVals[i].is_null() && aiTypes[i] != 5 {
+                rc = 7;
                 break;
             }
         }
-        if (*pArg).cMode == 13 {
-            println!("]");
-        } else if (*pArg).cMode == 17 {
-            print!("{} row{}", nRow, if nRow != 1 { "s" } else { "" });
+        if 100 == rc {
+            if shell_callback(
+                pArg as *mut libc::c_void,
+                nCol as i32,
+                azVals.as_mut_ptr(),
+                azCols.as_mut_ptr(),
+                aiTypes.as_mut_ptr(),
+            ) != 0
+            {
+                rc = 4;
+            } else {
+                rc = sqlite3_step(pStmt);
+            }
         }
+        if !(100 == rc) {
+            break;
+        }
+    }
+    if (*pArg).cMode == 13 {
+        println!("]");
+    } else if (*pArg).cMode == 17 {
+        print!("{} row{}", nRow, if nRow != 1 { "s" } else { "" });
     }
 }
 
@@ -10181,15 +10155,15 @@ unsafe fn shell_exec(mut pArg: *mut ShellState, zSql: &str, pzErrMsg: &mut Strin
     }
     return rc;
 }
-unsafe extern "C" fn freeColumnList(mut azCol: *mut *mut i8) {
-    let mut i: i32 = 0;
-    i = 1;
-    while !(*azCol.offset(i as isize)).is_null() {
-        sqlite3_free(*azCol.offset(i as isize) as *mut libc::c_void);
-        i += 1;
-    }
-    sqlite3_free(azCol as *mut libc::c_void);
-}
+// unsafe extern "C" fn freeColumnList(mut azCol: *mut *mut i8) {
+//     let mut i: i32 = 0;
+//     i = 1;
+//     while !(*azCol.offset(i as isize)).is_null() {
+//         sqlite3_free(*azCol.offset(i as isize) as *mut libc::c_void);
+//         i += 1;
+//     }
+//     sqlite3_free(azCol as *mut libc::c_void);
+// }
 
 /*
 ** Return a list of pointers to strings which are the names of all
@@ -10204,14 +10178,14 @@ unsafe extern "C" fn freeColumnList(mut azCol: *mut *mut i8) {
 ** The first regular column in the table is azCol[1].  The list is terminated
 ** by an entry with azCol[i]==0.
 */
-unsafe fn tableColumnList(mut p: *mut ShellState, zTab: &str) -> Vec<String> {
+unsafe fn tableColumnList(p: *mut ShellState, zTab: &str) -> Vec<String> {
     let mut azCol = Vec::new();
     let mut pStmt: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
 
     let mut nCol: i32 = 0;
     let mut nPK: i32 = 0;
     let mut isIPK = false;
-    let mut preserveRowid: i32 = ((*p).shellFlgs & 0x8 != 0) as i32;
+    let mut preserveRowid = ((*p).shellFlgs & 0x8 != 0);
 
     let zSql = format!("PRAGMA table_info={}\0", zTab); // FIXME: use %Q as quoted text
     let mut rc = sqlite3_prepare_v2((*p).db, zSql.as_ptr() as _, -1, &mut pStmt, 0 as *mut *const i8);
@@ -10245,23 +10219,19 @@ unsafe fn tableColumnList(mut p: *mut ShellState, zTab: &str) -> Vec<String> {
         return azCol;
     }
 
-    if preserveRowid != 0 && isIPK {
-        let zSql = sqlite3_mprintf(
-            b"SELECT 1 FROM pragma_index_list(%Q) WHERE origin='pk'\0" as *const u8 as *const i8,
-            zTab,
-        );
-        shell_check_oom(zSql as *mut libc::c_void);
-        rc = sqlite3_prepare_v2((*p).db, zSql, -1, &mut pStmt, 0 as *mut *const i8);
-        sqlite3_free(zSql as *mut libc::c_void);
+    if preserveRowid && isIPK {
+        let zSql = format!("SELECT 1 FROM pragma_index_list({}) WHERE origin='pk'\0", zTab); // FIXME: %Q quote
+        rc = sqlite3_prepare_v2((*p).db, zSql.as_ptr() as _, -1, &mut pStmt, 0 as *mut *const i8);
+        drop(zSql);
         if rc != 0 {
             azCol.clear();
             return azCol;
         }
         rc = sqlite3_step(pStmt);
         sqlite3_finalize(pStmt);
-        preserveRowid = (rc == 100) as i32;
+        preserveRowid = (rc == 100);
     }
-    if preserveRowid != 0 {
+    if preserveRowid {
         const azRowid: [&'static str; 3] = ["rowid", "_rowid_", "oid"];
         for j in 0..3 {
             let mut n = 0;
@@ -11402,26 +11372,25 @@ unsafe fn test_breakpoint() {
     static mut nCall: i32 = 0;
     nCall += 1;
 }
+
 unsafe fn import_cleanup(p: *mut ImportCtx) {
     if !((*p).in_0).is_null() && ((*p).xCloser).is_some() {
         ((*p).xCloser).expect("non-null function pointer")((*p).in_0);
         (*p).in_0 = 0 as *mut FILE;
     }
-    sqlite3_free((*p).z as *mut libc::c_void);
-    (*p).z = std::ptr::null_mut();
+    (*p).z.clear();
 }
 
-unsafe fn import_append_char(p: *mut ImportCtx, c: i32) {
+unsafe fn import_append_char(p: *mut ImportCtx, c: u8) {
     if (*p).n + 1 >= (*p).nAlloc {
         (*p).nAlloc += (*p).nAlloc + 100;
-        (*p).z = sqlite3_realloc64((*p).z as *mut libc::c_void, (*p).nAlloc as u64) as *mut i8;
-        shell_check_oom((*p).z as *mut libc::c_void);
+        (*p).z.reserve((*p).nAlloc as usize);
     }
-    *((*p).z).offset((*p).n as isize) = c as i8;
+    ((*p).z).push(c as char);
     (*p).n += 1;
 }
 
-unsafe extern "C" fn csv_read_one_field(p: *mut ImportCtx) -> *mut i8 {
+unsafe fn csv_read_one_field(p: *mut ImportCtx) -> *mut i8 {
     let mut c: i32 = 0;
     let mut cSep: i32 = (*p).cColSep;
     let mut rSep: i32 = (*p).cRowSep;
@@ -11456,7 +11425,7 @@ unsafe extern "C" fn csv_read_one_field(p: *mut ImportCtx) -> *mut i8 {
             {
                 loop {
                     (*p).n -= 1;
-                    if !(*((*p).z).offset((*p).n as isize) as i32 != cQuote) {
+                    if !(((*p).z).as_bytes()[(*p).n as usize] as i32 != cQuote) {
                         break;
                     }
                 }
@@ -11464,19 +11433,14 @@ unsafe extern "C" fn csv_read_one_field(p: *mut ImportCtx) -> *mut i8 {
                 break;
             } else {
                 if pc == cQuote && c != '\r' as i32 {
-                    eprintln!("{}:{}: unescaped {} character", cstr_to_string!((*p).zFile), (*p).nLine, cQuote);
+                    eprintln!("{}:{}: unescaped {} character", (*p).zFile, (*p).nLine, cQuote);
                 }
                 if c == -1 {
-                    eprintln!(
-                        "{}:{}: unterminated {}-quoted field",
-                        cstr_to_string!((*p).zFile),
-                        startLine,
-                        cQuote
-                    );
+                    eprintln!("{}:{}: unterminated {}-quoted field", (*p).zFile, startLine, cQuote);
                     (*p).cTerm = c;
                     break;
                 } else {
-                    import_append_char(p, c);
+                    import_append_char(p, c as u8);
                     ppc = pc;
                     pc = c;
                 }
@@ -11484,10 +11448,10 @@ unsafe extern "C" fn csv_read_one_field(p: *mut ImportCtx) -> *mut i8 {
         }
     } else {
         if c & 0xff as i32 == 0xef as i32 && (*p).bNotFirst == 0 {
-            import_append_char(p, c);
+            import_append_char(p, c as u8);
             c = fgetc((*p).in_0);
             if c & 0xff as i32 == 0xbb as i32 {
-                import_append_char(p, c);
+                import_append_char(p, c as u8);
                 c = fgetc((*p).in_0);
                 if c & 0xff as i32 == 0xbf as i32 {
                     (*p).bNotFirst = 1;
@@ -11497,135 +11461,121 @@ unsafe extern "C" fn csv_read_one_field(p: *mut ImportCtx) -> *mut i8 {
             }
         }
         while c != -1 && c != cSep && c != rSep {
-            import_append_char(p, c);
+            import_append_char(p, c as u8);
             c = fgetc((*p).in_0);
         }
         if c == rSep {
             (*p).nLine += 1;
-            if (*p).n > 0 && *((*p).z).offset(((*p).n - 1) as isize) as i32 == '\r' as i32 {
+            if (*p).n > 0 && ((*p).z).as_bytes()[((*p).n - 1) as usize] as i32 == '\r' as i32 {
                 (*p).n -= 1;
             }
         }
         (*p).cTerm = c;
     }
-    if !((*p).z).is_null() {
-        *((*p).z).offset((*p).n as isize) = 0;
+    if !((*p).z).is_empty() {
+        ((*p).z).truncate((*p).n as usize);
     }
     (*p).bNotFirst = 1;
-    return (*p).z;
+    return (*p).z.as_mut_ptr() as _;
 }
 
-unsafe extern "C" fn ascii_read_one_field(p: *mut ImportCtx) -> *mut i8 {
-    let mut c: i32 = 0;
-    let mut cSep: i32 = (*p).cColSep;
-    let mut rSep: i32 = (*p).cRowSep;
+/* Read a single field of ASCII delimited text.
+**
+**   +  Input comes from p->in.
+**   +  Store results in p->z of length p->n.  Space to hold p->z comes
+**      from sqlite3_malloc64().
+**   +  Use p->cSep as the column separator.  The default is "\x1F".
+**   +  Use p->rSep as the row separator.  The default is "\x1E".
+**   +  Keep track of the row number in p->nLine.
+**   +  Store the character that terminates the field in p->cTerm.  Store
+**      EOF on end-of-file.
+**   +  Report syntax errors on stderr
+*/
+unsafe fn ascii_read_one_field(p: *mut ImportCtx) -> *mut i8 {
     (*p).n = 0;
-    c = fgetc((*p).in_0);
+    let mut c = fgetc((*p).in_0);
     if c == -1 || seenInterrupt != 0 {
         (*p).cTerm = -1;
         return std::ptr::null_mut();
     }
+    let cSep = (*p).cColSep;
+    let rSep = (*p).cRowSep;
     while c != -1 && c != cSep && c != rSep {
-        import_append_char(p, c);
+        import_append_char(p, c as u8);
         c = fgetc((*p).in_0);
     }
     if c == rSep {
         (*p).nLine += 1;
     }
     (*p).cTerm = c;
-    if !((*p).z).is_null() {
-        *((*p).z).offset((*p).n as isize) = 0;
+    if ((*p).z).is_empty() == false {
+        ((*p).z).truncate((*p).n as usize);
     }
-    return (*p).z;
+    return (*p).z.as_mut_ptr() as _;
 }
 
-unsafe extern "C" fn tryToCloneData(p: *mut ShellState, newDb: *mut sqlite3, zTable: *const i8) {
+unsafe fn tryToCloneData(p: *mut ShellState, newDb: *mut sqlite3, zTable: &str) {
     let mut pQuery: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
     let mut pInsert: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
-    let mut zQuery: *mut i8 = std::ptr::null_mut();
-    let mut zInsert: *mut i8 = std::ptr::null_mut();
     let mut rc: i32 = 0;
-    let mut i: i32 = 0;
-    let mut n: i32 = 0;
-    let mut nTable: i32 = strlen30(zTable);
+    let nTable = zTable.chars().count();
     let mut cnt: i32 = 0;
     let spinRate: i32 = 10000;
-    zQuery = sqlite3_mprintf(b"SELECT * FROM \"%w\"\0" as *const u8 as *const i8, zTable);
-    shell_check_oom(zQuery as *mut libc::c_void);
-    rc = sqlite3_prepare_v2((*p).db, zQuery, -1, &mut pQuery, 0 as *mut *const i8);
+
+    let zQuery = format!("SELECT * FROM \"{}\"\0", zTable);
+    rc = sqlite3_prepare_v2((*p).db, zQuery.as_ptr() as _, -1, &mut pQuery, 0 as *mut *const i8);
     if rc != 0 {
         eprintln!(
             "Error {}: {} on [{}]",
             sqlite3_extended_errcode((*p).db),
             cstr_to_string!(sqlite3_errmsg((*p).db)),
-            cstr_to_string!(zQuery),
+            zQuery,
         );
     } else {
-        n = sqlite3_column_count(pQuery);
-        zInsert = sqlite3_malloc64((200 + nTable + n * 3) as u64) as *mut i8;
-        shell_check_oom(zInsert as *mut libc::c_void);
-        sqlite3_snprintf(
-            200 + nTable,
-            zInsert,
-            b"INSERT OR IGNORE INTO \"%s\" VALUES(?\0" as *const u8 as *const i8,
-            zTable,
-        );
-        i = strlen30(zInsert);
+        let n = sqlite3_column_count(pQuery) as usize;
+        let mut zInsert: Vec<u8> = Vec::with_capacity((200 + nTable + n * 3) as usize);
+        zInsert
+            .write_fmt(format_args!("INSERT OR IGNORE INTO \"{}\" VALUES(?\"", zTable))
+            .unwrap();
+
         for _ in 1..n {
-            memcpy(
-                zInsert.offset(i as isize) as *mut libc::c_void,
-                b",?\0" as *const u8 as *const i8 as *const libc::c_void,
-                2 as u64,
-            );
-            i += 2;
+            zInsert.push_str(b",?");
         }
-        memcpy(
-            zInsert.offset(i as isize) as *mut libc::c_void,
-            b");\0" as *const u8 as *const i8 as *const libc::c_void,
-            3 as u64,
-        );
-        rc = sqlite3_prepare_v2(newDb, zInsert, -1, &mut pInsert, 0 as *mut *const i8);
+        zInsert.push_str(b");\0");
+        let rc = sqlite3_prepare_v2(newDb, zInsert.as_ptr() as _, -1, &mut pInsert, 0 as *mut *const i8);
         if rc != 0 {
             eprintln!(
                 "Error {}: {} on [{}]",
                 sqlite3_extended_errcode(newDb),
                 cstr_to_string!(sqlite3_errmsg(newDb)),
-                cstr_to_string!(zQuery),
+                zQuery,
             );
         } else {
             for _ in 0..2 {
+                let mut rc;
                 loop {
                     rc = sqlite3_step(pQuery);
                     if !(rc == 100) {
                         break;
                     }
-                    for i in 0..n {
+                    for i in 0..n as i32 {
                         match sqlite3_column_type(pQuery, i) {
-                            5 => {
-                                sqlite3_bind_null(pInsert, i + 1);
-                            }
-                            1 => {
-                                sqlite3_bind_int64(pInsert, i + 1, sqlite3_column_int64(pQuery, i));
-                            }
-                            2 => {
-                                sqlite3_bind_double(pInsert, i + 1, sqlite3_column_double(pQuery, i));
-                            }
-                            3 => {
-                                sqlite3_bind_text(pInsert, i + 1, sqlite3_column_text(pQuery, i) as *const i8, -1, None);
-                            }
-                            4 => {
-                                sqlite3_bind_blob(
-                                    pInsert,
-                                    i + 1,
-                                    sqlite3_column_blob(pQuery, i),
-                                    sqlite3_column_bytes(pQuery, i),
-                                    None,
-                                );
-                            }
-                            _ => {}
-                        }
+                            5 => sqlite3_bind_null(pInsert, i + 1),
+                            1 => sqlite3_bind_int64(pInsert, i + 1, sqlite3_column_int64(pQuery, i)),
+                            2 => sqlite3_bind_double(pInsert, i + 1, sqlite3_column_double(pQuery, i)),
+                            3 => sqlite3_bind_text(pInsert, i + 1, sqlite3_column_text(pQuery, i) as *const i8, -1, None),
+                            4 => sqlite3_bind_blob(
+                                pInsert,
+                                i + 1,
+                                sqlite3_column_blob(pQuery, i),
+                                sqlite3_column_bytes(pQuery, i),
+                                None,
+                            ),
+                            _ => 0,
+                        };
                     }
-                    rc = sqlite3_step(pInsert);
+
+                    let rc = sqlite3_step(pInsert);
                     if rc != 0 && rc != 100 && rc != 101 {
                         eprintln!(
                             "Error {}: {}",
@@ -11644,12 +11594,10 @@ unsafe extern "C" fn tryToCloneData(p: *mut ShellState, newDb: *mut sqlite3, zTa
                     break;
                 }
                 sqlite3_finalize(pQuery);
-                sqlite3_free(zQuery as *mut libc::c_void);
-                zQuery = sqlite3_mprintf(b"SELECT * FROM \"%w\" ORDER BY rowid DESC;\0" as *const u8 as *const i8, zTable);
-                shell_check_oom(zQuery as *mut libc::c_void);
-                rc = sqlite3_prepare_v2((*p).db, zQuery, -1, &mut pQuery, 0 as *mut *const i8);
+                let zQuery = format!("SELECT * FROM \"{}\" ORDER BY rowid DESC;\0", zTable);
+                let rc = sqlite3_prepare_v2((*p).db, zQuery.as_ptr() as _, -1, &mut pQuery, 0 as *mut *const i8);
                 if rc != 0 {
-                    eprintln!("Warning: cannot step \"{}\" backwards", cstr_to_string!(zTable));
+                    eprintln!("Warning: cannot step \"{}\" backwards", zTable);
                     break;
                 }
             }
@@ -11657,8 +11605,6 @@ unsafe extern "C" fn tryToCloneData(p: *mut ShellState, newDb: *mut sqlite3, zTa
     }
     sqlite3_finalize(pQuery);
     sqlite3_finalize(pInsert);
-    sqlite3_free(zQuery as *mut libc::c_void);
-    sqlite3_free(zInsert as *mut libc::c_void);
 }
 
 /*
@@ -11671,7 +11617,7 @@ unsafe fn tryToCloneSchema(
     mut p: *mut ShellState,
     mut newDb: *mut sqlite3,
     zWhere: &str,
-    mut xForEach: Option<unsafe extern "C" fn(*mut ShellState, *mut sqlite3, *const i8) -> ()>,
+    xForEach: Option<unsafe fn(*mut ShellState, *mut sqlite3, &str) -> ()>,
 ) {
     let mut pQuery: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
     let mut zQuery: *mut i8 = std::ptr::null_mut();
@@ -11703,7 +11649,8 @@ unsafe fn tryToCloneSchema(
             if zName.is_null() || zSql.is_null() {
                 continue;
             }
-            print!("{}... ", cstr_to_string!(zName as *const i8));
+            let zName = cstr_to_string!(zName);
+            print!("{}... ", zName);
             fflush(stdout);
             sqlite3_exec(newDb, zSql as *const i8, None, std::ptr::null_mut(), &mut zErrMsg);
             if !zErrMsg.is_null() {
@@ -11712,7 +11659,7 @@ unsafe fn tryToCloneSchema(
                 zErrMsg = std::ptr::null_mut();
             }
             if xForEach.is_some() {
-                xForEach.expect("non-null function pointer")(p, newDb, zName as *const i8);
+                xForEach.expect("non-null function pointer")(p, newDb, &zName);
             }
             println!("done");
         }
@@ -11739,7 +11686,8 @@ unsafe fn tryToCloneSchema(
                     if zName.is_null() || zSql.is_null() {
                         continue;
                     }
-                    print!("{}...", cstr_to_string!(zName as *const i8));
+                    let zName = cstr_to_string!(zName as *const i8);
+                    print!("{}...", zName);
                     fflush(stdout);
                     sqlite3_exec(newDb, zSql as *const i8, None, std::ptr::null_mut(), &mut zErrMsg);
                     if !zErrMsg.is_null() {
@@ -11748,7 +11696,7 @@ unsafe fn tryToCloneSchema(
                         zErrMsg = std::ptr::null_mut();
                     }
                     if xForEach.is_some() {
-                        xForEach.expect("non-null function pointer")(p, newDb, zName as *const i8);
+                        xForEach.expect("non-null function pointer")(p, newDb, &zName);
                     }
                     println!("done");
                 }
@@ -11888,7 +11836,7 @@ unsafe fn shell_dbinfo_command(p: *mut ShellState, nArg: i32, razArg: &Vec<Strin
         },
         C2RustUnnamed_23 {
             zName: "incremental vacuum:",
-            ofst: 64 as i32,
+            ofst: 64,
         },
         C2RustUnnamed_23 {
             zName: "text encoding:",
@@ -12431,7 +12379,7 @@ pub unsafe extern "C" fn shellPreparePrintf(
         ap = args.clone();
         z = sqlite3_vmprintf(zFmt, ap.as_va_list());
         if z.is_null() {
-            *pRc = 7 as i32;
+            *pRc = 7;
         } else {
             shellPrepare(db, pRc, z, ppStmt);
             sqlite3_free(z as *mut libc::c_void);
@@ -12463,13 +12411,27 @@ pub unsafe extern "C" fn shellReset(mut pRc: *mut i32, mut pStmt: *mut sqlite3_s
     }
 }
 unsafe extern "C" fn rc_err_oom_die(mut rc: i32) {
-    if rc == 7 as i32 {
+    if rc == 7 {
         shell_check_oom(0 as *mut libc::c_void);
     }
     assert!(rc == 0 || rc == 101);
 }
+
+/*
+ * zAutoColumn(zCol, &db, ?) => Maybe init db, add column zCol to it.
+ * zAutoColumn(0, &db, ?) => (db!=0) Form columns spec for CREATE TABLE,
+ *   close db and set it to 0, and return the columns spec, to later
+ *   be sqlite3_free()'ed by the caller.
+ * The return is 0 when either:
+ *   (a) The db was not initialized and zCol==0 (There are no columns.)
+ *   (b) zCol!=0  (Column was added, db initialized as needed.)
+ * The 3rd argument, pRenamed, references an out parameter. If the
+ * pointer is non-zero, its referent will be set to a summary of renames
+ * done if renaming was necessary, or set to 0 if none was done. The out
+ * string (if any) must be sqlite3_free()'ed by the caller.
+ */
 const zCOL_DB: *const i8 = b":memory:\0" as *const u8 as *const i8;
-unsafe fn zAutoColumn(mut zColNew: *const i8, mut pDb: *mut *mut sqlite3, mut pzRenamed: *mut *mut i8) -> *mut i8 {
+unsafe fn zAutoColumn(zColNew: &str, mut pDb: *mut *mut sqlite3, mut pzRenamed: *mut *mut i8) -> *mut i8 {
     const zTabMake: *const i8 = b"CREATE TABLE ColNames( cpos INTEGER PRIMARY KEY, name TEXT, nlen INT, chop INT, reps INT, suff TEXT);CREATE VIEW RepeatedNames AS SELECT DISTINCT t.name FROM ColNames t WHERE t.name COLLATE NOCASE IN ( SELECT o.name FROM ColNames o WHERE o.cpos<>t.cpos);\0"
         as *const u8 as *const i8;
     const zTabFill: *const i8 =
@@ -12488,7 +12450,7 @@ unsafe fn zAutoColumn(mut zColNew: *const i8, mut pDb: *mut *mut sqlite3, mut pz
     let mut rc: i32 = 0;
     let mut pStmt: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
     assert!(!pDb.is_null());
-    if !zColNew.is_null() {
+    if !zColNew.is_empty() {
         if (*pDb).is_null() {
             if 0 != sqlite3_open(zCOL_DB, pDb) {
                 return std::ptr::null_mut();
@@ -12499,7 +12461,7 @@ unsafe fn zAutoColumn(mut zColNew: *const i8, mut pDb: *mut *mut sqlite3, mut pz
         assert!(!(*pDb).is_null());
         rc = sqlite3_prepare_v2(*pDb, zTabFill, -1, &mut pStmt, 0 as *mut *const i8);
         rc_err_oom_die(rc);
-        rc = sqlite3_bind_text(pStmt, 1, zColNew, -1, None);
+        rc = sqlite3_bind_text(pStmt, 1, to_cstring!(zColNew), -1, None);
         rc_err_oom_die(rc);
         rc = sqlite3_step(pStmt);
         rc_err_oom_die(rc);
@@ -13395,41 +13357,19 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                 let mut nSep: i32 = 0;
                 let mut zSql_0: *mut i8 = std::ptr::null_mut();
                 let mut zFullTabName: *mut i8 = std::ptr::null_mut();
-                let mut sCtx: ImportCtx = ImportCtx {
-                    zFile: 0 as *const i8,
-                    in_0: 0 as *mut FILE,
-                    xCloser: None,
-                    z: std::ptr::null_mut(),
-                    n: 0,
-                    nAlloc: 0,
-                    nLine: 0,
-                    nRow: 0,
-                    nErr: 0,
-                    bNotFirst: 0,
-                    cTerm: 0,
-                    cColSep: 0,
-                    cRowSep: 0,
-                };
-                let mut xRead: Option<unsafe extern "C" fn(*mut ImportCtx) -> *mut i8> = None;
                 let mut eVerbose: i32 = 0;
                 let mut nSkip: i32 = 0;
                 let mut useOutputMode: i32 = 1;
                 let mut zCreate: *mut i8 = std::ptr::null_mut();
                 failIfSafeMode(p, "cannot run .import in safe mode");
-                memset(
-                    &mut sCtx as *mut ImportCtx as *mut libc::c_void,
-                    0,
-                    ::std::mem::size_of::<ImportCtx>() as u64,
-                );
-                sCtx.z = sqlite3_malloc64(120) as *mut i8;
-                if (sCtx.z).is_null() {
-                    import_cleanup(&mut sCtx);
-                    shell_out_of_memory();
-                }
+                let mut sCtx: ImportCtx = ImportCtx::new();
+                sCtx.z.reserve(120);
+
+                let mut xRead: unsafe fn(*mut ImportCtx) -> *mut i8;
                 if (*p).mode == 10 {
-                    xRead = Some(ascii_read_one_field);
+                    xRead = ascii_read_one_field;
                 } else {
-                    xRead = Some(csv_read_one_field);
+                    xRead = csv_read_one_field;
                 }
 
                 let mut zFile_1 = String::new();
@@ -13461,12 +13401,12 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                     } else if z_3 == "-ascii" {
                         sCtx.cColSep = (*::std::mem::transmute::<&[u8; 2], &[i8; 2]>(b"\x1F\0"))[0] as i32;
                         sCtx.cRowSep = (*::std::mem::transmute::<&[u8; 2], &[i8; 2]>(b"\x1E\0"))[0] as i32;
-                        xRead = Some(ascii_read_one_field);
+                        xRead = ascii_read_one_field;
                         useOutputMode = 0;
                     } else if z_3 == "-csv" {
                         sCtx.cColSep = ',' as i32;
                         sCtx.cRowSep = '\n' as i32;
-                        xRead = Some(csv_read_one_field);
+                        xRead = csv_read_one_field;
                         useOutputMode = 0;
                     } else {
                         println!("ERROR: unknown option: \"{}\".  Usage:", z_3);
@@ -13522,14 +13462,14 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                     sCtx.cRowSep = (*p).rowSeparator.as_bytes()[0] as i32;
                 }
 
-                sCtx.zFile = to_cstring!(zFile_1.clone());
+                sCtx.zFile = zFile_1.clone();
                 sCtx.nLine = 1;
-                if *(sCtx.zFile).offset(0) as i32 == '|' as i32 {
-                    sCtx.in_0 = popen((sCtx.zFile).offset(1), b"r\0" as *const u8 as *const i8);
-                    sCtx.zFile = b"<pipe>\0" as *const u8 as *const i8;
+                if sCtx.zFile.starts_with('|') {
+                    sCtx.in_0 = popen(to_cstring!(&sCtx.zFile[1..]), b"r\0" as *const u8 as *const i8);
+                    sCtx.zFile = String::from("<pipe>");
                     sCtx.xCloser = Some(pclose);
                 } else {
-                    sCtx.in_0 = fopen(sCtx.zFile, b"rb\0" as *const u8 as *const i8);
+                    sCtx.in_0 = fopen(to_cstring!(sCtx.zFile.as_str()), b"rb\0" as *const u8 as *const i8);
                     sCtx.xCloser = Some(fclose);
                 }
 
@@ -13554,7 +13494,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                     if !(fresh259 > 0) {
                         break;
                     }
-                    while !(xRead.expect("non-null function pointer")(&mut sCtx)).is_null() && sCtx.cTerm == sCtx.cColSep {}
+                    while !(xRead(&mut sCtx)).is_null() && sCtx.cTerm == sCtx.cColSep {}
                 }
 
                 if !zSchema_1.is_empty() {
@@ -13580,25 +13520,24 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                         zRenames = std::ptr::null_mut();
                         zColDefs = std::ptr::null_mut();
                         zCreate = sqlite3_mprintf(b"CREATE TABLE %s\0" as *const u8 as *const i8, zFullTabName);
-                        while !(xRead.expect("non-null function pointer")(&mut sCtx)).is_null() {
-                            zAutoColumn(sCtx.z, &mut dbCols, 0 as *mut *mut i8);
+                        while !(xRead(&mut sCtx)).is_null() {
+                            zAutoColumn(&sCtx.z, &mut dbCols, 0 as *mut *mut i8);
                             if sCtx.cTerm != sCtx.cColSep {
                                 break;
                             }
                         }
-                        zColDefs = zAutoColumn(0 as *const i8, &mut dbCols, &mut zRenames);
+                        zColDefs = zAutoColumn("", &mut dbCols, &mut zRenames);
                         if !zRenames.is_null() {
-                            fprintf(
-                                if stdin_is_interactive == true { stdout } else { stderr },
-                                b"Columns renamed during .import %s due to duplicates:\n%s\n\0" as *const u8 as *const i8,
-                                sCtx.zFile,
-                                zRenames,
+                            println!(
+                                "Columns renamed during .import {} due to duplicates:\n{}",
+                                &sCtx.zFile,
+                                cstr_to_string!(zRenames),
                             );
                             sqlite3_free(zRenames as *mut libc::c_void);
                         }
                         assert!(dbCols.is_null());
                         if zColDefs.is_null() {
-                            eprintln!("{}: empty file", cstr_to_string!(sCtx.zFile));
+                            eprintln!("{}: empty file", &sCtx.zFile);
                             import_failed = true;
                             break 'import_fail;
                         }
@@ -13696,7 +13635,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                     let mut startLine: i32 = sCtx.nLine;
                     i_5 = 0;
                     while i_5 < nCol {
-                        let mut z_4: *mut i8 = xRead.expect("non-null function pointer")(&mut sCtx);
+                        let mut z_4: *mut i8 = xRead(&mut sCtx);
                         if z_4.is_null() && i_5 == 0 {
                             break;
                         }
@@ -13713,7 +13652,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                         if i_5 < nCol - 1 && sCtx.cTerm != sCtx.cColSep {
                             eprintln!(
                                 "{}:{}: expected {} columns but found {} - filling the rest with NULL",
-                                cstr_to_string!(sCtx.zFile),
+                                sCtx.zFile,
                                 startLine,
                                 nCol,
                                 i_5 + 1,
@@ -13728,7 +13667,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                     }
                     if sCtx.cTerm == sCtx.cColSep {
                         loop {
-                            xRead.expect("non-null function pointer")(&mut sCtx);
+                            xRead(&mut sCtx);
                             i_5 += 1;
                             if !(sCtx.cTerm == sCtx.cColSep) {
                                 break;
@@ -13736,10 +13675,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                         }
                         eprintln!(
                             "{}:{}: expected {} columns but found {} - extras ignored",
-                            cstr_to_string!(sCtx.zFile),
-                            startLine,
-                            nCol,
-                            i_5,
+                            sCtx.zFile, startLine, nCol, i_5,
                         );
                     }
                     if i_5 >= nCol {
@@ -13748,7 +13684,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                         if rc != 0 {
                             eprintln!(
                                 "{}:{}: INSERT failed: {}",
-                                cstr_to_string!(sCtx.zFile),
+                                sCtx.zFile,
                                 startLine,
                                 cstr_to_string!(sqlite3_errmsg((*p).db)),
                             );
@@ -14025,7 +13961,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
             "mode" => {
                 let mut zMode = String::new();
                 let mut zTabname = String::new();
-                let mut cmOpts: ColModeOpts = ColModeOpts::new(60, 0, 0);
+                let mut cmOpts: ColModeOpts = ColModeOpts::new(60, 0, false);
 
                 let mut iter = razArg[1..].iter().peekable();
                 while let Some(z_5) = iter.next() {
@@ -14034,10 +13970,10 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                         let n = iter.next().unwrap();
                         cmOpts.iWrap = integerValue(n) as i32;
                     } else if optionMatch(z_5, "ww") {
-                        cmOpts.bWordWrap = 1;
+                        cmOpts.bWordWrap = true;
                     } else if optionMatch(z_5, "wordwrap") && iter.peek().is_some() {
                         let n = iter.next().unwrap();
-                        cmOpts.bWordWrap = booleanValue(n) as u8;
+                        cmOpts.bWordWrap = booleanValue(n) != 0;
                     } else if optionMatch(z_5, "quote") {
                         cmOpts.bQuote = 1;
                     } else if optionMatch(z_5, "noquote") {
@@ -14045,7 +13981,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                     } else if zMode.is_empty() {
                         if z_5 == "qbox" {
                             zMode = "box".to_string();
-                            cmOpts = ColModeOpts::new(60, 1, 0);
+                            cmOpts = ColModeOpts::new(60, 1, false);
                         } else {
                             zMode = z_5.clone();
                         }
@@ -14069,7 +14005,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                             "current output mode: {} --wrap {} --wordwrap {} --{}quote",
                             modeDescr[(*p).mode as usize],
                             (*p).cmOpts.iWrap,
-                            if (*p).cmOpts.bWordWrap as i32 != 0 { "on" } else { "off" },
+                            if (*p).cmOpts.bWordWrap { "on" } else { "off" },
                             if (*p).cmOpts.bQuote as i32 != 0 { "" } else { "no" },
                         );
                     } else {
@@ -14077,7 +14013,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                     }
                     zMode = modeDescr[(*p).mode as usize].to_string();
                 }
-                // n2_1 = zMode.len() as i32;
+
                 if zMode == "lines" {
                     (*p).mode = 0;
                     (*p).rowSeparator = SmolStr::new_inline("\n");
@@ -14095,7 +14031,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                 } else if zMode == "html" {
                     (*p).mode = 4;
                 } else if zMode == "tcl" {
-                    (*p).mode = 7 as i32;
+                    (*p).mode = 7;
                     (*p).colSeparator = SmolStr::new_inline(" ");
                     (*p).rowSeparator = SmolStr::new_inline("\n");
                 } else if zMode == "csv" {
@@ -14232,10 +14168,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                 }
             }
             "output" | "once" | "excel" => {
-                // let mut bTxtMode: i32 = 0;
-
                 let mut eMode: i32 = 0;
-                // let mut bBOM: i32 = 0;
                 let mut bOnce: i32 = 0;
                 failIfSafeMode(p, &format!("cannot run .{} in safe mode", razArg[0]));
                 if razArg[0] == "excel" {
@@ -14244,7 +14177,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                 } else if razArg[0] == "once" {
                     bOnce = 1;
                 }
-                // let mut i_9 = 1;
+
                 let mut zFile_4 = String::new();
                 for i_9 in 1..nArg {
                     let z_7 = razArg[i_9 as usize].clone();
@@ -14581,7 +14514,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                 let mut iSchema: i32 = 0;
                 let mut bDebug: i32 = 0;
                 let mut bNoSystemTabs: i32 = 0;
-                // let mut ii_0: i32 = 0;
+
                 open_db(p, 0);
                 memcpy(
                     &mut data_0 as *mut ShellState as *mut libc::c_void,
@@ -14657,59 +14590,55 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                         rc = 1;
                         break 'meta_command;
                     }
-                    sSelect.append("SELECT sql FROM", 0);
+                    sSelect.push("SELECT sql FROM");
                     iSchema = 0;
                     while sqlite3_step(pStmt_5) == 100 {
                         let mut zDb_1: *const i8 = sqlite3_column_text(pStmt_5, 0) as *const i8;
                         let zDb_1 = cstr_to_string!(zDb_1);
                         let zScNum = iSchema.to_string();
                         iSchema += 1;
-                        sSelect.append(zDiv, 0);
+                        sSelect.push(zDiv);
                         zDiv = " UNION ALL ";
-                        sSelect.append("SELECT shell_add_schema(sql,", 0);
+                        sSelect.push("SELECT shell_add_schema(sql,");
                         if zDb_1 != "main" {
                             sSelect.append(&zDb_1, b'\'');
                         } else {
-                            sSelect.append("NULL", 0);
+                            sSelect.push("NULL");
                         }
-                        sSelect.append(",name) AS sql, type, tbl_name, name, rowid,", 0);
-                        sSelect.append(&zScNum, 0);
-                        sSelect.append(" AS snum, ", 0);
+                        sSelect.push(",name) AS sql, type, tbl_name, name, rowid,");
+                        sSelect.push(&zScNum);
+                        sSelect.push(" AS snum, ");
                         sSelect.append(&zDb_1, b'\'');
-                        sSelect.append(" AS sname FROM ", 0);
+                        sSelect.push(" AS sname FROM ");
                         sSelect.append(&zDb_1, quoteChar(&zDb_1));
-                        sSelect.append(".sqlite_schema", 0);
+                        sSelect.push(".sqlite_schema");
                     }
                     sqlite3_finalize(pStmt_5);
                     if zName.is_empty() == false {
-                        sSelect.append(
+                        sSelect.push(
                             " UNION ALL SELECT shell_module_schema(name), 'table', name, name, name, 9e+99, 'main' FROM pragma_module_list",
-                            0,
                         );
                     }
-                    sSelect.append(") WHERE ", 0);
+                    sSelect.push(") WHERE ");
                     if !zName.is_empty() {
-                        let mut zQarg: *mut i8 = sqlite3_mprintf(b"%Q\0" as *const u8 as *const i8, to_cstring!(zName));
-                        let mut bGlob = false;
-                        shell_check_oom(zQarg as *mut libc::c_void);
-                        bGlob = zName.contains('*') || zName.contains('?') || zName.contains('[');
+                        let zQarg = format!("{}", &zName); // FIXME: use quoted '%Q'
+                        let bGlob = zName.contains('*') || zName.contains('?') || zName.contains('[');
                         if zName.contains('.') {
-                            sSelect.append("lower(printf('%s.%s',sname,tbl_name))", 0);
+                            sSelect.push("lower(printf('%s.%s',sname,tbl_name))");
                         } else {
-                            sSelect.append("lower(tbl_name)", 0);
+                            sSelect.push("lower(tbl_name)");
                         }
-                        sSelect.append(if bGlob { " GLOB " } else { " LIKE " }, 0);
-                        sSelect.append(&cstr_to_string!(zQarg), 0);
+                        sSelect.push(if bGlob { " GLOB " } else { " LIKE " });
+                        sSelect.push(&zQarg);
                         if bGlob == false {
-                            sSelect.append(" ESCAPE '\\' ", 0);
+                            sSelect.push(" ESCAPE '\\' ");
                         }
-                        sSelect.append(" AND ", 0);
-                        sqlite3_free(zQarg as *mut libc::c_void);
+                        sSelect.push(" AND ");
                     }
                     if bNoSystemTabs != 0 {
-                        sSelect.append("name NOT LIKE 'sqlite_%%' AND ", 0);
+                        sSelect.push("name NOT LIKE 'sqlite_%%' AND ");
                     }
-                    sSelect.append("sql IS NOT NULL ORDER BY snum, rowid", 0);
+                    sSelect.push("sql IS NOT NULL ORDER BY snum, rowid");
                     if bDebug != 0 {
                         println!("SQL: {};", sSelect.as_str());
                     } else {
@@ -14747,7 +14676,6 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                 let mut bIsInit: i32 = 0;
                 let mut bVerbose: i32 = 0;
                 let mut bSelftestExists: i32 = 0;
-                // let mut i_12: i32 = 0;
                 let mut k: i32 = 0;
                 let mut nTest: i32 = 0;
                 let mut nErr: i32 = 0;
@@ -14818,10 +14746,8 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                         sqlite3_finalize(pStmt_6);
                         break 'meta_command;
                     }
-                    // i_12 = 0;
-                    while sqlite3_step(pStmt_6) == 100 {
-                        // i_12 += 1;
 
+                    while sqlite3_step(pStmt_6) == 100 {
                         let mut tno: i32 = sqlite3_column_int(pStmt_6, 0);
                         let mut zOp: *const i8 = sqlite3_column_text(pStmt_6, 1) as *const i8;
                         let mut zSql_4: *const i8 = sqlite3_column_text(pStmt_6, 2) as *const i8;
@@ -14902,7 +14828,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                 let mut iSize: i32 = 224;
                 let mut bDebug_0: i32 = 0;
                 let mut pStmt_7: *mut sqlite3_stmt = 0 as *mut sqlite3_stmt;
-                let mut zSql_5: *mut i8 = std::ptr::null_mut();
+                // let mut zSql_5: *mut i8 = std::ptr::null_mut();
                 let mut zSep_0 = "";
                 let mut sSql: ShellText = ShellText::new();
                 let mut sQuery: ShellText = ShellText::new();
@@ -14939,108 +14865,85 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                     }
                 }
 
-                if bSchema != 0 {
-                    zSql_5 = b"SELECT lower(name) FROM sqlite_schema WHERE type='table' AND coalesce(rootpage,0)>1 UNION ALL SELECT 'sqlite_schema' ORDER BY 1 collate nocase\0"
-                as *const u8 as *const i8 as *mut i8;
+                let zSql = if bSchema != 0 {
+                    B(b"SELECT lower(name) FROM sqlite_schema WHERE type='table' AND coalesce(rootpage,0)>1 UNION ALL SELECT 'sqlite_schema' ORDER BY 1 collate nocase\0")
                 } else {
-                    zSql_5 = b"SELECT lower(name) FROM sqlite_schema WHERE type='table' AND coalesce(rootpage,0)>1 AND name NOT LIKE 'sqlite_%' ORDER BY 1 collate nocase\0"
-                as *const u8 as *const i8 as *mut i8;
-                }
-                sqlite3_prepare_v2((*p).db, zSql_5, -1, &mut pStmt_7, 0 as *mut *const i8);
+                    B(b"SELECT lower(name) FROM sqlite_schema WHERE type='table' AND coalesce(rootpage,0)>1 AND name NOT LIKE 'sqlite_%' ORDER BY 1 collate nocase\0")
+                };
+                sqlite3_prepare_v2((*p).db, zSql.as_ptr() as _, -1, &mut pStmt_7, 0 as *mut *const i8);
                 sQuery.clear();
                 sSql.clear();
-                sSql.append("WITH [sha3sum$query](a,b) AS(", 0);
+                sSql.push("WITH [sha3sum$query](a,b) AS(");
                 zSep_0 = "VALUES(";
                 while 100 == sqlite3_step(pStmt_7) {
-                    let mut zTab: *const i8 = sqlite3_column_text(pStmt_7, 0) as *const i8;
+                    let zTab = sqlite3_column_text(pStmt_7, 0);
                     if zTab.is_null() {
                         continue;
                     }
-                    if !zLike_0.is_empty() && sqrite::strlike(&zLike_0, &cstr_to_string!(zTab), '\0') == false {
+                    let zTab = &cstr_to_string!(zTab);
+                    if !zLike_0.is_empty() && sqrite::strlike(&zLike_0, &zTab, '\0') == false {
                         continue;
                     }
-                    let zTab = &cstr_to_string!(zTab);
                     if zTab.starts_with("sqlite_") == false {
-                        sQuery.append("SELECT * FROM ", 0);
+                        sQuery.push("SELECT * FROM ");
                         sQuery.append(&zTab, b'"');
-                        sQuery.append(" NOT INDEXED;", 0);
+                        sQuery.push(" NOT INDEXED;");
                     } else if zTab == "sqlite_schema" {
-                        sQuery.append("SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY name;", 0);
+                        sQuery.push("SELECT type,name,tbl_name,sql FROM sqlite_schema ORDER BY name;");
                     } else if zTab == "sqlite_sequence" {
-                        sQuery.append("SELECT name,seq FROM sqlite_sequence ORDER BY name;", 0);
+                        sQuery.push("SELECT name,seq FROM sqlite_sequence ORDER BY name;");
                     } else if zTab == "sqlite_stat1" {
-                        sQuery.append("SELECT tbl,idx,stat FROM sqlite_stat1 ORDER BY tbl,idx;", 0);
+                        sQuery.push("SELECT tbl,idx,stat FROM sqlite_stat1 ORDER BY tbl,idx;");
                     } else if zTab == "sqlite_stat4" {
-                        sQuery.append("SELECT * FROM ", 0);
-                        sQuery.append(zTab, 0);
-                        sQuery.append(" ORDER BY tbl, idx, rowid;\n", 0);
+                        sQuery.push("SELECT * FROM ");
+                        sQuery.push(zTab);
+                        sQuery.push(" ORDER BY tbl, idx, rowid;\n");
                     }
-                    sSql.append(zSep_0, 0);
+                    sSql.push(zSep_0);
                     sSql.append(sQuery.as_str(), b'\'');
                     sQuery.clear();
-                    sSql.append(",", 0);
+                    sSql.push(",");
                     sSql.append(zTab, b'\'');
                     zSep_0 = "),(";
                 }
                 sqlite3_finalize(pStmt_7);
-                if bSeparate != 0 {
-                    zSql_5 = sqlite3_mprintf(
-                        b"%s)) SELECT lower(hex(sha3_query(a,%d))) AS hash, b AS label   FROM [sha3sum$query]\0" as *const u8 as *const i8,
-                        sSql.to_cstr(),
+
+                let zSql = if bSeparate != 0 {
+                    format!(
+                        "{})) SELECT lower(hex(sha3_query(a,{}))) AS hash, b AS label   FROM [sha3sum$query]",
+                        sSql.as_str(),
                         iSize,
-                    );
+                    )
                 } else {
-                    zSql_5 = sqlite3_mprintf(
-                        b"%s)) SELECT lower(hex(sha3_query(group_concat(a,''),%d))) AS hash   FROM [sha3sum$query]\0" as *const u8
-                            as *const i8,
-                        sSql.to_cstr(),
+                    format!(
+                        "{})) SELECT lower(hex(sha3_query(group_concat(a,''),{}))) AS hash   FROM [sha3sum$query]",
+                        sSql.as_str(),
                         iSize,
-                    );
-                }
-                shell_check_oom(zSql_5 as *mut libc::c_void);
+                    )
+                };
                 if bDebug_0 != 0 {
-                    println!("{}", cstr_to_string!(zSql_5));
+                    println!("{}", &zSql);
                 } else {
                     let mut pzErrMsg = String::new();
-                    shell_exec(p, &cstr_to_string!(zSql_5), &mut pzErrMsg);
+                    shell_exec(p, &zSql, &mut pzErrMsg);
                 }
-                sqlite3_free(zSql_5 as *mut libc::c_void);
             }
             "shell" | "system" => {
-                let mut zCmd_0: *mut i8 = std::ptr::null_mut();
-                let mut i_14: i32 = 0;
-                let mut x_4: i32 = 0;
                 failIfSafeMode(p, &format!("cannot run .{} in safe mode", razArg[0]));
                 if nArg < 2 {
                     eprintln!("Usage: .system COMMAND");
                     rc = 1;
                     break 'meta_command;
                 } else {
-                    zCmd_0 = sqlite3_mprintf(
-                        if razArg[1].contains(' ') == false {
-                            b"%s\0" as *const u8 as *const i8
-                        } else {
-                            b"\"%s\"\0" as *const u8 as *const i8
-                        },
-                        to_cstring!(razArg[1].clone()),
-                    );
-                    i_14 = 2;
-                    while i_14 < nArg && !zCmd_0.is_null() {
-                        zCmd_0 = sqlite3_mprintf(
-                            if razArg[i_14 as usize].contains(' ') == false {
-                                b"%z %s\0" as *const u8 as *const i8
-                            } else {
-                                b"%z \"%s\"\0" as *const u8 as *const i8
-                            },
-                            zCmd_0,
-                            to_cstring!(razArg[i_14 as usize].clone()),
-                        );
-                        i_14 += 1;
-                    }
-                    x_4 = if !zCmd_0.is_null() { system(zCmd_0) } else { 1 };
-                    sqlite3_free(zCmd_0 as *mut libc::c_void);
-                    if x_4 != 0 {
-                        eprintln!("System command returns {}", x_4);
+                    let mut builder = std::process::Command::new(&razArg[1]);
+                    builder.args(&razArg[2..]);
+                    match builder.status() {
+                        Err(err) => eprintln!("cannot execute command: {}", err),
+                        Ok(status) => {
+                            if status.success() == false {
+                                eprintln!("System command returns {}", status.code().unwrap());
+                            }
+                        }
                     }
                 }
             }
@@ -15074,7 +14977,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                         "mode",
                         modeDescr[(*p).mode as usize],
                         (*p).cmOpts.iWrap,
-                        if (*p).cmOpts.bWordWrap != 0 { "on" } else { "off" },
+                        if (*p).cmOpts.bWordWrap { "on" } else { "off" },
                         if (*p).cmOpts.bQuote != 0 { "" } else { "no" },
                     );
                 } else {
@@ -15330,8 +15233,6 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
 
                 let mut rc2: i32 = 0;
                 let mut isOk_0: i32 = 0;
-                // let mut i_17: i32 = 0;
-                // let mut n2_3: i32 = 0;
                 open_db(p, 0);
                 let mut zCmd_1 = if nArg >= 2 { &razArg[1] } else { "help" };
                 if zCmd_1.starts_with('-') {
@@ -15551,7 +15452,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                     sqlite3_file_control(
                         (*p).db,
                         to_cstring!(zDbName_0),
-                        27 as i32,
+                        27,
                         &mut pVfs as *mut *mut sqlite3_vfs as *mut libc::c_void,
                     );
                     if !pVfs.is_null() {
@@ -15569,7 +15470,7 @@ unsafe fn do_meta_command(zLine: &str, mut p: *mut ShellState) -> i32 {
                     sqlite3_file_control(
                         (*p).db,
                         b"main\0" as *const u8 as *const i8,
-                        27 as i32,
+                        27,
                         &mut pCurrent as *mut *mut sqlite3_vfs as *mut libc::c_void,
                     );
                 }
@@ -15856,8 +15757,6 @@ unsafe fn runOneSqlLine(mut p: *mut ShellState, zSql: &str, startline: i32) -> i
         };
 
         eprintln!("{} {}", zPrefix, zErrorTail);
-        // sqlite3_free(zErrMsg as *mut libc::c_void);
-        // zErrMsg = std::ptr::null_mut();
         return 1;
     } else {
         if (*p).shellFlgs & 0x20 != 0 {
@@ -16225,7 +16124,7 @@ unsafe fn main_0() -> i32 {
                 n = 0xffffffffffff as i64 / sz;
             }
             sqlite3_config(
-                7 as i32,
+                7,
                 if n > 0 && sz > 0 {
                     malloc((n * sz) as u64)
                 } else {
@@ -16236,20 +16135,14 @@ unsafe fn main_0() -> i32 {
             );
             data.shellFlgs |= 0x1;
         } else if zz == "-lookaside" {
-            let mut n_0: i32 = 0;
-            let mut sz_0: i32 = 0;
             i += 1;
-            sz_0 = integerValue(&cmdline_option_value(&args, i)) as i32;
-            if sz_0 < 0 {
-                sz_0 = 0;
-            }
+            let sz = integerValue(&cmdline_option_value(&args, i)) as i32;
+            let sz = std::cmp::max(0, sz);
             i += 1;
-            n_0 = integerValue(&cmdline_option_value(&args, i)) as i32;
-            if n_0 < 0 {
-                n_0 = 0;
-            }
-            sqlite3_config(13, sz_0, n_0);
-            if sz_0 * n_0 == 0 {
+            let n = integerValue(&cmdline_option_value(&args, i)) as i32;
+            let n = std::cmp::max(0, n);
+            sqlite3_config(13, sz, n);
+            if sz * n == 0 {
                 data.shellFlgs &= !(0x2) as u32;
             }
         } else if zz == "-threadsafe" {
